@@ -7,8 +7,6 @@ jobs:
   unittest:
     name: Code test
     runs-on: ${{ matrix.os }}
-    needs:
-      - build_fake_execs
     strategy:
       fail-fast: false
       matrix:
