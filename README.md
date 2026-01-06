@@ -10,7 +10,6 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/5b6e14a915b63faeae90/maintainability)](https://codeclimate.com/github/HansBug/hbllmutils/maintainability)
 [![codecov](https://codecov.io/gh/hansbug/hbllmutils/branch/main/graph/badge.svg?token=XJVDP4EFAT)](https://codecov.io/gh/hansbug/hbllmutils)
 
-[![Docs Deploy](https://github.com/hansbug/hbllmutils/workflows/Docs%20Deploy/badge.svg)](https://github.com/hansbug/hbllmutils/actions?query=workflow%3A%22Docs+Deploy%22)
 [![Code Test](https://github.com/hansbug/hbllmutils/workflows/Code%20Test/badge.svg)](https://github.com/hansbug/hbllmutils/actions?query=workflow%3A%22Code+Test%22)
 [![Badge Creation](https://github.com/hansbug/hbllmutils/workflows/Badge%20Creation/badge.svg)](https://github.com/hansbug/hbllmutils/actions?query=workflow%3A%22Badge+Creation%22)
 [![Package Release](https://github.com/hansbug/hbllmutils/workflows/Package%20Release/badge.svg)](https://github.com/hansbug/hbllmutils/actions?query=workflow%3A%22Package+Release%22)
