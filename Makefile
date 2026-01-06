@@ -1,5 +1,7 @@
 .PHONY: docs test unittest tbuild
 
+PYTHON ?= $(shell which python)
+
 PROJ_DIR := ${CURDIR}
 
 DOC_DIR    := ${PROJ_DIR}/docs
@@ -13,6 +15,11 @@ RANGE_TEST_DIR := ${TEST_DIR}/${RANGE_DIR}
 RANGE_SRC_DIR  := ${SRC_DIR}/${RANGE_DIR}
 
 COV_TYPES ?= xml term-missing
+
+package:
+	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
+clean:
+	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info
 
 test: unittest
 

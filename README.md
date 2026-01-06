@@ -5,8 +5,8 @@
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/hbllmutils)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/hbllmutils)
 
-![Loc](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/HansBug/1ffdd46a0c79027a7776b262143b20a4/raw/loc.json)
-![Comments](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/HansBug/1ffdd46a0c79027a7776b262143b20a4/raw/comments.json)
+![Loc](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/HansBug/f6212c5576d61750212301a636d6c794/raw/loc.json)
+![Comments](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/HansBug/f6212c5576d61750212301a636d6c794/raw/comments.json)
 [![Maintainability](https://api.codeclimate.com/v1/badges/5b6e14a915b63faeae90/maintainability)](https://codeclimate.com/github/HansBug/hbllmutils/maintainability)
 [![codecov](https://codecov.io/gh/hansbug/hbllmutils/branch/main/graph/badge.svg?token=XJVDP4EFAT)](https://codecov.io/gh/hansbug/hbllmutils)
 
