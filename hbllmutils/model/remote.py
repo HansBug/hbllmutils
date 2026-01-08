@@ -14,10 +14,11 @@ from urllib.parse import urlparse
 
 from openai import OpenAI, AsyncOpenAI
 
+from .base import LLMAbstractModel
 from .stream import ResponseStream
 
 
-class LLMRemoteModel:
+class LLMRemoteModel(LLMAbstractModel):
     """
     A client for interacting with remote Large Language Model APIs.
 
@@ -109,9 +110,8 @@ class LLMRemoteModel:
         self.default_params = dict(default_params or {})
 
         self._client_non_async = None
-        self._client_async = None
 
-    def create_openai_client(self, use_async: bool = False) -> Union[OpenAI, AsyncOpenAI]:
+    def _create_openai_client(self, use_async: bool = False) -> Union[OpenAI, AsyncOpenAI]:
         """
         Create an OpenAI client instance (synchronous or asynchronous).
 
@@ -123,8 +123,8 @@ class LLMRemoteModel:
 
         Example::
             >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
-            >>> sync_client = model.create_openai_client(use_async=False)
-            >>> async_client = model.create_openai_client(use_async=True)
+            >>> sync_client = model._create_openai_client(use_async=False)
+            >>> async_client = model._create_openai_client(use_async=True)
         """
         return (AsyncOpenAI if use_async else OpenAI)(
             api_key=self.api_token,
@@ -136,7 +136,7 @@ class LLMRemoteModel:
         )
 
     @property
-    def client(self) -> OpenAI:
+    def _client(self) -> OpenAI:
         """
         Get the synchronous OpenAI client instance.
 
@@ -147,27 +147,10 @@ class LLMRemoteModel:
 
         Example::
             >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
-            >>> client = model.client
+            >>> client = model._client
         """
-        self._client_non_async = self._client_non_async or self.create_openai_client(use_async=False)
+        self._client_non_async = self._client_non_async or self._create_openai_client(use_async=False)
         return self._client_non_async
-
-    @property
-    def async_client(self) -> AsyncOpenAI:
-        """
-        Get the asynchronous OpenAI client instance.
-
-        Creates a new client on first access and caches it for subsequent calls.
-
-        :return: Asynchronous OpenAI client instance
-        :rtype: AsyncOpenAI
-
-        Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
-            >>> async_client = model.async_client
-        """
-        self._client_async = self._client_async or self.create_openai_client(use_async=True)
-        return self._client_async
 
     def _get_non_async_session(self, messages: List[dict], stream: bool = False, **params):
         """
@@ -190,7 +173,7 @@ class LLMRemoteModel:
             >>> messages = [{"role": "user", "content": "Hello"}]
             >>> session = model._get_non_async_session(messages, stream=False)
         """
-        return self.client.chat.completions.create(
+        return self._client.chat.completions.create(
             model=self.model_name,
             messages=messages,
             stream=stream,
