@@ -1,1 +1,5 @@
 hbutils>=0.14.2
+openai
+tqdm
+pillow
+numpy
