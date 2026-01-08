@@ -20,20 +20,27 @@ _FORMAT_REPLACE = {'JPG': 'JPEG'}
 
 def to_blob_url(image: Image.Image, format: str = 'jpg', **save_kwargs) -> str:
     """
-    Convert an image to a blob URL string.
+    Convert a PIL Image to a blob URL string.
 
-    :param image: The input image, can be PIL Image, numpy array, or file path
-    :type image: ImageTyping
-    :param format: The desired image format for the blob URL, defaults to 'jpg'
+    This function encodes an image into a base64 data URL that can be embedded directly in HTML or CSS.
+    The image is saved to a buffer in the specified format, then base64-encoded and wrapped in a data URL.
+
+    :param image: The PIL Image object to convert
+    :type image: Image.Image
+    :param format: The desired image format for the blob URL (e.g., 'jpg', 'png', 'webp'), defaults to 'jpg'
     :type format: str
-    :param save_kwargs: Additional keyword arguments passed to PIL Image.save()
-    :return: A blob URL string containing the encoded image data
+    :param save_kwargs: Additional keyword arguments passed to PIL Image.save() method (e.g., quality, optimize)
+    :type save_kwargs: dict
+    :return: A blob URL string in the format 'data:{mime_type};base64,{encoded_data}'
     :rtype: str
 
-    :example:
+    Example::
+        >>> from PIL import Image
         >>> img = Image.open('test.jpg')
         >>> blob_url = to_blob_url(img, format='png', quality=95)
-        >>> print(blob_url)  # data:image/png;base64,...</pre>
+        >>> print(blob_url[:50])  # data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
+        >>> # Use with higher quality JPEG
+        >>> blob_url = to_blob_url(img, format='jpg', quality=95, optimize=True)
     """
     format = (_FORMAT_REPLACE.get(format.upper(), format)).upper()
     with BytesIO() as buffer:
