@@ -1,9 +1,9 @@
-import io
-from textwrap import indent
-from typing import Dict, Optional, Union, Any, List
+from typing import Dict, Optional, Union, Any, List, Tuple
 from urllib.parse import urlparse
 
 from openai import OpenAI, AsyncOpenAI
+
+from .stream import ResponseStream
 
 
 class LLMRemoteModel:
@@ -86,42 +86,14 @@ class LLMRemoteModel:
         session = self._get_non_async_session(messages=messages, stream=False, **params)
         return session.choices[0].message
 
-    def ask(self, messages: List[dict], with_reasoning: bool = False, **params):
+    def ask(self, messages: List[dict], with_reasoning: bool = False, **params) \
+            -> Union[str, Tuple[Optional[str], str]]:
         message = self.chat(messages=messages, **params)
-        with io.StringIO() as sio:
-            if with_reasoning and getattr(message, 'reasoning_content'):
-                print(indent(message.reasoning_content.rstrip(), prefix='> '), file=sio)
-                print('', file=sio)
-            print(message.content.rstrip(), file=sio)
-            return sio.getvalue()
+        if with_reasoning:
+            return getattr(message, 'reasoning_content'), message.content
+        else:
+            return message.content
 
-    def ask_simple(self, prompt: str, system_prompt: Optional[str] = None, with_reasoning: bool = False, **params):
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        return self.ask(
-            messages=messages,
-            with_reasoning=with_reasoning,
-            **params,
-        )
-
-    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params):
+    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params) -> ResponseStream:
         session = self._get_non_async_session(messages=messages, stream=True, **params)
-        status = 'none'
-        for chunk in session:
-            delta = chunk.choices[0].delta
-            if with_reasoning and getattr(delta, 'reasoning_content'):
-                if with_reasoning and status != 'reasoning':
-                    if status != 'none':
-                        yield '\n\n'
-                    yield '---------------------------reasoning---------------------------\n\n'
-                    status = 'reasoning'
-                yield delta.reasoning_content
-            if delta.content is not None:
-                if with_reasoning and status != 'content':
-                    if status != 'none':
-                        yield '\n\n'
-                    yield '---------------------------content---------------------------\n\n'
-                    status = 'content'
-                yield delta.content
+        return ResponseStream(session, with_reasoning=with_reasoning)
