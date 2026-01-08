@@ -9,6 +9,7 @@ TEST_DIR   := ${PROJ_DIR}/test
 SRC_DIR    := ${PROJ_DIR}/hbllmutils
 DIST_DIR   := ${PROJ_DIR}/dist
 TBUILD_DIR := ${PROJ_DIR}/tbuild
+BUILD_DIR  := ${PROJ_DIR}/build
 
 RANGE_DIR      ?= .
 RANGE_TEST_DIR := ${TEST_DIR}/${RANGE_DIR}
@@ -18,8 +19,6 @@ COV_TYPES ?= xml term-missing
 
 package:
 	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
-clean:
-	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info
 
 test: unittest
 
@@ -39,4 +38,4 @@ docs_auto:
 	python remake_docs_via_llm.py -i "${RANGE_SRC_DIR}"
 
 clean:
-	rm -rf ${DIST_DIR} *.egg-info hbllmutils.spec
+	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info hbllmutils.spec
