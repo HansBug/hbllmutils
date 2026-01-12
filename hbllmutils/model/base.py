@@ -7,7 +7,7 @@ including methods for chat interactions, question-answering, and streaming respo
 from abc import ABC
 from typing import List, Union, Tuple, Optional
 
-from .stream import OpenAIResponseStream
+from .stream import ResponseStream
 
 
 class LLMAbstractModel(ABC):
@@ -69,7 +69,7 @@ class LLMAbstractModel(ABC):
         """
         raise NotImplementedError  # pragma: no cover
 
-    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params) -> OpenAIResponseStream:
+    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params) -> ResponseStream:
         """
         Ask a question to the language model and get a streaming response.
         
@@ -86,7 +86,7 @@ class LLMAbstractModel(ABC):
         :type params: dict
         
         :return: A ResponseStream object that can be iterated to receive response chunks.
-        :rtype: OpenAIResponseStream
+        :rtype: ResponseStream
         
         :raises NotImplementedError: This method must be implemented by subclasses.
         

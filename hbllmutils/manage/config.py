@@ -3,8 +3,6 @@ from typing import Dict, Any, Optional
 
 import yaml
 
-from ..model import LLMRemoteModel
-
 
 class LLMConfig:
     def __init__(self, config):
@@ -46,5 +44,7 @@ class LLMConfig:
     def open(cls, file_or_dir: str = '.'):
         if os.path.isdir(file_or_dir):
             return cls.open_from_directory(file_or_dir)
-        else:
+        elif os.path.isfile(file_or_dir):
             return cls.open_from_yaml(file_or_dir)
+        else:
+            raise FileNotFoundError(f'No LLM config file or directory found at {file_or_dir!r}.')

@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from openai import OpenAI, AsyncOpenAI
 
 from .base import LLMAbstractModel
-from .stream import OpenAIResponseStream
+from .stream import OpenAIResponseStream, ResponseStream
 
 
 class LLMRemoteModel(LLMAbstractModel):
@@ -236,7 +236,7 @@ class LLMRemoteModel(LLMAbstractModel):
         else:
             return message.content
 
-    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params) -> OpenAIResponseStream:
+    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params) -> ResponseStream:
         """
         Send a chat request and get a streaming response.
 
@@ -248,7 +248,7 @@ class LLMRemoteModel(LLMAbstractModel):
         :type params: Any
 
         :return: A ResponseStream object for iterating over the streaming response
-        :rtype: OpenAIResponseStream
+        :rtype: ResponseStream
 
         Example::
             >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
