@@ -1,3 +1,10 @@
+"""
+This module provides functionality for loading Large Language Model (LLM) configurations and creating remote model instances.
+
+The module handles loading LLM configurations from config files or directories, and creates remote model instances
+with appropriate parameters. It supports both pre-configured models and dynamically specified configurations.
+"""
+
 from typing import Optional
 
 from .remote import LLMRemoteModel
@@ -9,7 +16,51 @@ def load_llm_model(
         api_token: Optional[str] = None,
         model_name: Optional[str] = None,
         **params,
-):
+) -> LLMRemoteModel:
+    """
+    Load a Large Language Model with specified configuration.
+
+    This function attempts to load LLM configuration from a config file or directory,
+    and creates a remote model instance. It supports both pre-configured models from
+    config files and dynamically specified configurations.
+
+    :param config_file_or_dir: Path to the configuration file or directory. If None, defaults to current directory.
+    :type config_file_or_dir: Optional[str]
+    :param base_url: Base URL for the LLM API endpoint. If provided, overrides config file settings.
+    :type base_url: Optional[str]
+    :param api_token: API token for authentication. Required when base_url is provided without config file.
+    :type api_token: Optional[str]
+    :param model_name: Name of the model to load. Required when base_url is provided without config file.
+    :type model_name: Optional[str]
+    :param params: Additional parameters to pass to the model.
+    :type params: dict
+
+    :return: An initialized LLM remote model instance.
+    :rtype: LLMRemoteModel
+
+    :raises FileNotFoundError: When config file is not found (handled internally).
+    :raises KeyError: When specified model is not found in config (handled internally).
+    :raises ValueError: When api_token is not specified but required, or when model_name is empty but required.
+    :raises RuntimeError: When no model parameters are specified and no local configuration is available.
+
+    Example::
+        >>> # Load model from config file
+        >>> model = load_llm_model(config_file_or_dir='./config')
+        
+        >>> # Load model with explicit parameters
+        >>> model = load_llm_model(
+        ...     base_url='https://api.example.com',
+        ...     api_token='your-token',
+        ...     model_name='gpt-4'
+        ... )
+        
+        >>> # Load model from config with overrides
+        >>> model = load_llm_model(
+        ...     config_file_or_dir='./config',
+        ...     model_name='gpt-4',
+        ...     base_url='https://custom-api.example.com'
+        ... )
+    """
     from ..manage import LLMConfig
 
     try:
