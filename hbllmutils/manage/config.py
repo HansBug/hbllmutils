@@ -1,5 +1,5 @@
 import os.path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import yaml
 
@@ -14,17 +14,19 @@ class LLMConfig:
     def models(self):
         return self.config.get('models') or {}
 
-    def get_model_params(self, model_name: str, **params: Dict[str, Any]):
+    def get_model_params(self, model_name: Optional[str] = None, **params: Dict[str, Any]):
         models = self.models
-        if model_name in models:
+        if not model_name:
+            model_params = models['__default__']
+        elif model_name in models:
             model_params = models[model_name]
-        elif '__default__' in models:
-            model_params = {**models['__default__'], 'model_name': model_name}
+        elif '__fallback__' in models:
+            model_params = {**models['__fallback__'], 'model_name': model_name}
         else:
-            raise KeyError(f'Model {model_name!r} not found.')
+            raise KeyError(f'Model {model_name!r} not found, and no __fallback__ is provided.')
         return {**model_params, **params}
 
-    def get_model(self, model_name: str, **params: Dict[str, Any]):
+    def get_model(self, model_name: Optional[str] = None, **params: Dict[str, Any]):
         model_params = self.get_model_params(model_name=model_name, **params)
         if 'base_url' in model_params:
             return LLMRemoteModel(**model_params)
@@ -41,7 +43,7 @@ class LLMConfig:
         return cls.open_from_yaml(os.path.join(directory, '.llmconfig.yaml'))
 
     @classmethod
-    def open(cls, file_or_dir: str):
+    def open(cls, file_or_dir: str = '.'):
         if os.path.isdir(file_or_dir):
             return cls.open_from_directory(file_or_dir)
         else:
