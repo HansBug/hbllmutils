@@ -3,3 +3,4 @@ openai
 tqdm
 pillow
 numpy
+pyyaml

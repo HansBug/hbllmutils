@@ -4,13 +4,13 @@ This module defines the abstract base class for Large Language Model (LLM) imple
 The module provides a common interface that all LLM implementations should follow,
 including methods for chat interactions, question-answering, and streaming responses.
 """
-
+from abc import ABC
 from typing import List, Union, Tuple, Optional
 
 from .stream import OpenAIResponseStream
 
 
-class LLMAbstractModel:
+class LLMAbstractModel(ABC):
     """
     Abstract base class for Large Language Model implementations.
     

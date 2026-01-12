@@ -301,8 +301,11 @@ class OpenAIResponseStream(ResponseStream):
             >>> print(content)
             Thinking...
         """
-        delta = chunk.choices[0].delta
-        return getattr(delta, 'reasoning_content', None)
+        if len(chunk.choices) > 0:
+            delta = chunk.choices[0].delta
+            return getattr(delta, 'reasoning_content', None)
+        else:
+            return None
 
     def _get_content_from_chunk(self, chunk: Any) -> Optional[str]:
         """
@@ -323,5 +326,8 @@ class OpenAIResponseStream(ResponseStream):
             >>> print(content)
             Hello world
         """
-        delta = chunk.choices[0].delta
-        return delta.content
+        if len(chunk.choices) > 0:
+            delta = chunk.choices[0].delta
+            return delta.content
+        else:
+            return None

@@ -46,7 +46,7 @@ class LLMRemoteModel(LLMAbstractModel):
 
     def __init__(self, base_url: str, api_token: str, model_name: str,
                  organization_id: Optional[str] = None, timeout: int = 30, max_retries: int = 3,
-                 headers: Optional[Dict[str, str]] = None, **default_params: Dict[str, Any]):
+                 headers: Optional[Dict[str, str]] = None, **default_params):
         """
         Initialize the LLMRemoteModel instance.
 
@@ -65,7 +65,6 @@ class LLMRemoteModel(LLMAbstractModel):
         :param headers: Custom request headers (optional)
         :type headers: Optional[Dict[str, str]]
         :param default_params: Default parameters for API requests (optional)
-        :type default_params: Dict[str, Any]
 
         :raises ValueError: If base_url format is invalid
         :raises ValueError: If api_token is empty
@@ -107,7 +106,7 @@ class LLMRemoteModel(LLMAbstractModel):
             raise ValueError(f"max_retries cannot be negative, but {self.max_retries!r} found")
 
         self.headers = dict(headers or {})
-        self.default_params = default_params
+        self.default_params: Dict[str, Any] = default_params
 
         self._client_non_async = None
 
@@ -260,3 +259,55 @@ class LLMRemoteModel(LLMAbstractModel):
         """
         session = self._get_non_async_session(messages=messages, stream=True, **params)
         return OpenAIResponseStream(session, with_reasoning=with_reasoning)
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the LLMRemoteModel instance.
+
+        All constructor parameters including default_params are displayed at the same level.
+        The API token is masked for security purposes.
+
+        :return: String representation of the instance
+        :rtype: str
+
+        Example::
+            >>> model = LLMRemoteModel(
+            ...     base_url="https://api.openai.com/v1",
+            ...     api_token="sk-xxx",
+            ...     model_name="gpt-3.5-turbo",
+            ...     max_tokens=1000
+            ... )
+            >>> repr(model)
+            'LLMRemoteModel(base_url=..., api_token=..., max_tokens=1000, ...)'
+        """
+        # Collect all parameters
+        params = {
+            'base_url': self.base_url,
+            'api_token': self.api_token,
+            'model_name': self.model_name,
+            'organization_id': self.organization_id,
+            'timeout': self.timeout,
+            'max_retries': self.max_retries,
+            'headers': self.headers,
+
+            # Expand default_params content to the same level
+            **self.default_params
+        }
+
+        # Build parameter string list
+        param_strings = []
+        for key, value in params.items():
+            if key == 'api_token' and value:
+                # Mask API token for security
+                if len(value) > 12:
+                    masked_value = f"'{value[:6]}***{value[-6:]}'"
+                elif len(value) > 8:
+                    masked_value = f"'{value[:4]}***{value[-4:]}'"
+                else:
+                    masked_value = "'***'"
+                param_strings.append(f"{key}={masked_value}")
+            else:
+                param_strings.append(f"{key}={value!r}")
+
+        params_str = ', '.join(param_strings)
+        return f"{self.__class__.__name__}({params_str})"
