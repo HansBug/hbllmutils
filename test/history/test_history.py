@@ -183,3 +183,53 @@ class TestHistoryHistoryModule:
         result = history.to_json()
         assert result == sample_history
         assert result is history._history
+
+    def test_clone_empty_history(self):
+        history = LLMHistory()
+        cloned = history.clone()
+        assert isinstance(cloned, LLMHistory)
+        assert len(cloned) == 0
+        assert cloned._history == []
+        assert cloned._history is not history._history
+
+    def test_clone_with_history(self, sample_history):
+        history = LLMHistory(sample_history)
+        cloned = history.clone()
+        assert isinstance(cloned, LLMHistory)
+        assert len(cloned) == 3
+        assert cloned._history == sample_history
+        assert cloned._history is not history._history
+
+    def test_clone_independence(self, mock_to_blob_url):
+        history = LLMHistory()
+        history.append_user("Original message")
+        cloned = history.clone()
+
+        # Modify original
+        history.append_user("New message in original")
+
+        # Modify clone
+        cloned.append_assistant("New message in clone")
+
+        # Verify independence
+        assert len(history) == 2
+        assert len(cloned) == 2
+        assert history[1]["content"] == "New message in original"
+        assert cloned[1]["content"] == "New message in clone"
+
+    def test_clone_deep_copy(self, sample_history):
+        # Modify sample_history to have nested mutable objects
+        nested_history = [
+            {"role": "system", "content": ["System", "message"]},
+            {"role": "user", "content": {"text": "Hello"}}
+        ]
+        history = LLMHistory(nested_history)
+        cloned = history.clone()
+
+        # Modify nested content in original
+        history._history[0]["content"].append("modified")
+        history._history[1]["content"]["text"] = "Modified"
+
+        # Verify clone is not affected
+        assert cloned._history[0]["content"] == ["System", "message"]
+        assert cloned._history[1]["content"]["text"] == "Hello"
