@@ -46,7 +46,7 @@ class LLMRemoteModel(LLMAbstractModel):
 
     def __init__(self, base_url: str, api_token: str, model_name: str,
                  organization_id: Optional[str] = None, timeout: int = 30, max_retries: int = 3,
-                 headers: Optional[Dict[str, str]] = None, default_params: Optional[Dict[str, Any]] = None):
+                 headers: Optional[Dict[str, str]] = None, **default_params: Dict[str, Any]):
         """
         Initialize the LLMRemoteModel instance.
 
@@ -65,7 +65,7 @@ class LLMRemoteModel(LLMAbstractModel):
         :param headers: Custom request headers (optional)
         :type headers: Optional[Dict[str, str]]
         :param default_params: Default parameters for API requests (optional)
-        :type default_params: Optional[Dict[str, Any]]
+        :type default_params: Dict[str, Any]
 
         :raises ValueError: If base_url format is invalid
         :raises ValueError: If api_token is empty
@@ -107,7 +107,7 @@ class LLMRemoteModel(LLMAbstractModel):
             raise ValueError(f"max_retries cannot be negative, but {self.max_retries!r} found")
 
         self.headers = dict(headers or {})
-        self.default_params = dict(default_params or {})
+        self.default_params = default_params
 
         self._client_non_async = None
 
