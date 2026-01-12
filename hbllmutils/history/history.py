@@ -8,7 +8,7 @@ It includes functionality for:
 
 The module supports multiple content types including strings, PIL Images, and lists of mixed content.
 """
-
+import copy
 from collections.abc import Sequence
 from typing import Union, List, Literal, Optional
 
@@ -121,7 +121,7 @@ class LLMHistory(Sequence):
         """
         return len(self._history)
 
-    def append(self, role: LLMRoleTyping, message: LLMContentTyping):
+    def append(self, role: LLMRoleTyping, message: LLMContentTyping) -> 'LLMHistory':
         """
         Append a message with a specific role to the history.
 
@@ -130,13 +130,17 @@ class LLMHistory(Sequence):
         :param message: The message content.
         :type message: LLMContentTyping
 
+        :return: The LLMHistory instance for method chaining.
+        :rtype: LLMHistory
+
         Example::
             >>> history = LLMHistory()
             >>> history.append('user', 'Hello!')
         """
         self._history.append(create_llm_message(message=message, role=role))
+        return self
 
-    def append_user(self, message: LLMContentTyping):
+    def append_user(self, message: LLMContentTyping) -> 'LLMHistory':
         """
         Append a user message to the history.
 
@@ -145,13 +149,16 @@ class LLMHistory(Sequence):
         :param message: The message content.
         :type message: LLMContentTyping
 
+        :return: The LLMHistory instance for method chaining.
+        :rtype: LLMHistory
+
         Example::
             >>> history = LLMHistory()
             >>> history.append_user('Hello!')
         """
         return self.append(role='user', message=message)
 
-    def append_assistant(self, message: LLMContentTyping):
+    def append_assistant(self, message: LLMContentTyping) -> 'LLMHistory':
         """
         Append an assistant message to the history.
 
@@ -160,13 +167,16 @@ class LLMHistory(Sequence):
         :param message: The message content.
         :type message: LLMContentTyping
 
+        :return: The LLMHistory instance for method chaining.
+        :rtype: LLMHistory
+
         Example::
             >>> history = LLMHistory()
             >>> history.append_assistant('How can I help you?')
         """
         return self.append(role='assistant', message=message)
 
-    def set_system_prompt(self, message: LLMContentTyping):
+    def set_system_prompt(self, message: LLMContentTyping) -> 'LLMHistory':
         """
         Set or update the system prompt.
 
@@ -176,6 +186,9 @@ class LLMHistory(Sequence):
 
         :param message: The system prompt content.
         :type message: LLMContentTyping
+
+        :return: The LLMHistory instance for method chaining.
+        :rtype: LLMHistory
 
         Example::
             >>> history = LLMHistory()
@@ -188,6 +201,7 @@ class LLMHistory(Sequence):
             self._history[0] = message
         else:
             self._history.insert(0, message)
+        return self
 
     def to_json(self) -> List[dict]:
         """
@@ -203,3 +217,26 @@ class LLMHistory(Sequence):
             [{'role': 'user', 'content': 'Hello!'}]
         """
         return self._history
+
+    def clone(self) -> 'LLMHistory':
+        """
+        Create a deep copy of the current LLMHistory instance.
+
+        This method creates a new LLMHistory object with a deep copy of the
+        internal message history, ensuring that modifications to the clone
+        do not affect the original instance.
+
+        :return: A new LLMHistory instance with copied message history.
+        :rtype: LLMHistory
+
+        Example::
+            >>> history = LLMHistory()
+            >>> history.append_user('Hello!')
+            >>> cloned = history.clone()
+            >>> cloned.append_user('Another message')
+            >>> len(history)
+            1
+            >>> len(cloned)
+            2
+        """
+        return LLMHistory(history=copy.deepcopy(self._history))
