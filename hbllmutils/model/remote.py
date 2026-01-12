@@ -13,6 +13,7 @@ from typing import Dict, Optional, Union, Any, List, Tuple
 from urllib.parse import urlparse
 
 from openai import OpenAI, AsyncOpenAI
+from openai.types.chat import ChatCompletionMessage
 
 from .base import LLMAbstractModel
 from .stream import OpenAIResponseStream, ResponseStream
@@ -182,7 +183,7 @@ class LLMRemoteModel(LLMAbstractModel):
             }
         )
 
-    def chat(self, messages: List[dict], **params):
+    def create_message(self, messages: List[dict], **params) -> ChatCompletionMessage:
         """
         Send a chat request and get the complete message response.
 
@@ -192,12 +193,12 @@ class LLMRemoteModel(LLMAbstractModel):
         :type params: Any
 
         :return: The message object from the first choice in the response
-        :rtype: Any
+        :rtype: ChatCompletionMessage
 
         Example::
             >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
             >>> messages = [{"role": "user", "content": "What is AI?"}]
-            >>> response = model.chat(messages)
+            >>> response = model.create_message(messages)
             >>> print(response.content)
         """
         session = self._get_non_async_session(messages=messages, stream=False, **params)
@@ -230,9 +231,9 @@ class LLMRemoteModel(LLMAbstractModel):
             >>> print(f"Reasoning: {reasoning}")
             >>> print(f"Response: {response}")
         """
-        message = self.chat(messages=messages, **params)
+        message = self.create_message(messages=messages, **params)
         if with_reasoning:
-            return getattr(message, 'reasoning_content'), message.content
+            return getattr(message, 'reasoning_content', None), message.content
         else:
             return message.content
 

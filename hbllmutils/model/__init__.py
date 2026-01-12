@@ -15,7 +15,7 @@ Key Components:
 Example::
     >>> from hbllmutils.model import LLMRemoteModel
     >>> model = LLMRemoteModel(base_url="https://api.openai.com/v1", api_key="your-key")
-    >>> response = model.chat([{"role": "user", "content": "Hello!"}])
+    >>> response = model.create_message([{"role": "user", "content": "Hello!"}])
     >>> print(response)
 """
 
