@@ -42,7 +42,7 @@ setup(
     author=meta['__AUTHOR__'],
     author_email=meta['__AUTHOR_EMAIL__'],
     license='Apache License, Version 2.0',
-    keywords='python, generic, utilities, algorithms, data structures, system operations, design patterns, testing tools',
+    keywords='llm, large language models, openai, api, chatbot, ai, machine learning, nlp, natural language processing, conversation, streaming, async, configuration management, deepseek, gpt, claude, gemini',
     url='https://github.com/HansBug/hbllmutils',
     project_urls={
         'Homepage': 'https://github.com/HansBug/hbllmutils',
@@ -59,13 +59,13 @@ setup(
     extras_require=group_requirements,
     classifiers=[
         # Development Status
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 4 - Beta',
 
         # Intended Audience
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'Intended Audience :: Science/Research',
-        'Intended Audience :: System Administrators',
+        'Intended Audience :: Education',
 
         # License
         'License :: OSI Approved :: Apache Software License',
@@ -91,25 +91,24 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
 
-        # Topic
+        # Topic - LLM-related
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        'Topic :: Utilities',
-        'Topic :: System :: Systems Administration',
         'Topic :: Scientific/Engineering',
+        'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Topic :: Text Processing',
-        'Topic :: Software Development :: Testing',
+        'Topic :: Text Processing :: Linguistic',
+        'Topic :: Communications :: Chat',
+        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+        'Topic :: Utilities',
 
         # Natural Language
         'Natural Language :: English',
 
         # Environment
         'Environment :: Console',
-        'Environment :: Other Environment',
-
-        # Framework
-        'Framework :: Pytest',
+        'Environment :: Web Environment',
 
         # Typing
         'Typing :: Typed',

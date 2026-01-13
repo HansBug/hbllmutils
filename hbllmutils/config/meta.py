@@ -14,7 +14,8 @@ __TITLE__ = "hbllmutils"
 __VERSION__ = "0.0.1"
 
 #: Short description of the project, will be included in ``setup.py``.
-__DESCRIPTION__ = 'Some useful functions and classes in Python infrastructure development.'
+__DESCRIPTION__ = ('A Python utility library for streamlined Large Language Model interactions '
+                   'with unified API and conversation management.')
 
 #: Author of this project.
 __AUTHOR__ = "HansBug"
