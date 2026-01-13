@@ -10,11 +10,16 @@ The module supports multiple content types including strings, PIL Images, and li
 """
 import copy
 from collections.abc import Sequence
-from typing import Union, List, Literal, Optional
+from typing import Union, List, Optional
 
 from PIL import Image
 
 from .image import to_blob_url
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 LLMContentTyping = Union[str, Image.Image, List[Union[str, Image.Image]]]
 LLMRoleTyping = Literal["system", "user", "assistant", "tool", "function"]
