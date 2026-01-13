@@ -17,12 +17,7 @@ Overview
     :maxdepth: 2
     :caption: Best Practice
 
-.. toctree::
-    :maxdepth: 2
-    :caption: API Documentation
-
-    api_doc/config/index
-
+.. include:: api_doc.rst
 
 .. toctree::
     :maxdepth: 2

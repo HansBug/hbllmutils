@@ -15,6 +15,15 @@ RANGE_DIR      ?= .
 RANGE_TEST_DIR := ${TEST_DIR}/${RANGE_DIR}
 RANGE_SRC_DIR  := ${SRC_DIR}/${RANGE_DIR}
 
+#PYTHON_CODE_DIR   := ${SRC_DIR}/${RANGE_DIR}
+#RST_DOC_DIR       := ${DOC_DIR}/source/api_doc/${RANGE_DIR}
+PYTHON_CODE_DIR   := ${SRC_DIR}
+RST_DOC_DIR       := ${DOC_DIR}/source/api_doc
+PYTHON_CODE_FILES := $(shell find ${PYTHON_CODE_DIR} -name "*.py" ! -name "__*.py" 2>/dev/null)
+RST_DOC_FILES     := $(patsubst ${PYTHON_CODE_DIR}/%.py,${RST_DOC_DIR}/%.rst,${PYTHON_CODE_FILES})
+PYTHON_NONM_FILES := $(shell find ${PYTHON_CODE_DIR} -name "__init__.py" 2>/dev/null)
+RST_NONM_FILES    := $(foreach file,${PYTHON_NONM_FILES},$(patsubst %/__init__.py,%/index.rst,$(patsubst ${PYTHON_CODE_DIR}/%,${RST_DOC_DIR}/%,$(patsubst ${PYTHON_CODE_DIR}/__init__.py,${RST_DOC_DIR}/index.rst,${file}))))
+
 COV_TYPES ?= xml term-missing
 
 package:
@@ -36,6 +45,20 @@ pdocs:
 	$(MAKE) -C "${DOC_DIR}" prod
 docs_auto:
 	python remake_docs_via_llm.py -i "${RANGE_SRC_DIR}"
+rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES}
+	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
+${RST_DOC_DIR}/%.rst: ${PYTHON_CODE_DIR}/%.py auto_rst.py Makefile
+	@mkdir -p $(dir $@)
+	python auto_rst.py -i $< -o $@
+${RST_DOC_DIR}/%/index.rst: ${PYTHON_CODE_DIR}/%/__init__.py auto_rst.py Makefile
+	@mkdir -p $(dir $@)
+	python auto_rst.py -i $< -o $@
+${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
+	@mkdir -p $(dir $@)
+	python auto_rst.py -i $< -o $@
 
 clean:
 	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info hbllmutils.spec
+
+info:
+	echo ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
