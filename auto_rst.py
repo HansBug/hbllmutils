@@ -438,9 +438,12 @@ def convert_code_to_rst(code_file: str, rst_file: str, lib_dir: str = '.'):
             code_rels = []
             for code_rel_file in os.listdir(os.path.dirname(code_file)):
                 code_rel_base = os.path.splitext(code_rel_file)[0]
-                if code_rel_file.endswith('.py') and \
+                code_abs_file = os.path.abspath(os.path.join(os.path.dirname(code_file), code_rel_file))
+                if os.path.isfile(code_abs_file) and code_rel_file.endswith('.py') and \
                         not (code_rel_base.startswith('__') and code_rel_base.endswith('__')):
                     code_rels.append(code_rel_base)
+                elif os.path.isdir(code_abs_file) and os.path.exists(os.path.join(code_abs_file, '__init__.py')):
+                    code_rels.append(f'{code_rel_base}/index')
 
             if code_rels:
                 code_rels = natsorted(code_rels)
