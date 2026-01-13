@@ -23,3 +23,15 @@
 [![GitHub license](https://img.shields.io/github/license/hansbug/hbllmutils)](https://github.com/HansBug/hbllmutils/blob/master/LICENSE)
 
 [WIP] Generic LLM Utils
+
+## Installation
+
+You can simply install it with the `pip` command line from the official PyPI site.
+
+```shell
+pip install hbllmutils
+```
+
+For more information about installation, you can refer to
+the [Installation Guide](https://hbllmutils.readthedocs.io/en/latest/tutorials/installation/index.html).
+
