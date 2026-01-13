@@ -1,3 +1,11 @@
+"""
+This module provides functionality to extract public members (classes, functions, variables) from Python source code
+and generate reStructuredText (RST) documentation files for Sphinx.
+
+The module uses AST (Abstract Syntax Tree) parsing to analyze Python code and identify public members,
+then generates RST files with appropriate Sphinx directives for documentation generation.
+"""
+
 import argparse
 import ast
 import os
@@ -8,40 +16,99 @@ from natsort import natsorted
 from sphinx.util.rst import escape
 
 
-def rst_to_text(text: str):
+def rst_to_text(text: str) -> str:
+    """
+    Escape text for use in reStructuredText format.
+
+    :param text: The text to escape.
+    :type text: str
+
+    :return: The escaped text safe for RST.
+    :rtype: str
+    """
     return escape(text)
 
 
 class PublicMemberExtractor(ast.NodeVisitor):
-    """提取Python代码中的公有成员（类、函数、变量）"""
+    """
+    Extract public members (classes, functions, variables) from Python code.
+
+    This class uses AST node visiting to traverse Python code and identify
+    public classes, functions, and variables, excluding private and protected members.
+    """
 
     def __init__(self):
+        """
+        Initialize the PublicMemberExtractor.
+
+        Sets up empty lists to store extracted public classes, functions, and variables.
+        """
         self.public_classes = []
         self.public_functions = []
         self.public_variables = []
 
     @classmethod
     def is_private(cls, name: str) -> bool:
-        """判断是否为私有成员（双下划线开头）"""
+        """
+        Determine if a name represents a private member (starts with double underscore).
+
+        :param name: The member name to check.
+        :type name: str
+
+        :return: True if the name is private, False otherwise.
+        :rtype: bool
+        """
         return name.startswith('__') and not (name.startswith('__') and name.endswith('__'))
 
     @classmethod
     def is_protected(cls, name: str) -> bool:
-        """判断是否为保护成员（单下划线开头）"""
+        """
+        Determine if a name represents a protected member (starts with single underscore).
+
+        :param name: The member name to check.
+        :type name: str
+
+        :return: True if the name is protected, False otherwise.
+        :rtype: bool
+        """
         return name.startswith('_') and not name.startswith('__')
 
     @classmethod
     def is_magic_method(cls, name: str) -> bool:
-        """判断是否为魔法方法（双下划线开头和结尾）"""
+        """
+        Determine if a name represents a magic method (starts and ends with double underscore).
+
+        :param name: The member name to check.
+        :type name: str
+
+        :return: True if the name is a magic method, False otherwise.
+        :rtype: bool
+        """
         return name.startswith('__') and name.endswith('__') and len(name) > 4
 
     @classmethod
     def is_public_or_magic(cls, name: str) -> bool:
-        """判断是否为公有成员或魔法方法"""
+        """
+        Determine if a name represents a public member or magic method.
+
+        :param name: The member name to check.
+        :type name: str
+
+        :return: True if the name is public or a magic method, False otherwise.
+        :rtype: bool
+        """
         return not cls.is_private(name) and not cls.is_protected(name) or cls.is_magic_method(name)
 
     def extract_class_members(self, node: ast.ClassDef) -> Dict[str, Any]:
-        """提取类的公有成员和魔法方法"""
+        """
+        Extract public members and magic methods from a class definition.
+
+        :param node: The class definition AST node.
+        :type node: ast.ClassDef
+
+        :return: Dictionary containing 'methods' and 'attributes' lists.
+        :rtype: Dict[str, Any]
+        """
         methods = []
         attributes = []
 
@@ -60,7 +127,7 @@ class PublicMemberExtractor(ast.NodeVisitor):
                     methods.append(method_info)
 
             elif isinstance(item, ast.Assign):
-                # 提取类变量
+                # Extract class variables
                 for target in item.targets:
                     if isinstance(target, ast.Name) and self.is_public_or_magic(target.id):
                         attr_info = {
@@ -72,7 +139,7 @@ class PublicMemberExtractor(ast.NodeVisitor):
                         attributes.append(attr_info)
 
             elif isinstance(item, ast.AnnAssign):
-                # 提取带类型注解的类变量
+                # Extract annotated class variables
                 if isinstance(item.target, ast.Name) and self.is_public_or_magic(item.target.id):
                     attr_info = {
                         'name': item.target.id,
@@ -89,10 +156,18 @@ class PublicMemberExtractor(ast.NodeVisitor):
         }
 
     def extract_function_args(self, node: ast.FunctionDef) -> List[str]:
-        """提取函数参数"""
+        """
+        Extract function parameter names.
+
+        :param node: The function definition AST node.
+        :type node: ast.FunctionDef
+
+        :return: List of parameter names including *args and **kwargs.
+        :rtype: List[str]
+        """
         args = []
 
-        # 普通参数
+        # Regular parameters
         for arg in node.args.args:
             args.append(arg.arg)
 
@@ -107,7 +182,14 @@ class PublicMemberExtractor(ast.NodeVisitor):
         return args
 
     def get_decorator_name(self, decorator) -> str:
-        """获取装饰器名称"""
+        """
+        Get the name of a decorator.
+
+        :param decorator: The decorator AST node.
+
+        :return: String representation of the decorator name.
+        :rtype: str
+        """
         if isinstance(decorator, ast.Name):
             return decorator.id
         elif isinstance(decorator, ast.Attribute):
@@ -116,7 +198,14 @@ class PublicMemberExtractor(ast.NodeVisitor):
             return self.get_node_source(decorator)
 
     def get_node_source(self, node) -> str:
-        """获取AST节点的源代码表示"""
+        """
+        Get the source code representation of an AST node.
+
+        :param node: The AST node to convert to source code.
+
+        :return: String representation of the node's source code.
+        :rtype: str
+        """
         try:
             if isinstance(node, ast.Name):
                 return node.id
@@ -135,15 +224,20 @@ class PublicMemberExtractor(ast.NodeVisitor):
                     pairs.append(f"{key}: {value}" if key else f"**{value}")
                 return f"{{{', '.join(pairs)}}}"
             else:
-                # 对于复杂表达式，返回类型信息
+                # For complex expressions, return type information
                 return f"<{type(node).__name__}>"
         except:
             return "<unknown>"
 
     def visit_ClassDef(self, node: ast.ClassDef):
-        """访问类定义"""
+        """
+        Visit a class definition node.
+
+        :param node: The class definition AST node.
+        :type node: ast.ClassDef
+        """
         if self.is_public_or_magic(node.name):
-            # 只处理顶层的公有类
+            # Only process top-level public classes
             class_info = {
                 'name': node.name,
                 'type': 'class',
@@ -155,12 +249,17 @@ class PublicMemberExtractor(ast.NodeVisitor):
             }
             self.public_classes.append(class_info)
 
-        # 不递归访问嵌套类
+        # Don't recursively visit nested classes
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        """访问函数定义"""
+        """
+        Visit a function definition node.
+
+        :param node: The function definition AST node.
+        :type node: ast.FunctionDef
+        """
         if self.is_public_or_magic(node.name):
-            # 只处理顶层的公有函数
+            # Only process top-level public functions
             func_info = {
                 'name': node.name,
                 'type': 'function',
@@ -175,8 +274,13 @@ class PublicMemberExtractor(ast.NodeVisitor):
         # self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign):
-        """访问赋值语句（变量定义）"""
-        # 只处理顶层变量
+        """
+        Visit an assignment statement (variable definition).
+
+        :param node: The assignment AST node.
+        :type node: ast.Assign
+        """
+        # Only process top-level variables
         for target in node.targets:
             if isinstance(target, ast.Name) and self.is_public_or_magic(target.id):
                 var_info = {
@@ -190,7 +294,12 @@ class PublicMemberExtractor(ast.NodeVisitor):
         # self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign):
-        """访问带注解的赋值语句"""
+        """
+        Visit an annotated assignment statement.
+
+        :param node: The annotated assignment AST node.
+        :type node: ast.AnnAssign
+        """
         if isinstance(node.target, ast.Name) and self.is_public_or_magic(node.target.id):
             var_info = {
                 'name': node.target.id,
@@ -206,13 +315,19 @@ class PublicMemberExtractor(ast.NodeVisitor):
 
 def extract_public_members(source_code: str) -> Dict[str, List[Dict[str, Any]]]:
     """
-    从Python源代码中提取公有成员
+    Extract public members from Python source code.
 
-    Args:
-        source_code: Python源代码字符串
+    :param source_code: Python source code string.
+    :type source_code: str
 
-    Returns:
-        包含classes, functions, variables三个键的字典
+    :return: Dictionary containing 'classes', 'functions', and 'variables' keys.
+    :rtype: Dict[str, List[Dict[str, Any]]]
+
+    Example::
+        >>> code = "def public_func(): pass"
+        >>> result = extract_public_members(code)
+        >>> 'functions' in result
+        True
     """
     tree = ast.parse(source_code)
     extractor = PublicMemberExtractor()
@@ -227,13 +342,13 @@ def extract_public_members(source_code: str) -> Dict[str, List[Dict[str, Any]]]:
 
 def extract_public_members_from_file(file_path: str) -> Dict[str, List[Dict[str, Any]]]:
     """
-    从Python文件中提取公有成员
+    Extract public members from a Python file.
 
-    Args:
-        file_path: Python文件路径
+    :param file_path: Path to the Python file.
+    :type file_path: str
 
-    Returns:
-        包含classes, functions, variables三个键的字典
+    :return: Dictionary containing 'classes', 'functions', and 'variables' keys.
+    :rtype: Dict[str, List[Dict[str, Any]]]
     """
     with open(file_path, 'r', encoding='utf-8') as f:
         source_code = f.read()
@@ -241,7 +356,13 @@ def extract_public_members_from_file(file_path: str) -> Dict[str, List[Dict[str,
 
 
 def print_extracted_members(f, members: Dict[str, List[Dict[str, Any]]]):
-    """打印提取的成员信息"""
+    """
+    Print extracted member information in RST format.
+
+    :param f: File object to write to.
+    :param members: Dictionary containing extracted members.
+    :type members: Dict[str, List[Dict[str, Any]]]
+    """
 
     for var in members['variables']:
         print(f'{rst_to_text(var["name"])}', file=f)
@@ -276,6 +397,20 @@ def print_extracted_members(f, members: Dict[str, List[Dict[str, Any]]]):
 
 
 def convert_code_to_rst(code_file: str, rst_file: str, lib_dir: str = '.'):
+    """
+    Convert a Python code file to an RST documentation file.
+
+    :param code_file: Path to the Python source code file.
+    :type code_file: str
+    :param rst_file: Path to the output RST file.
+    :type rst_file: str
+    :param lib_dir: Base library directory for calculating relative module paths. Defaults to '.'.
+    :type lib_dir: str
+
+    Example::
+        >>> convert_code_to_rst('mymodule.py', 'docs/mymodule.rst', lib_dir='src')
+        # Generates RST documentation for mymodule.py
+    """
     if os.path.dirname(rst_file):
         os.makedirs(os.path.dirname(rst_file), exist_ok=True)
     members = extract_public_members(pathlib.Path(code_file).read_text())
@@ -318,6 +453,11 @@ def convert_code_to_rst(code_file: str, rst_file: str, lib_dir: str = '.'):
 
 
 def main():
+    """
+    Main entry point for the command-line interface.
+
+    Parses command-line arguments and converts a Python code file to RST documentation.
+    """
     parser = argparse.ArgumentParser(description='Auto create rst docs for python code file')
     parser.add_argument('-i', '--input', required=True, help='Input python code file')
     parser.add_argument('-o', '--output', required=True, help='Output rst doc file')

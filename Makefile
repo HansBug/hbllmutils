@@ -45,7 +45,7 @@ pdocs:
 	$(MAKE) -C "${DOC_DIR}" prod
 docs_auto:
 	python remake_docs_via_llm.py -i "${RANGE_SRC_DIR}"
-rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES}
+rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES} auto_rst_top_index.py
 	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
 ${RST_DOC_DIR}/%.rst: ${PYTHON_CODE_DIR}/%.py auto_rst.py Makefile
 	@mkdir -p $(dir $@)
