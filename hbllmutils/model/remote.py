@@ -15,11 +15,11 @@ from urllib.parse import urlparse
 from openai import OpenAI, AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
 
-from .base import LLMAbstractModel
+from .base import LLMModel
 from .stream import OpenAIResponseStream, ResponseStream
 
 
-class LLMRemoteModel(LLMAbstractModel):
+class LLMRemoteModel(LLMModel):
     """
     A client for interacting with remote Large Language Model APIs.
 

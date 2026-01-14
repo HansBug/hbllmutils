@@ -6,10 +6,10 @@ hbllmutils.model.base
 .. automodule:: hbllmutils.model.base
 
 
-LLMAbstractModel
+LLMModel
 -----------------------------------------------------
 
-.. autoclass:: LLMAbstractModel
+.. autoclass:: LLMModel
     :members: ask,ask_stream
 
 

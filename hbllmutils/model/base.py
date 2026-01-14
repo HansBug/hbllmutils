@@ -11,7 +11,7 @@ from typing import List, Union, Tuple, Optional
 from .stream import ResponseStream
 
 
-class LLMAbstractModel(ABC):
+class LLMModel(ABC):
     """
     Abstract base class for Large Language Model implementations.
     

@@ -19,7 +19,7 @@ Example::
     >>> print(response)
 """
 
-from .base import LLMAbstractModel
+from .base import LLMModel
 from .load import load_llm_model
 from .remote import LLMRemoteModel
 from .stream import ResponseStream, OpenAIResponseStream
