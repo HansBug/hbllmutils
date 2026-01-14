@@ -102,6 +102,12 @@ class FakeLLMModel(LLMModel):
 
     @property
     def rules_count(self) -> int:
+        """
+        Get the number of configured response rules.
+
+        :return: The count of rules currently configured.
+        :rtype: int
+        """
         return len(self._rules)
 
     def _get_response(self, messages: List[dict], **params) -> Tuple[str, str]:
@@ -199,7 +205,16 @@ class FakeLLMModel(LLMModel):
             keywords = [keywords]
 
         def _fn_keyword_check(messages: List[dict], **params) -> bool:
-            """Check if any keyword exists in the last message."""
+            """
+            Check if any keyword exists in the last message.
+
+            :param messages: The list of message dictionaries.
+            :type messages: List[dict]
+            :param params: Additional parameters (unused).
+            :type params: dict
+            :return: True if any keyword is found in the last message content, False otherwise.
+            :rtype: bool
+            """
             _ = params
             for keyword in keywords:
                 if keyword in messages[-1]['content']:
@@ -309,7 +324,7 @@ class FakeLLMModel(LLMModel):
 
         Shows the stream_fps parameter and the number of configured rules.
 
-        :return: String representation of the instance
+        :return: String representation of the instance.
         :rtype: str
 
         Example::
