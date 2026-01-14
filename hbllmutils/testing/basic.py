@@ -25,7 +25,6 @@ from ..model import LLMModel
 # class BinaryTestResult:
 #     passed: bool
 #     content: str
-#     reasoning_content: Optional[str] = None
 #
 #
 # @dataclass
@@ -99,13 +98,11 @@ class _HelloTest(BinaryTest):
         """
         content = model.ask(
             messages=LLMHistory().append_user('hello!').to_json(),
-            with_reasoning=False,
             **params,
         )
         return BinaryTestResult(
             passed=bool(content),
             content=content,
-            reasoning_content=None,
         )
 
 
@@ -177,13 +174,11 @@ class _PingTest(BinaryTest):
         """
         content = model.ask(
             messages=LLMHistory().append_user('ping!').to_json(),
-            with_reasoning=False,
             **params,
         )
         return BinaryTestResult(
             passed='pong' in content.lower(),
             content=content,
-            reasoning_content=None,
         )
 
 

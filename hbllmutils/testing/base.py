@@ -12,7 +12,7 @@ Classes:
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Union
+from typing import List, Union
 
 from tqdm import tqdm
 
@@ -28,12 +28,9 @@ class BinaryTestResult:
     :type passed: bool
     :param content: The content or output from the test.
     :type content: str
-    :param reasoning_content: Optional reasoning or explanation for the test result.
-    :type reasoning_content: Optional[str]
     """
     passed: bool
     content: str
-    reasoning_content: Optional[str] = None
 
 
 @dataclass
