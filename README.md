@@ -154,6 +154,167 @@ print(f"Accumulated Content: {f.content}")
 # print(f"Non-streaming Content: {content}")
 ```
 
+## Advanced Features
+
+### FakeLLMModel for Testing and Development
+
+`hbllmutils` provides a `FakeLLMModel` that allows developers to simulate LLM behavior for testing, debugging, and rapid
+prototyping without incurring API costs or waiting for real API responses. This model can be configured with predefined
+rules to return specific responses based on input messages, supporting both synchronous and streaming interactions.
+
+#### Key Features of `FakeLLMModel`:
+
+- **Configurable Responses**: Define rules to return specific text or (reasoning, content) tuples.
+- **Conditional Logic**: Set up responses based on conditions like keywords in the last message or custom functions.
+- **Streaming Simulation**: Simulate streaming responses with a customizable words-per-second rate.
+- **Method Chaining**: Rules can be added using a fluent API.
+
+#### Usage Examples:
+
+```python
+from hbllmutils.model import FakeLLMModel
+from hbllmutils.history import LLMHistory
+import sys
+
+# Initialize FakeLLMModel with a streaming speed of 10 words per second
+model = FakeLLMModel(stream_wps=10)
+
+# 1. Always return a specific response
+model.response_always("Hello, I am a fake LLM model ready for your commands!")
+history_always = LLMHistory().append_user("Hi there!")
+response_always = model.ask(history_always.to_json())
+print(f"Always Response: {response_always}")
+# Expected Output: Always Response: Hello, I am a fake LLM model ready for your commands!
+
+# 2. Respond based on a keyword in the last message
+model = FakeLLMModel(stream_wps=10)  # Re-initialize to clear previous rules
+model.response_when_keyword_in_last_message("weather", "The weather is sunny with a chance of fake clouds.")
+model.response_when_keyword_in_last_message(["time", "hour"], "It\'s always coffee o\'clock in the fake world.")
+
+history_weather = LLMHistory().append_user("What\'s the weather like?")
+response_weather = model.ask(history_weather.to_json())
+print(f"Weather Response: {response_weather}")
+# Expected Output: Weather Response: The weather is sunny with a chance of fake clouds.
+
+history_time = LLMHistory().append_user("What time is it?")
+response_time = model.ask(history_time.to_json())
+print(f"Time Response: {response_time}")
+# Expected Output: Time Response: It\'s always coffee o\'clock in the fake world.
+
+# 3. Respond based on a custom condition
+model = FakeLLMModel(stream_wps=10)  # Re-initialize to clear previous rules
+
+
+def long_conversation_check(messages, **params):
+    return len(messages) > 2
+
+
+model.response_when(long_conversation_check, "This is a long conversation, isn\'t it?")
+model.response_always("Short conversation.")  # Fallback for shorter conversations
+
+history_short = LLMHistory().append_user("Hello.")
+response_short = model.ask(history_short.to_json())
+print(f"Short Conversation: {response_short}")
+# Expected Output: Short Conversation: Short conversation.
+
+history_long = LLMHistory().append_user("Hello.").append_assistant("Hi!").append_user("How are you?")
+response_long = model.ask(history_long.to_json())
+print(f"Long Conversation: {response_long}")
+# Expected Output: Long Conversation: This is a long conversation, isn\'t it?
+
+# 4. Streaming responses with reasoning
+model = FakeLLMModel(stream_wps=5)  # Slower streaming for demonstration
+model.response_always(("Thinking step by step...", "The final answer is 42."))
+
+history_stream = LLMHistory().append_user("What is the meaning of life?")
+stream = model.ask_stream(history_stream.to_json(), with_reasoning=True)
+
+print("\nStreaming Response (with reasoning):\n")
+for chunk in stream:
+    print(chunk, end='')
+    sys.stdout.flush()
+
+    print(f"\n\nAccumulated Reasoning: {stream.reasoning_content}")
+    print(f"Accumulated Content: {stream.content}")
+# Expected Output (with simulated delay):
+# Streaming Response (with reasoning):
+# Thinking step by step...The final answer is 42.
+#
+# Accumulated Reasoning: Thinking step by step...
+# Accumulated Content: The final answer is 42.
+```
+
+### LLM Liveness and Readiness Probes: `hello` and `ping`
+
+`hbllmutils.testing.alive` module provides simple, yet effective, binary tests to check the liveness and readiness of
+your LLM models. These functions are particularly useful for ensuring that your integrated LLM services are operational
+and responding as expected.
+
+#### `hello` Function
+
+The `hello` function sends a basic greeting to the LLM and checks if it receives any response. It\'s a fundamental
+liveness probe to confirm that the model is accessible and capable of generating output.
+
+**Usage Example:**
+
+```python
+from hbllmutils.model import FakeLLMModel
+from hbllmutils.testing.alive import hello
+
+# Create a fake model for demonstration
+model = FakeLLMModel()
+model.response_always("Hello! How can I assist you today?")
+
+# Perform a single hello test
+hello_result = hello(model)
+print(f"Hello Test Passed: {hello_result.passed}")
+print(f"Hello Test Content: {hello_result.content}")
+# Expected Output:
+# Hello Test Passed: True
+# Hello Test Content: Hello! How can I assist you today?
+
+# Perform multiple hello tests
+multi_hello_results = hello(model, n=5)
+print(f"Multi Hello Tests Passed Count: {multi_hello_results.passed_count}")
+print(f"Multi Hello Tests Passed Ratio: {multi_hello_results.passed_ratio}")
+# Expected Output:
+# Multi Hello Tests Passed Count: 5
+# Multi Hello Tests Passed Ratio: 1.0
+```
+
+#### `ping` Function
+
+The `ping` function sends a "ping!" message to the LLM and expects a response containing "pong" (case-insensitive). This
+serves as a readiness probe, verifying that the model can process specific input and generate a predictable response,
+indicating its readiness for more complex tasks.
+
+**Usage Example:**
+
+```python
+from hbllmutils.model import FakeLLMModel
+from hbllmutils.testing.alive import ping
+
+# Create a fake model for demonstration
+model = FakeLLMModel()
+model.response_when_keyword_in_last_message("ping!", "Pong! I am ready.")
+
+# Perform a single ping test
+ping_result = ping(model)
+print(f"Ping Test Passed: {ping_result.passed}")
+print(f"Ping Test Content: {ping_result.content}")
+# Expected Output:
+# Ping Test Passed: True
+# Ping Test Content: Pong! I am ready.
+
+# Perform multiple ping tests
+multi_ping_results = ping(model, n=3)
+print(f"Multi Ping Tests Passed Count: {multi_ping_results.passed_count}")
+print(f"Multi Ping Tests Passed Ratio: {multi_ping_results.passed_ratio}")
+# Expected Output:
+# Multi Ping Tests Passed Count: 3
+# Multi Ping Tests Passed Ratio: 1.0
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to open issues or submit pull requests on
