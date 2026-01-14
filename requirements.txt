@@ -5,3 +5,4 @@ pillow
 numpy
 pyyaml
 jieba
+markdown-it-py

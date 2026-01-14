@@ -6,5 +6,6 @@
     api_doc/history/index
     api_doc/manage/index
     api_doc/model/index
+    api_doc/response/index
     api_doc/testing/index
 
