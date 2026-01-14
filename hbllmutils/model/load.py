@@ -33,7 +33,6 @@ def load_llm_model(
     :param model_name: Name of the model to load. Required when base_url is provided without config file.
     :type model_name: Optional[str]
     :param params: Additional parameters to pass to the model.
-    :type params: dict
 
     :return: An initialized LLM remote model instance.
     :rtype: LLMRemoteModel
@@ -62,6 +61,7 @@ def load_llm_model(
         ... )
     """
     from ..manage import LLMConfig
+    params: dict
 
     try:
         llm_config = LLMConfig.open(config_file_or_dir or '.')
