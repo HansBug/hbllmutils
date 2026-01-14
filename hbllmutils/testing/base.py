@@ -95,6 +95,9 @@ class BinaryTest:
     Tests can be run once or multiple times to gather statistics. Subclasses should
     implement the _single_test method to define the specific test logic.
 
+    :ivar __desc_name__: Optional descriptive name for the test, used in progress bars.
+    :type __desc_name__: Optional[str]
+
     Methods:
         _single_test: Abstract method to implement the test logic (must be overridden)
         test: Run the test one or multiple times and return results

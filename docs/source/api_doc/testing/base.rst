@@ -24,6 +24,6 @@ BinaryTest
 -----------------------------------------------------
 
 .. autoclass:: BinaryTest
-    :members: test
+    :members: test,__desc_name__
 
 

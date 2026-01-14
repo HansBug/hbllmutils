@@ -9,6 +9,6 @@ hbllmutils.testing
 .. toctree::
     :maxdepth: 3
 
+    alive
     base
-    basic
 
