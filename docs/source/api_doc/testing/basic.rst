@@ -12,3 +12,9 @@ hello
 .. autofunction:: hello
 
 
+ping
+-----------------------------------------------------
+
+.. autofunction:: ping
+
+

@@ -16,4 +16,4 @@ Exported Functions:
 """
 
 from .base import BinaryTest, MultiBinaryTestResult, BinaryTestResult
-from .basic import hello
+from .basic import hello, ping
