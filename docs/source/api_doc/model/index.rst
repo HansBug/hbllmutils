@@ -10,6 +10,7 @@ hbllmutils.model
     :maxdepth: 3
 
     base
+    fake
     load
     remote
     stream

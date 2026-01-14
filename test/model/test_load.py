@@ -13,7 +13,7 @@ def mock_llm_config():
 
 @pytest.fixture
 def mock_llm_remote_model():
-    """Mock LLMRemoteModel class"""
+    """Mock RemoteLLMModel class"""
     return Mock()
 
 
@@ -34,7 +34,7 @@ class TestLoadLlmModel:
     def test_load_model_from_config_file_success(self, mock_llm_config, mock_llm_remote_model, sample_model_params):
         """Test loading model from config file successfully"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params
 
@@ -49,7 +49,7 @@ class TestLoadLlmModel:
     def test_load_model_from_config_with_none_path(self, mock_llm_config, mock_llm_remote_model, sample_model_params):
         """Test loading model from config with None path defaults to current directory"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params
 
@@ -63,7 +63,7 @@ class TestLoadLlmModel:
     def test_load_model_config_file_not_found_with_base_url(self, mock_llm_remote_model):
         """Test loading model when config file not found but base_url provided"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
             from hbllmutils.model import load_llm_model
@@ -84,7 +84,7 @@ class TestLoadLlmModel:
     def test_load_model_config_keyerror_with_base_url(self, mock_llm_config, mock_llm_remote_model):
         """Test loading model when model not found in config but base_url provided"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.side_effect = KeyError('Model not found')
 
@@ -106,7 +106,7 @@ class TestLoadLlmModel:
     def test_load_model_with_overrides(self, mock_llm_config, mock_llm_remote_model, sample_model_params):
         """Test loading model from config with base_url and api_token overrides"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params.copy()
 
@@ -128,7 +128,7 @@ class TestLoadLlmModel:
     def test_load_model_with_additional_params(self, mock_llm_config, mock_llm_remote_model, sample_model_params):
         """Test loading model with additional parameters"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params.copy()
 
@@ -201,7 +201,7 @@ class TestLoadLlmModel:
     def test_load_model_with_model_name_parameter(self, mock_llm_config, mock_llm_remote_model, sample_model_params):
         """Test loading model with specific model_name parameter"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params
 
@@ -214,7 +214,7 @@ class TestLoadLlmModel:
     def test_load_model_new_config_with_additional_params(self, mock_llm_remote_model):
         """Test loading model with new config and additional parameters"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class, \
-                patch('hbllmutils.model.load.LLMRemoteModel', return_value=mock_llm_remote_model) as mock_model_class:
+                patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
             from hbllmutils.model import load_llm_model

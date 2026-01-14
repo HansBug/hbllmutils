@@ -6,10 +6,10 @@ hbllmutils.model.remote
 .. automodule:: hbllmutils.model.remote
 
 
-LLMRemoteModel
+RemoteLLMModel
 -----------------------------------------------------
 
-.. autoclass:: LLMRemoteModel
+.. autoclass:: RemoteLLMModel
     :members: __init__,create_message,ask,ask_stream,__repr__
 
 

@@ -13,13 +13,14 @@ Key Components:
     - Asynchronous and synchronous operation support
 
 Example::
-    >>> from hbllmutils.model import LLMRemoteModel
-    >>> model = LLMRemoteModel(base_url="https://api.openai.com/v1", api_key="your-key")
+    >>> from hbllmutils.model import RemoteLLMModel
+    >>> model = RemoteLLMModel(base_url="https://api.openai.com/v1", api_key="your-key")
     >>> response = model.create_message([{"role": "user", "content": "Hello!"}])
     >>> print(response)
 """
 
 from .base import LLMModel
+from .fake import FakeResponseStream, FakeLLMModel
 from .load import load_llm_model
-from .remote import LLMRemoteModel
+from .remote import RemoteLLMModel
 from .stream import ResponseStream, OpenAIResponseStream

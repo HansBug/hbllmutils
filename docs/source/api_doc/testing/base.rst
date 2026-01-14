@@ -10,7 +10,7 @@ BinaryTestResult
 -----------------------------------------------------
 
 .. autoclass:: BinaryTestResult
-    :members: passed,content,reasoning_content
+    :members: passed,content
 
 
 MultiBinaryTestResult

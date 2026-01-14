@@ -6,7 +6,7 @@ supporting both synchronous and asynchronous operations, streaming responses, an
 customizable parameters.
 
 Classes:
-    LLMRemoteModel: Main class for managing remote LLM API interactions.
+    RemoteLLMModel: Main class for managing remote LLM API interactions.
 """
 
 from typing import Dict, Optional, Union, Any, List, Tuple
@@ -19,7 +19,7 @@ from .base import LLMModel
 from .stream import OpenAIResponseStream, ResponseStream
 
 
-class LLMRemoteModel(LLMModel):
+class RemoteLLMModel(LLMModel):
     """
     A client for interacting with remote Large Language Model APIs.
 
@@ -49,7 +49,7 @@ class LLMRemoteModel(LLMModel):
                  organization_id: Optional[str] = None, timeout: int = 30, max_retries: int = 3,
                  headers: Optional[Dict[str, str]] = None, **default_params):
         """
-        Initialize the LLMRemoteModel instance.
+        Initialize the RemoteLLMModel instance.
 
         :param base_url: API base URL (e.g., "https://api.openai.com/v1")
         :type base_url: str
@@ -74,7 +74,7 @@ class LLMRemoteModel(LLMModel):
         :raises ValueError: If max_retries is negative
 
         Example::
-            >>> model = LLMRemoteModel(
+            >>> model = RemoteLLMModel(
             ...     base_url="https://api.openai.com/v1",
             ...     api_token="sk-xxx",
             ...     model_name="gpt-3.5-turbo"
@@ -122,7 +122,7 @@ class LLMRemoteModel(LLMModel):
         :rtype: Union[OpenAI, AsyncOpenAI]
 
         Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="...")
             >>> sync_client = model._create_openai_client(use_async=False)
             >>> async_client = model._create_openai_client(use_async=True)
         """
@@ -146,7 +146,7 @@ class LLMRemoteModel(LLMModel):
         :rtype: OpenAI
 
         Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="...")
             >>> client = model._client
         """
         self._client_non_async = self._client_non_async or self._create_openai_client(use_async=False)
@@ -169,7 +169,7 @@ class LLMRemoteModel(LLMModel):
         :rtype: Any
 
         Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="...")
             >>> messages = [{"role": "user", "content": "Hello"}]
             >>> session = model._get_non_async_session(messages, stream=False)
         """
@@ -196,7 +196,7 @@ class LLMRemoteModel(LLMModel):
         :rtype: ChatCompletionMessage
 
         Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="...")
             >>> messages = [{"role": "user", "content": "What is AI?"}]
             >>> response = model.create_message(messages)
             >>> print(response.content)
@@ -221,7 +221,7 @@ class LLMRemoteModel(LLMModel):
         :rtype: Union[str, Tuple[Optional[str], str]]
 
         Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="...")
             >>> messages = [{"role": "user", "content": "Explain quantum computing"}]
             >>> # Get only the response content
             >>> response = model.ask(messages)
@@ -252,7 +252,7 @@ class LLMRemoteModel(LLMModel):
         :rtype: ResponseStream
 
         Example::
-            >>> model = LLMRemoteModel(base_url="...", api_token="...", model_name="...")
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="...")
             >>> messages = [{"role": "user", "content": "Write a story"}]
             >>> stream = model.ask_stream(messages)
             >>> for chunk in stream:
@@ -263,7 +263,7 @@ class LLMRemoteModel(LLMModel):
 
     def __repr__(self) -> str:
         """
-        Return a string representation of the LLMRemoteModel instance.
+        Return a string representation of the RemoteLLMModel instance.
 
         All constructor parameters including default_params are displayed at the same level.
         The API token is masked for security purposes.
@@ -272,14 +272,14 @@ class LLMRemoteModel(LLMModel):
         :rtype: str
 
         Example::
-            >>> model = LLMRemoteModel(
+            >>> model = RemoteLLMModel(
             ...     base_url="https://api.openai.com/v1",
             ...     api_token="sk-xxx",
             ...     model_name="gpt-3.5-turbo",
             ...     max_tokens=1000
             ... )
             >>> repr(model)
-            'LLMRemoteModel(base_url=..., api_token=..., max_tokens=1000, ...)'
+            'RemoteLLMModel(base_url=..., api_token=..., max_tokens=1000, ...)'
         """
         # Collect all parameters
         params = {

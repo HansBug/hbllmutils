@@ -4,7 +4,7 @@ import pytest
 from openai import OpenAI, AsyncOpenAI
 from openai.types.chat import ChatCompletionMessage
 
-from hbllmutils.model.remote import LLMRemoteModel  # Replace with actual import path
+from hbllmutils.model.remote import RemoteLLMModel  # Replace with actual import path
 
 
 @pytest.fixture
@@ -83,10 +83,10 @@ def mock_stream_response():
 
 
 @pytest.mark.unittest
-class TestLLMRemoteModel:
+class TestRemoteLLMModel:
 
     def test_init_valid_parameters(self, valid_base_url, valid_api_token, valid_model_name):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -103,7 +103,7 @@ class TestLLMRemoteModel:
 
     def test_init_with_all_parameters(self, valid_base_url, valid_api_token, valid_model_name,
                                       valid_organization_id, valid_headers, valid_default_params):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name,
@@ -124,7 +124,7 @@ class TestLLMRemoteModel:
 
     def test_init_invalid_base_url_format(self, valid_api_token, valid_model_name):
         with pytest.raises(ValueError, match="Invalid base_url format"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url="invalid-url",
                 api_token=valid_api_token,
                 model_name=valid_model_name
@@ -132,7 +132,7 @@ class TestLLMRemoteModel:
 
     def test_init_invalid_base_url_no_scheme(self, valid_api_token, valid_model_name):
         with pytest.raises(ValueError, match="Invalid base_url format"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url="api.openai.com/v1",
                 api_token=valid_api_token,
                 model_name=valid_model_name
@@ -140,7 +140,7 @@ class TestLLMRemoteModel:
 
     def test_init_empty_api_token(self, valid_base_url, valid_model_name):
         with pytest.raises(ValueError, match="api_token cannot be empty"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token="",
                 model_name=valid_model_name
@@ -148,7 +148,7 @@ class TestLLMRemoteModel:
 
     def test_init_whitespace_api_token(self, valid_base_url, valid_model_name):
         with pytest.raises(ValueError, match="api_token cannot be empty"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token="   ",
                 model_name=valid_model_name
@@ -156,7 +156,7 @@ class TestLLMRemoteModel:
 
     def test_init_empty_model_name(self, valid_base_url, valid_api_token):
         with pytest.raises(ValueError, match="model_name cannot be empty"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token=valid_api_token,
                 model_name=""
@@ -164,7 +164,7 @@ class TestLLMRemoteModel:
 
     def test_init_whitespace_model_name(self, valid_base_url, valid_api_token):
         with pytest.raises(ValueError, match="model_name cannot be empty"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token=valid_api_token,
                 model_name="   "
@@ -172,7 +172,7 @@ class TestLLMRemoteModel:
 
     def test_init_zero_timeout(self, valid_base_url, valid_api_token, valid_model_name):
         with pytest.raises(ValueError, match="timeout must be positive"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token=valid_api_token,
                 model_name=valid_model_name,
@@ -181,7 +181,7 @@ class TestLLMRemoteModel:
 
     def test_init_negative_timeout(self, valid_base_url, valid_api_token, valid_model_name):
         with pytest.raises(ValueError, match="timeout must be positive"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token=valid_api_token,
                 model_name=valid_model_name,
@@ -190,7 +190,7 @@ class TestLLMRemoteModel:
 
     def test_init_negative_max_retries(self, valid_base_url, valid_api_token, valid_model_name):
         with pytest.raises(ValueError, match="max_retries cannot be negative"):
-            LLMRemoteModel(
+            RemoteLLMModel(
                 base_url=valid_base_url,
                 api_token=valid_api_token,
                 model_name=valid_model_name,
@@ -198,7 +198,7 @@ class TestLLMRemoteModel:
             )
 
     def test_init_zero_max_retries(self, valid_base_url, valid_api_token, valid_model_name):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name,
@@ -207,7 +207,7 @@ class TestLLMRemoteModel:
         assert model.max_retries == 0
 
     def test_init_none_headers(self, valid_base_url, valid_api_token, valid_model_name):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name,
@@ -217,7 +217,7 @@ class TestLLMRemoteModel:
 
     @patch('hbllmutils.model.remote.OpenAI')  # Replace with actual import path
     def test_create_openai_client_sync(self, mock_openai_class, valid_base_url, valid_api_token, valid_model_name):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name,
@@ -241,7 +241,7 @@ class TestLLMRemoteModel:
     @patch('hbllmutils.model.remote.AsyncOpenAI')  # Replace with actual import path
     def test_create_openai_client_async(self, mock_async_openai_class, valid_base_url, valid_api_token,
                                         valid_model_name):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -264,7 +264,7 @@ class TestLLMRemoteModel:
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
 
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -284,7 +284,7 @@ class TestLLMRemoteModel:
         mock_openai_class.assert_called_once()
 
     def test_get_non_async_session(self, valid_base_url, valid_api_token, valid_model_name, sample_messages):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name,
@@ -309,7 +309,7 @@ class TestLLMRemoteModel:
 
     def test_get_non_async_session_with_stream(self, valid_base_url, valid_api_token, valid_model_name,
                                                sample_messages):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -331,7 +331,7 @@ class TestLLMRemoteModel:
 
     def test_create_message(self, valid_base_url, valid_api_token, valid_model_name, sample_messages,
                             mock_chat_completion_response):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -349,7 +349,7 @@ class TestLLMRemoteModel:
 
     def test_ask_without_reasoning(self, valid_base_url, valid_api_token, valid_model_name, sample_messages,
                                    mock_chat_completion_message):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -366,7 +366,7 @@ class TestLLMRemoteModel:
 
     def test_ask_with_reasoning(self, valid_base_url, valid_api_token, valid_model_name, sample_messages,
                                 mock_chat_completion_message):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -384,7 +384,7 @@ class TestLLMRemoteModel:
 
     def test_ask_with_reasoning_no_reasoning_content(self, valid_base_url, valid_api_token, valid_model_name,
                                                      sample_messages):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -403,7 +403,7 @@ class TestLLMRemoteModel:
     @patch('hbllmutils.model.remote.OpenAIResponseStream')  # Replace with actual import path
     def test_ask_stream(self, mock_stream_class, valid_base_url, valid_api_token, valid_model_name, sample_messages,
                         mock_stream_response):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -427,7 +427,7 @@ class TestLLMRemoteModel:
     @patch('hbllmutils.model.remote.OpenAIResponseStream')  # Replace with actual import path
     def test_ask_stream_without_reasoning(self, mock_stream_class, valid_base_url, valid_api_token, valid_model_name,
                                           sample_messages):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -444,7 +444,7 @@ class TestLLMRemoteModel:
             assert result == mock_stream_instance
 
     def test_repr_basic(self, valid_base_url, valid_api_token, valid_model_name):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name
@@ -452,7 +452,7 @@ class TestLLMRemoteModel:
 
         repr_str = repr(model)
 
-        assert "LLMRemoteModel(" in repr_str
+        assert "RemoteLLMModel(" in repr_str
         assert f"base_url='{valid_base_url}'" in repr_str
         assert f"model_name='{valid_model_name}'" in repr_str
         assert "organization_id=None" in repr_str
@@ -464,7 +464,7 @@ class TestLLMRemoteModel:
 
     def test_repr_with_all_params(self, valid_base_url, valid_api_token, valid_model_name, valid_organization_id,
                                   valid_headers, valid_default_params):
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=valid_api_token,
             model_name=valid_model_name,
@@ -477,7 +477,7 @@ class TestLLMRemoteModel:
 
         repr_str = repr(model)
 
-        assert "LLMRemoteModel(" in repr_str
+        assert "RemoteLLMModel(" in repr_str
         assert f"organization_id='{valid_organization_id}'" in repr_str
         assert "timeout=60" in repr_str
         assert "max_retries=5" in repr_str
@@ -486,7 +486,7 @@ class TestLLMRemoteModel:
 
     def test_repr_short_token_masking(self, valid_base_url, valid_model_name):
         short_token = "sk-123"
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=short_token,
             model_name=valid_model_name
@@ -497,7 +497,7 @@ class TestLLMRemoteModel:
 
     def test_repr_medium_token_masking(self, valid_base_url, valid_model_name):
         medium_token = "sk-123456789"
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=medium_token,
             model_name=valid_model_name
@@ -508,7 +508,7 @@ class TestLLMRemoteModel:
 
     def test_repr_long_token_masking(self, valid_base_url, valid_model_name):
         long_token = "sk-1234567890abcdef"
-        model = LLMRemoteModel(
+        model = RemoteLLMModel(
             base_url=valid_base_url,
             api_token=long_token,
             model_name=valid_model_name

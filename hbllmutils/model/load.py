@@ -7,7 +7,7 @@ with appropriate parameters. It supports both pre-configured models and dynamica
 
 from typing import Optional
 
-from .remote import LLMRemoteModel
+from .remote import RemoteLLMModel
 
 
 def load_llm_model(
@@ -16,7 +16,7 @@ def load_llm_model(
         api_token: Optional[str] = None,
         model_name: Optional[str] = None,
         **params,
-) -> LLMRemoteModel:
+) -> RemoteLLMModel:
     """
     Load a Large Language Model with specified configuration.
 
@@ -35,7 +35,7 @@ def load_llm_model(
     :param params: Additional parameters to pass to the model.
 
     :return: An initialized LLM remote model instance.
-    :rtype: LLMRemoteModel
+    :rtype: RemoteLLMModel
 
     :raises FileNotFoundError: When config file is not found (handled internally).
     :raises KeyError: When specified model is not found in config (handled internally).
@@ -98,4 +98,4 @@ def load_llm_model(
     else:
         raise RuntimeError('No model parameters specified and no local configuration for falling back.')
 
-    return LLMRemoteModel(**llm_params)
+    return RemoteLLMModel(**llm_params)
