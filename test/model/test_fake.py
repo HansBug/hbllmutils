@@ -98,6 +98,18 @@ class TestFakeLLMModel:
         assert model.stream_fps == 100
         assert model._rules == []
 
+    def test_rules_count_property_empty(self):
+        """Test rules_count property with no rules."""
+        model = FakeLLMModel()
+        assert model.rules_count == 0
+
+    def test_rules_count_property_with_rules(self, fake_model):
+        """Test rules_count property with multiple rules."""
+        fake_model.response_always("response1")
+        fake_model.response_always("response2")
+        fake_model.response_always("response3")
+        assert fake_model.rules_count == 3
+
     def test_get_response_with_string_response(self, fake_model, sample_messages):
         """Test _get_response with string response."""
         fake_model.response_always("test response")
@@ -394,3 +406,22 @@ class TestFakeLLMModel:
         result = fake_model.ask(messages)
 
         assert result == "first match"
+
+    def test_repr_default_stream_wps(self):
+        """Test __repr__ with default stream_wps."""
+        model = FakeLLMModel()
+        result = repr(model)
+        assert result == "FakeLLMModel(stream_fps=50, rules_count=0)"
+
+    def test_repr_custom_stream_wps(self):
+        """Test __repr__ with custom stream_wps."""
+        model = FakeLLMModel(stream_wps=100)
+        result = repr(model)
+        assert result == "FakeLLMModel(stream_fps=100, rules_count=0)"
+
+    def test_repr_with_rules(self, fake_model):
+        """Test __repr__ with rules added."""
+        fake_model.response_always("response1")
+        fake_model.response_always("response2")
+        result = repr(fake_model)
+        assert result == "FakeLLMModel(stream_fps=100, rules_count=2)"

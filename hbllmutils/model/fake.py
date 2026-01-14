@@ -100,6 +100,10 @@ class FakeLLMModel(LLMModel):
         self.stream_fps = stream_wps
         self._rules: List[Tuple[Callable, FakeResponseTyping]] = []
 
+    @property
+    def rules_count(self) -> int:
+        return len(self._rules)
+
     def _get_response(self, messages: List[dict], **params) -> Tuple[str, str]:
         """
         Get response by matching rules in order.
@@ -298,3 +302,32 @@ class FakeLLMModel(LLMModel):
             ),
             with_reasoning=with_reasoning,
         )
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the FakeLLMModel instance.
+
+        Shows the stream_fps parameter and the number of configured rules.
+
+        :return: String representation of the instance
+        :rtype: str
+
+        Example::
+            >>> model = FakeLLMModel(stream_wps=100)
+            >>> model.response_always("Hello")
+            >>> repr(model)
+            'FakeLLMModel(stream_fps=100, rules_count=1)'
+        """
+        # Collect all parameters
+        params = {
+            'stream_fps': self.stream_fps,
+            'rules_count': len(self._rules),
+        }
+
+        # Build parameter string list
+        param_strings = []
+        for key, value in params.items():
+            param_strings.append(f"{key}={value!r}")
+
+        params_str = ', '.join(param_strings)
+        return f"{self.__class__.__name__}({params_str})"

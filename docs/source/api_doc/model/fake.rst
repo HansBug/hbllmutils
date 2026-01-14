@@ -22,6 +22,6 @@ FakeLLMModel
 -----------------------------------------------------
 
 .. autoclass:: FakeLLMModel
-    :members: __init__,response_always,response_when,response_when_keyword_in_last_message,ask,ask_stream
+    :members: __init__,rules_count,response_always,response_when,response_when_keyword_in_last_message,ask,ask_stream,__repr__
 
 
