@@ -6,9 +6,15 @@ hbllmutils.response.code
 .. automodule:: hbllmutils.response.code
 
 
-extract\_code\_from\_markdown
+extract\_code
 -----------------------------------------------------
 
-.. autofunction:: extract_code_from_markdown
+.. autofunction:: extract_code
+
+
+parse\_json
+-----------------------------------------------------
+
+.. autofunction:: parse_json
 
 
