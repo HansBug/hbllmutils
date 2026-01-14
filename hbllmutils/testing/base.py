@@ -12,7 +12,7 @@ Classes:
 """
 
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Union, Optional
 
 from tqdm import tqdm
 
@@ -99,6 +99,7 @@ class BinaryTest:
         _single_test: Abstract method to implement the test logic (must be overridden)
         test: Run the test one or multiple times and return results
     """
+    __desc_name__: Optional[str] = None
 
     def _single_test(self, model: LLMModel, **params) -> BinaryTestResult:
         """
@@ -149,6 +150,6 @@ class BinaryTest:
             return self._single_test(model=model, **params)
         else:
             tests = []
-            for _ in tqdm(range(n), disable=silent):
+            for _ in tqdm(range(n), disable=silent, desc=self.__desc_name__):
                 tests.append(self._single_test(model=model, **params))
             return MultiBinaryTestResult(tests=tests)

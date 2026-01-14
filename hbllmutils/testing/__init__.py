@@ -13,7 +13,8 @@ Exported Classes:
 
 Exported Functions:
     hello: Performs a basic greeting test on an LLM model
+    ping: Performs a ping-pong response test on an LLM model
 """
 
+from .alive import hello, ping
 from .base import BinaryTest, MultiBinaryTestResult, BinaryTestResult
-from .basic import hello, ping

@@ -21,48 +21,6 @@ from ..history import LLMHistory
 from ..model import LLMModel
 
 
-# @dataclass
-# class BinaryTestResult:
-#     passed: bool
-#     content: str
-#
-#
-# @dataclass
-# class MultiBinaryTestResult:
-#     tests: List[BinaryTestResult]
-#     total_count: int = 0
-#     passed_count: int = 0
-#     passed_ratio: float = 0
-#     failed_count: int = 0
-#     failed_ratio: float = 0
-#
-#     def __post_init__(self):
-#         self.total_count = len(self.tests)
-#         self.passed_count, self.failed_count = 0, 0
-#         for test in self.tests:
-#             if test.passed:
-#                 self.passed_count += 1
-#             else:
-#                 self.failed_count += 1
-#         self.passed_ratio = self.passed_count / self.total_count
-#         self.failed_ratio = self.failed_count / self.total_count
-
-
-# class BinaryTest:
-#     def _single_test(self, model: LLMModel, **params) -> BinaryTestResult:
-#         raise NotImplementedError  # pragma: no cover
-# 
-#     def test(self, model: LLMModel, n: int = 1, silent: bool = False, **params) \
-#             -> Union[BinaryTestResult, MultiBinaryTestResult]:
-#         if n == 1:
-#             return self._single_test(model=model, **params)
-#         else:
-#             tests = []
-#             for _ in tqdm(range(n), disable=silent):
-#                 tests.append(self._single_test(model=model, **params))
-#             return MultiBinaryTestResult(tests=tests)
-
-
 class _HelloTest(BinaryTest):
     """
     Internal test class that implements a basic greeting test for LLM models.
@@ -71,6 +29,8 @@ class _HelloTest(BinaryTest):
     receives a non-empty response. The test passes if the model returns any
     content in response to the greeting.
     """
+
+    __desc_name__ = 'hello test'
 
     def _single_test(self, model: LLMModel, **params) -> BinaryTestResult:
         """
@@ -147,6 +107,8 @@ class _PingTest(BinaryTest):
     contains the word "pong" (case-insensitive). The test passes if the model
     responds with a message containing "pong".
     """
+
+    __desc_name__ = 'ping test'
 
     def _single_test(self, model: LLMModel, **params) -> BinaryTestResult:
         """
