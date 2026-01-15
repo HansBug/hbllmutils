@@ -7,3 +7,4 @@ pyyaml
 jieba
 markdown-it-py
 json-repair
+pydantic
