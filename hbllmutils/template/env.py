@@ -118,6 +118,23 @@ def add_settings_for_env(env: jinja2.Environment) -> jinja2.Environment:
 
 
 def create_env() -> jinja2.Environment:
+    """
+    Create a new Jinja2 environment with enhanced settings.
+
+    This function creates a new Jinja2 environment and applies all enhancements
+    including Python builtins, custom filters, and environment variables.
+
+    :return: A fully configured Jinja2 environment
+    :rtype: jinja2.Environment
+
+    Example::
+
+        >>> env = create_env()
+        >>> # Use the environment to render templates with enhanced features
+        >>> template = env.from_string("{{ 'hello' | upper }}")
+        >>> template.render()
+        'HELLO'
+    """
     env = jinja2.Environment()
     env = add_settings_for_env(env)
     return env
