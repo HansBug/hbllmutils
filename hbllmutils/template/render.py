@@ -62,7 +62,6 @@ class PromptTemplate:
         Render the template with the provided keyword arguments.
 
         :param kwargs: Variable names and their values to substitute in the template.
-        :type kwargs: dict
 
         :return: The rendered template string.
         :rtype: str

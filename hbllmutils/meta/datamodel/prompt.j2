@@ -1,4 +1,4 @@
-Based on the given data model class `{{ dm_cls.__name__ }}` code:
+Based on the given data model class `{{ dm_info.class_name }}` code:
 
 ```python
 {{ dm_info.source_code }}
@@ -54,11 +54,17 @@ Generate a comprehensive JSON data output guide system prompt for LLM to produce
 
 ## Additional Context:
 
-Full source file code for `{{ dm_cls.__name__ }}` and related classes:
+Here are additional context of the classes and related ones.
+
+{% for file_item in relate_infos %}
+### {{ file_item.source_file }}
+
+Full source file code for related classes {{ ", ".join(file_item.class_names) }} and related classes:
 
 ```python
-{{ dm_info.source_file_code }}
+{{ file_item.source_file_code }}
 ```
+{% endfor %}
 
 ## Output Instructions:
 
