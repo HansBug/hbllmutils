@@ -1,0 +1,72 @@
+Based on the given data model class `{{ dm_cls.__name__ }}` code:
+
+```python
+{{ dm_info.source_code }}
+```
+
+Generate a comprehensive JSON data output guide system prompt for LLM to produce JSON responses that strictly conform to the above schema. The output must be in English and follow precise formatting and validation rules.
+
+## Requirements and Rules (MUST OBEY):
+
+### 1. Data Model Compatibility
+- Support various data model types: primitive dataclasses, Pydantic models, SQLAlchemy ORMs, attrs classes, etc.
+- Handle different field definition syntaxes and validation mechanisms
+- Adapt to different Python typing annotations and validation libraries
+
+### 2. Nested Structure Handling
+- Identify and process nested structures: List[User], Dict[str, User], Union types (Teacher | Student), Optional fields
+- Recursively analyze nested classes and their constraints
+- Ensure nested objects follow the same validation rules as parent objects
+- Handle complex generic types like List[Optional[Dict[str, Union[str, int]]]]
+
+### 3. Field Analysis Scope
+- Focus ONLY on constructor/initialization fields (\_\_init\_\_ parameters, class attributes)
+- EXCLUDE @property methods, computed fields, and runtime-generated attributes
+- Include class variables that serve as field defaults
+- Process both explicit field definitions and inferred types
+
+### 4. Constraint Enforcement
+- Extract and enforce ALL validation constraints:
+  - String constraints: min_length, max_length, regex patterns
+  - Numeric constraints: minimum, maximum, multiple_of, exclusive bounds
+  - Collection constraints: min_items, max_items, unique_items
+  - Date/time constraints: format specifications (ISO8601, custom formats)
+  - Custom validators and business logic constraints
+- Ensure LLM responses will pass all validation checks
+
+### 5. Validation Rule Processing
+- Parse Pydantic Field() constraints, validators, and custom validation functions
+- Extract dataclass field() metadata and constraints
+- Process regex patterns and format specifications exactly as defined
+- Handle conditional validation rules and cross-field dependencies
+- Include enum value restrictions and choice constraints
+
+### 6. Accuracy and Precision
+- Include ONLY information present in the actual source code
+- Do NOT invent or assume constraints not explicitly defined
+- Preserve exact constraint values, patterns, and formats
+- Maintain field naming, typing, and optional/required status exactly as specified
+
+### 7. Output Language Requirement
+- **ALL OUTPUT MUST BE IN ENGLISH** - descriptions, examples, constraints, and documentation
+- Use clear, professional technical English
+- Provide precise and unambiguous constraint descriptions
+
+## Additional Context:
+
+Full source file code for `{{ dm_cls.__name__ }}` and related classes:
+
+```python
+{{ dm_info.source_file_code }}
+```
+
+## Output Instructions:
+
+Generate ONLY the JSON data output guide system prompt in markdown format. The output must be:
+- **Written entirely in English**
+- Ready to use as a system prompt for LLM JSON generation
+- Comprehensive enough to ensure 100% schema compliance
+- Free from explanatory text, meta-commentary, or implementation details
+- Focused solely on the data structure and validation requirements
+
+Do not include any additional explanations, code analysis, or meta-information beyond the system prompt itself.

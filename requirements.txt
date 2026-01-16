@@ -8,3 +8,4 @@ jieba
 markdown-it-py
 json-repair
 pydantic
+jinja2
