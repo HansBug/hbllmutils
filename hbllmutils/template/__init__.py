@@ -10,8 +10,10 @@ The module exports:
 - auto_decode: Automatic text decoding with support for various encodings
 - Environment configuration utilities: Functions to enhance Jinja2 environments
 - PromptTemplate: A flexible template class for rendering prompts
+- BaseMatcher: Base class for creating custom file matchers with pattern matching capabilities
 """
 
 from .decode import auto_decode
 from .env import add_builtins_to_env, add_settings_for_env, create_env
+from .matcher import BaseMatcher
 from .render import PromptTemplate
