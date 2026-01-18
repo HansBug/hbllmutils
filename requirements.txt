@@ -9,3 +9,4 @@ markdown-it-py
 json-repair
 pydantic
 jinja2
+natsort

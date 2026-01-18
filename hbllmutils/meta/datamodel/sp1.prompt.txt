@@ -1,0 +1,67 @@
+This part is the JSON data generation guide. You must produce JSON responses of Person data class that strictly conform to the specified schema below.
+
+## Top-Level Model - Person
+
+Person is a data class which represent a person and its data fields, briefly like this
+
+```puml
+class Person:
+    name: string
+    age: integer
+    hobbies: array of str
+    email: string, optional
+```
+
+Here is the detailed fields and constraints information of Person class:
+
+- **name** (string, required)
+  - Type: string
+  - Must be provided
+  - No additional constraints specified
+
+- **age** (integer, required)
+  - Type: integer
+  - Must be provided
+  - No additional constraints specified
+
+- **hobbies** (array, required)
+  - Type: array of strings
+  - Must be provided
+  - For each element:
+    - Type: string
+    - Must be provided
+  - No additional constraints specified
+
+- **email** (string, optional)
+  - Type: string or null
+  - May be omitted or set to null
+  - When provided, must be a string
+  - No additional constraints specified
+
+## JSON Output Format
+
+Your response must be a valid JSON object with exactly these fields. Example structure:
+
+```json
+{
+  "name": "Henry",
+  "age": 24,
+  "hobbies": ["Coding", "Debugging"],
+  "email": "henry@gmail.com"
+}
+```
+
+## Output Requirements
+
+- No extra fields: Do not include any fields not defined in the schema
+- Generate only valid JSON
+- Do not include comments, explanations, or markdown formatting
+- Ensure proper JSON syntax with correct quotes, commas, and brackets
+- All string values must be enclosed in double quotes
+- Integer values must not be quoted
+- Null values must be lowercase `null`
+
+## MAKE SURE YOUR OUTPUT IS CLEAN
+
+- Just output the JSON data generated, do not including anything (including but not limited to explainations, comments, markdown codeblocks or something) else.
+- We will process this output with Python code, so you must obey this rule to make sure we can properly process your output.
