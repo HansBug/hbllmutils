@@ -1,0 +1,203 @@
+```markdown
+This part is the JSON data generation guide. You must produce JSON responses of NotificationRequest data class that strictly conform to the specified schema below.
+
+## Top-Level Model - NotificationRequest
+
+NotificationRequest is a Pydantic model which represents a notification request and its data fields, briefly like this
+
+```puml
+class NotificationRequest:
+    user_id: integer
+    notification: EmailNotification | SMSNotification | PushNotification
+    priority: integer, optional
+```
+
+Here is the detailed fields and constraints information of NotificationRequest class:
+
+- **user_id** (integer, required)
+  - Type: integer
+  - Must be provided
+  - Constraints:
+    - Value must be greater than 0 (exclusive)
+
+- **notification** (union object, required)
+  - Type: one of EmailNotification, SMSNotification, or PushNotification
+  - Must be provided
+  - Must be exactly one of the following object types:
+    - EmailNotification (see specification below)
+    - SMSNotification (see specification below)
+    - PushNotification (see specification below)
+  - The object must conform to one of these model specifications completely
+
+- **priority** (integer, optional)
+  - Type: integer
+  - Optional field with default value `1`
+  - May be omitted (will default to `1`) or explicitly provided
+  - Constraints:
+    - Value must be greater than or equal to 1 (inclusive)
+    - Value must be less than or equal to 5 (inclusive)
+
+## Nested Model - EmailNotification
+
+EmailNotification is a Pydantic model representing an email notification:
+
+```puml
+class EmailNotification:
+    type: string
+    email: string (email format)
+    subject: string
+```
+
+Field specifications for EmailNotification:
+
+- **type** (string, required)
+  - Type: string
+  - Must be provided
+  - No additional constraints specified
+
+- **email** (string, required)
+  - Type: string in valid email address format
+  - Must be provided
+  - Constraints:
+    - Must be a valid email address format (e.g., `user@example.com`)
+    - Must contain `@` symbol with valid local and domain parts
+    - Must follow standard email validation rules
+
+- **subject** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 200 characters
+
+## Nested Model - SMSNotification
+
+SMSNotification is a Pydantic model representing an SMS notification:
+
+```puml
+class SMSNotification:
+    type: string
+    phone: string
+    message: string
+```
+
+Field specifications for SMSNotification:
+
+- **type** (string, required)
+  - Type: string
+  - Must be provided
+  - No additional constraints specified
+
+- **phone** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 8 characters
+    - Length must not exceed 20 characters
+    - Must match pattern: `^\+?[\d\s\-\(\)]+$`
+    - Pattern allows: optional leading `+`, digits, spaces, hyphens, and parentheses
+    - Examples: `"+1 (555) 123-4567"`, `"123-456-7890"`, `"+86 138 0013 8000"`
+
+- **message** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 500 characters
+
+## Nested Model - PushNotification
+
+PushNotification is a Pydantic model representing a push notification:
+
+```puml
+class PushNotification:
+    type: string
+    device_id: string
+    title: string
+```
+
+Field specifications for PushNotification:
+
+- **type** (string, required)
+  - Type: string
+  - Must be provided
+  - No additional constraints specified
+
+- **device_id** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 10 characters
+    - Length must not exceed 100 characters
+
+- **title** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 100 characters
+
+## JSON Output Format
+
+Your response must be a valid JSON object with exactly these fields. Example structures:
+
+### Example with EmailNotification:
+
+```json
+{
+  "user_id": 12345,
+  "notification": {
+    "type": "email",
+    "email": "user@example.com",
+    "subject": "Important Notification"
+  },
+  "priority": 3
+}
+```
+
+### Example with SMSNotification:
+
+```json
+{
+  "user_id": 67890,
+  "notification": {
+    "type": "sms",
+    "phone": "+1 (555) 123-4567",
+    "message": "Your verification code is 123456"
+  },
+  "priority": 5
+}
+```
+
+### Example with PushNotification:
+
+```json
+{
+  "user_id": 54321,
+  "notification": {
+    "type": "push",
+    "device_id": "device123456789",
+    "title": "New Message Received"
+  },
+  "priority": 2
+}
+```
+
+## Output Requirements
+
+- No extra fields: Do not include any fields not defined in the schema
+- Generate only valid JSON
+- Do not include comments, explanations, or markdown formatting
+- Ensure proper JSON syntax with correct quotes, commas, and brackets
+- All string values must be enclosed in double quotes
+- Integer values must not be quoted
+- Null values must be lowercase `null`
+- The notification field must contain exactly one of the three notification types
+- Each notification type object must include all its required fields
+- All constraints must be satisfied for the chosen notification type
+
+## MAKE SURE YOUR OUTPUT IS CLEAN
+
+- Just output the JSON data generated, do not including anything (including but not limited to explanations, comments, markdown codeblocks or something) else.
+- We will process this output with Python code, so you must obey this rule to make sure we can properly process your output.
+```
