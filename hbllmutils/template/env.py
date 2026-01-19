@@ -12,7 +12,7 @@ import pathlib
 import textwrap
 
 import jinja2
-from hbutils.string import plural_word
+from hbutils.string import plural_word, ordinalize, titleize
 
 
 def add_builtins_to_env(env: jinja2.Environment) -> jinja2.Environment:
@@ -20,9 +20,14 @@ def add_builtins_to_env(env: jinja2.Environment) -> jinja2.Environment:
     Mount Python built-in functions to a Jinja2 environment.
 
     This function adds Python's built-in functions to the specified Jinja2 environment
-    as filters, tests, or global functions based on their characteristics.
+    as filters, tests, or global functions based on their characteristics. Functions are
+    categorized and mounted appropriately:
+    
+    - Filters: Functions that can process data (e.g., str, len, sorted)
+    - Tests: Boolean-returning functions for conditional checks (e.g., isinstance, callable)
+    - Globals: All built-in functions available as global functions in templates
 
-    :param env: A Jinja2 Environment instance
+    :param env: A Jinja2 Environment instance to be enhanced
     :type env: jinja2.Environment
 
     :return: The Jinja2 Environment with Python builtins mounted
@@ -33,6 +38,9 @@ def add_builtins_to_env(env: jinja2.Environment) -> jinja2.Environment:
         >>> env = jinja2.Environment()
         >>> env = add_builtins_to_env(env)
         >>> # Now Python builtins like len, str, etc. are available in templates
+        >>> template = env.from_string("{{ items | len }}")
+        >>> template.render(items=[1, 2, 3])
+        '3'
     """
     # Existing built-in filters, tests and global functions in Jinja2
     existing_filters = set(env.filters.keys())
@@ -95,9 +103,15 @@ def add_settings_for_env(env: jinja2.Environment) -> jinja2.Environment:
     Add additional settings and functions to a Jinja2 environment.
 
     This function enhances a Jinja2 environment by:
-    1. Adding Python built-in functions
-    2. Adding custom text processing filters
-    3. Adding environment variables as global variables
+    
+    1. Adding Python built-in functions via :func:`add_builtins_to_env`
+    2. Adding custom text processing filters:
+       - indent: Text indentation using textwrap.indent
+       - plural: Pluralize words using hbutils.string.plural_word
+       - ordinalize: Convert numbers to ordinal form (1st, 2nd, etc.)
+       - titleize: Convert text to title case
+       - read_file_text: Read text content from a file path
+    3. Adding environment variables as global variables for template access
 
     :param env: The Jinja2 environment to enhance
     :type env: jinja2.Environment
@@ -110,12 +124,16 @@ def add_settings_for_env(env: jinja2.Environment) -> jinja2.Environment:
         >>> env = jinja2.Environment()
         >>> env = add_settings_for_env(env)
         >>> # Now the environment has additional filters and globals
+        >>> template = env.from_string("{{ 'word' | plural }}")
+        >>> template.render()
+        'words'
     """
     env = add_builtins_to_env(env)
-    env.globals['indent'] = textwrap.indent
-    env.globals['plural_word'] = plural_word
-    env.filters['plural'] = plural_word
-    env.filters['read_file_text'] = lambda x: pathlib.Path(x).read_text()
+    env.globals['indent'] = env.filters['indent'] = textwrap.indent
+    env.globals['plural_word'] = env.filters['plural'] = plural_word
+    env.globals['ordinalize'] = env.filters['ordinalize'] = ordinalize
+    env.globals['titleize'] = env.filters['titleize'] = titleize
+    env.globals['read_file_text'] = env.filters['read_file_text'] = lambda x: pathlib.Path(x).read_text()
     for key, value in os.environ.items():
         if key not in env.globals:
             env.globals[key] = value
@@ -127,9 +145,11 @@ def create_env() -> jinja2.Environment:
     Create a new Jinja2 environment with enhanced settings.
 
     This function creates a new Jinja2 environment and applies all enhancements
-    including Python builtins, custom filters, and environment variables.
+    including Python builtins, custom filters, and environment variables via
+    :func:`add_settings_for_env`. This is a convenience function that provides
+    a fully configured environment ready for template rendering.
 
-    :return: A fully configured Jinja2 environment
+    :return: A fully configured Jinja2 environment with all enhancements
     :rtype: jinja2.Environment
 
     Example::
@@ -139,6 +159,9 @@ def create_env() -> jinja2.Environment:
         >>> template = env.from_string("{{ 'hello' | upper }}")
         >>> template.render()
         'HELLO'
+        >>> template = env.from_string("{{ 3 | ordinalize }}")
+        >>> template.render()
+        '3rd'
     """
     env = jinja2.Environment()
     env = add_settings_for_env(env)
