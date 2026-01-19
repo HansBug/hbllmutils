@@ -11,9 +11,24 @@ The module exports:
 - Environment configuration utilities: Functions to enhance Jinja2 environments
 - PromptTemplate: A flexible template class for rendering prompts
 - BaseMatcher: Base class for creating custom file matchers with pattern matching capabilities
+- BaseMatcherPair: Base class for defining and working with matcher pairs
+
+Example::
+    >>> from hbllmutils.template import PromptTemplate, auto_decode
+    >>> # Create a template
+    >>> template = PromptTemplate("Hello {{ name }}!")
+    >>> # Render with variables
+    >>> result = template.render(name="World")
+    >>> print(result)
+    Hello World!
+    >>> # Auto decode text
+    >>> text = auto_decode(b'\\xe4\\xb8\\xad\\xe6\\x96\\x87')
+    >>> print(text)
+    中文
 """
 
 from .decode import auto_decode
 from .env import add_builtins_to_env, add_settings_for_env, create_env
 from .matcher import BaseMatcher
+from .matcher_pair import BaseMatcherPair
 from .render import PromptTemplate
