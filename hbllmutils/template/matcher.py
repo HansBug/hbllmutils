@@ -21,7 +21,7 @@ Example::
 import os
 import re
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union, Iterator
+from typing import Optional, List, Dict, Any, Union, Iterator, Tuple
 
 from hbutils.model import IComparable
 from natsort import natsorted
@@ -56,7 +56,7 @@ class _MatcherMeta(type):
         return instance
 
     @classmethod
-    def _cls_init(cls, pattern: str, annotations: Dict[str, type]) -> tuple[str, Dict[str, type], List[str]]:
+    def _cls_init(cls, pattern: str, annotations: Dict[str, type]) -> Tuple[str, Dict[str, type], List[str]]:
         """
         Initialize class-level pattern and field information.
         
@@ -70,7 +70,7 @@ class _MatcherMeta(type):
         :type annotations: Dict[str, type]
         
         :return: Tuple of (regex_pattern, fields_dict, field_names_list)
-        :rtype: tuple[str, Dict[str, type], List[str]]
+        :rtype: Tuple[str, Dict[str, type], List[str]]
         
         :raises NameError: If placeholders don't match annotations or vice versa
         
