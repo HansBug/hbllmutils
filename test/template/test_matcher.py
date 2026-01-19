@@ -514,3 +514,16 @@ class TestBaseMatcher:
         assert TestMatcher.__fields__ == {'id': int}
         assert TestMatcher.__field_names__ == ['id']
         assert TestMatcher.__field_names_set__ == {'id'}
+
+    def test_extra_field(self):
+        with pytest.raises(NameError):
+            class _Error(BaseMatcher):
+                __pattern__ = "test_<id>.txt"
+                id: int
+                name: str
+
+    def test_extra_placeholder(self):
+        with pytest.raises(NameError):
+            class _Error(BaseMatcher):
+                __pattern__ = "test_<id>_<name>.txt"
+                id: int
