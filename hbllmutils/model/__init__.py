@@ -24,3 +24,4 @@ from .fake import FakeResponseStream, FakeLLMModel
 from .load import load_llm_model
 from .remote import RemoteLLMModel
 from .stream import ResponseStream, OpenAIResponseStream
+from .task import LLMTask

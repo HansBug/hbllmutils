@@ -1,9 +1,8 @@
 from typing import Optional, List
 
 from .prompt import create_meta_prompt_for_datamodel
-from ..task import LLMTask
 from ...history import LLMHistory
-from ...model import LLMModel
+from ...model import LLMModel, LLMTask
 
 
 def create_datamodel_prompt_generation_task(

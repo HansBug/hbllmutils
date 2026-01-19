@@ -1,8 +1,9 @@
 from abc import ABC
 from typing import Union, Tuple, Optional
 
-from hbllmutils.history import LLMHistory
-from hbllmutils.model import ResponseStream, LLMModel
+from .base import LLMModel
+from .stream import ResponseStream
+from ..history import LLMHistory
 
 
 class LLMTask(ABC):
