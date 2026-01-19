@@ -27,7 +27,7 @@ from hbutils.model import IComparable
 from natsort import natsorted
 
 
-class MatcherMeta(type):
+class _MatcherMeta(type):
     """
     Metaclass for creating pattern-based file matchers.
     
@@ -77,7 +77,7 @@ class MatcherMeta(type):
         Example::
             >>> pattern = "image_<id>_<name>.png"
             >>> annotations = {'id': int, 'name': str}
-            >>> regex, fields, names = MatcherMeta._cls_init(pattern, annotations)
+            >>> regex, fields, names = _MatcherMeta._cls_init(pattern, annotations)
             >>> print(names)
             ['id', 'name']
         """
@@ -129,7 +129,7 @@ class MatcherMeta(type):
         return regex_pattern, fields, placeholders
 
 
-class BaseMatcher(IComparable, metaclass=MatcherMeta):
+class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     """
     Base class for file pattern matchers.
     
