@@ -1,0 +1,38 @@
+from dataclasses import dataclass
+from typing import List, Optional
+
+
+def is_valid_email(email: str) -> bool:
+    pass
+
+
+@dataclass
+class Person:
+    name: str
+    age: int
+    hobbies: List[str]
+    email: Optional[str] = None
+
+    def __post_init__(self):
+        # Name length validation (1-50 characters)
+        if not self.name or len(self.name) > 50:
+            raise ValueError("Name must be between 1 and 50 characters")
+
+        # Age validation (0-150 years)
+        if not isinstance(self.age, int) or self.age < 0 or self.age > 150:
+            raise ValueError("Age must be an integer between 0 and 150")
+
+        # Hobbies validation (max 10 hobbies, each max 30 characters)
+        if len(self.hobbies) > 10:
+            raise ValueError("Maximum 10 hobbies allowed")
+
+        for hobby in self.hobbies:
+            if not hobby or len(hobby) > 30:
+                raise ValueError("Each hobby must be between 1 and 30 characters")
+
+        # Email validation (basic format check if provided)
+        if self.email is not None:
+            if "@" not in self.email or len(self.email) > 100:
+                raise ValueError("Invalid email format or email too long (max 100 characters)")
+            if not is_valid_email(self.email):
+                raise ValueError('Invalid email format')

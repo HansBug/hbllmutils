@@ -1,0 +1,204 @@
+This part is the JSON data generation guide. You must produce JSON responses of User data class that strictly conform to the specified schema below.
+
+## Top-Level Model - User
+
+User is a Pydantic model which represents a user and its data fields, briefly like this
+
+```puml
+class User:
+    id: integer
+    name: string
+    age: integer
+    role: UserRole enum
+    address: Address object
+    contacts: array of Contact
+    metadata: dictionary
+    created_at: datetime
+```
+
+Here is the detailed fields and constraints information of User class:
+
+- **id** (integer, required)
+  - Type: integer
+  - Must be provided
+  - Constraints:
+    - Value must be greater than 0 (exclusive)
+
+- **name** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 100 characters
+
+- **age** (integer, required)
+  - Type: integer
+  - Must be provided
+  - Constraints:
+    - Value must be greater than or equal to 0 (inclusive)
+    - Value must be less than or equal to 150 (inclusive)
+
+- **role** (enum, required)
+  - Type: UserRole enumeration
+  - Must be provided
+  - Allowed values:
+    - `"admin"` - Administrator role
+    - `"user"` - Regular user role
+    - `"guest"` - Guest role
+  - Must be exactly one of these string values
+
+- **address** (object, required)
+  - Type: Address object
+  - Must be provided
+  - See nested Address model specification below
+
+- **contacts** (array, required)
+  - Type: array of Contact objects
+  - Must be provided
+  - For each element:
+    - Type: Contact object
+    - Must conform to Contact model specification (see below)
+  - Constraints:
+    - Array must contain at least 1 element
+    - Array must not contain more than 10 elements
+
+- **metadata** (object, optional)
+  - Type: dictionary with string keys and any value type
+  - Optional field with default empty object `{}`
+  - May be omitted or provided as an empty object
+  - When provided:
+    - Keys must be strings
+    - Values can be of any valid JSON type
+
+- **created_at** (string, required)
+  - Type: datetime string in ISO 8601 format
+  - Must be provided
+  - Format: `YYYY-MM-DDTHH:MM:SS` or `YYYY-MM-DDTHH:MM:SS.ffffff`
+  - Example: `"2024-01-15T14:30:00"` or `"2024-01-15T14:30:00.123456"`
+
+## Nested Model - Address
+
+Address is a Pydantic model representing a physical address:
+
+```puml
+class Address:
+    street: string
+    city: string
+    country: string
+    postal_code: string, optional
+```
+
+Field specifications for Address:
+
+- **street** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 200 characters
+
+- **city** (string, required)
+  - Type: string
+  - Must be provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 100 characters
+
+- **country** (string, optional with default)
+  - Type: string
+  - Optional field with default value `"China"`
+  - May be omitted (will default to `"China"`) or explicitly provided
+  - Constraints:
+    - Length must be at least 1 character
+    - Length must not exceed 100 characters
+
+- **postal_code** (string, optional)
+  - Type: string or null
+  - May be omitted or set to null
+  - When provided:
+    - Must be a string
+    - Constraints:
+      - Length must be at least 3 characters
+      - Length must not exceed 20 characters
+
+## Nested Model - Contact
+
+Contact is a Pydantic model representing contact information:
+
+```puml
+class Contact:
+    email: string (email format)
+    phone: string, optional
+```
+
+Field specifications for Contact:
+
+- **email** (string, required)
+  - Type: string in valid email format
+  - Must be provided
+  - Constraints:
+    - Must be a valid email address format (e.g., `user@example.com`)
+    - Must contain `@` symbol with valid local and domain parts
+    - Must follow standard email validation rules
+
+- **phone** (string, optional)
+  - Type: string or null
+  - May be omitted or set to null
+  - When provided:
+    - Must be a string
+    - Constraints:
+      - Length must be at least 8 characters
+      - Length must not exceed 20 characters
+      - Must match pattern: `^\+?[\d\s\-\(\)]+$`
+      - Pattern allows: optional leading `+`, digits, spaces, hyphens, and parentheses
+      - Examples: `"+1 (555) 123-4567"`, `"123-456-7890"`, `"+86 138 0013 8000"`
+
+## JSON Output Format
+
+Your response must be a valid JSON object with exactly these fields. Example structure:
+
+```json
+{
+  "id": 12345,
+  "name": "John Smith",
+  "age": 28,
+  "role": "user",
+  "address": {
+    "street": "123 Main Street",
+    "city": "Beijing",
+    "country": "China",
+    "postal_code": "100000"
+  },
+  "contacts": [
+    {
+      "email": "john.smith@example.com",
+      "phone": "+86 138 0013 8000"
+    }
+  ],
+  "metadata": {
+    "department": "Engineering",
+    "employee_id": "EMP001"
+  },
+  "created_at": "2024-01-15T14:30:00"
+}
+```
+
+## Output Requirements
+
+- No extra fields: Do not include any fields not defined in the schema
+- Generate only valid JSON
+- Do not include comments, explanations, or markdown formatting
+- Ensure proper JSON syntax with correct quotes, commas, and brackets
+- All string values must be enclosed in double quotes
+- Integer values must not be quoted
+- Null values must be lowercase `null`
+- Boolean values must be lowercase `true` or `false`
+- Datetime values must be formatted as ISO 8601 strings
+- Enum values must match exactly as specified (case-sensitive)
+- Nested objects must conform to their respective model specifications
+- Arrays must contain elements of the correct type and within size constraints
+
+## MAKE SURE YOUR OUTPUT IS CLEAN
+
+- Just output the JSON data generated, do not including anything (including but not limited to explanations, comments, markdown codeblocks or something) else.
+- We will process this output with Python code, so you must obey this rule to make sure we can properly process your output.

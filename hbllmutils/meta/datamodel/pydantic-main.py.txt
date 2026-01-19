@@ -1,0 +1,9 @@
+class User(BaseModel):
+    id: int = Field(..., gt=0, description="用户ID")
+    name: str = Field(..., min_length=1, max_length=100, description="用户姓名")
+    age: int = Field(..., ge=0, le=150, description="年龄")
+    role: UserRole = Field(..., description="用户角色")
+    address: Address = Field(..., description="地址信息")
+    contacts: List[Contact] = Field(..., min_items=1, max_items=10, description="联系方式列表")
+    metadata: Dict[str, Any] = Field(default={}, description="元数据")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")

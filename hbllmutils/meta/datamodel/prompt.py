@@ -26,6 +26,7 @@ from typing import Optional
 
 from natsort import natsorted
 
+from .sample import get_prompt_samples
 from ...template import PromptTemplate
 
 
@@ -273,4 +274,5 @@ def create_meta_prompt_for_datamodel(
     return t.render(
         dm_info=get_class_info(datamodel_class),
         relate_infos=relate_infos,
+        prompt_samples=get_prompt_samples(),
     )

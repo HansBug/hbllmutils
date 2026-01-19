@@ -66,6 +66,26 @@ Full source file code for related classes {{ ", ".join(file_item.class_names) }}
 ```
 {% endfor %}
 
+## Output Samples:
+
+We prepared {{ len(prompt_samples) | plural("output sample") }} for your to reference
+
+{% for sample in prompt_samples %}
+### {{ sample.name }}
+
+Data model class python code
+
+```python
+{{ sample.py.full_path | read_file_text }}
+```
+
+This is the system prompt which outputed from this code for reference
+
+```markdown
+{{ sample.prompt.full_path | read_file_text }}
+```
+{% endfor %}
+
 ## Output Instructions:
 
 Generate ONLY the JSON data output guide system prompt in markdown format. The output must be:
