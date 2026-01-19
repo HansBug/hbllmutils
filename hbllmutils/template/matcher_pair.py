@@ -48,8 +48,12 @@ class _MatcherPairMeta(type):
         :rtype: type
         """
         instance = super().__new__(cls, *args, **kwargs)
+        try:
+            annotations = getattr(instance, '__annotations__') or {}
+        except AttributeError:
+            annotations = {}
         instance.__fields__, instance.__field_names__, instance.__value_fields__, instance.__value_field_names__ = \
-            cls._cls_init(getattr(instance, '__annotations__') or {})
+            cls._cls_init(annotations)
         instance.__field_names_set__ = set(instance.__field_names__)
         instance.__value_field_names_set__ = set(instance.__value_field_names__)
         return instance
