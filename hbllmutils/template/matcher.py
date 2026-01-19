@@ -51,7 +51,7 @@ class _MatcherMeta(type):
         """
         instance = super().__new__(cls, *args, **kwargs)
         instance.__regexp_pattern__, instance.__fields__, instance.__field_names__ = \
-            cls._cls_init(instance.__pattern__, instance.__annotations__)
+            cls._cls_init(instance.__pattern__, getattr(instance, '__annotations__') or {})
         instance.__field_names_set__ = set(instance.__field_names__)
         return instance
 
@@ -338,7 +338,7 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
         :rtype: str
         """
         field_info = []
-        annotations = getattr(self.__class__, '__annotations__', {})
+        annotations = getattr(self.__class__, '__annotations__') or {}
 
         for field_name in annotations:
             if hasattr(self, field_name):
