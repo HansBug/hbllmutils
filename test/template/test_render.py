@@ -1,6 +1,7 @@
+import os
 import pathlib
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock
 
 import jinja2
 import pytest
@@ -19,170 +20,170 @@ def complex_template_text():
 
 
 @pytest.fixture
-def mock_env():
-    env = Mock(spec=jinja2.Environment)
-    template = Mock()
-    template.render.return_value = "rendered_result"
-    env.from_string.return_value = template
-    return env
+def template_file_content():
+    return "Welcome, {{ user }}! Today is {{ day }}."
 
 
 @pytest.fixture
-def temp_template_file():
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
-        f.write("Hello, {{ name }} from file!")
-        temp_path = f.name
-    yield temp_path
-    pathlib.Path(temp_path).unlink()
+def temp_template_file(template_file_content):
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        f.write(template_file_content)
+        temp_file_path = f.name
+
+    yield temp_file_path
+
+    # Cleanup
+    if os.path.exists(temp_file_path):
+        os.unlink(temp_file_path)
+
+
+@pytest.fixture
+def mock_jinja_env():
+    env = MagicMock(spec=jinja2.Environment)
+    template_mock = MagicMock()
+    env.from_string.return_value = template_mock
+    return env, template_mock
 
 
 @pytest.mark.unittest
 class TestPromptTemplate:
 
-    def test_init_with_template_text(self, sample_template_text):
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+    def test_init_basic(self, sample_template_text):
+        """Test basic initialization of PromptTemplate."""
+        template = PromptTemplate(sample_template_text)
+        assert template._template is not None
 
-            template = PromptTemplate(sample_template_text)
+    def test_init_with_empty_string(self):
+        """Test initialization with empty template string."""
+        template = PromptTemplate("")
+        assert template._template is not None
 
-            mock_create_env.assert_called_once()
-            mock_env.from_string.assert_called_once_with(sample_template_text)
-            assert template._template == mock_template
+    def test_init_with_complex_template(self, complex_template_text):
+        """Test initialization with complex template containing multiple variables."""
+        template = PromptTemplate(complex_template_text)
+        assert template._template is not None
 
     def test_preprocess_env_default_behavior(self, sample_template_text):
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+        """Test that _preprocess_env returns the environment unchanged by default."""
+        template = PromptTemplate(sample_template_text)
 
-            template = PromptTemplate(sample_template_text)
-            result = template._preprocess_env(mock_env)
+        # Create a mock environment
+        mock_env = MagicMock(spec=jinja2.Environment)
 
-            assert result == mock_env
+        # Test the _preprocess_env method
+        result = template._preprocess_env(mock_env)
 
-    def test_preprocess_env_called_during_init(self, sample_template_text):
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+        # Should return the same environment object
+        assert result is mock_env
 
-            template = PromptTemplate(sample_template_text)
+    def test_render_simple_template(self, sample_template_text):
+        """Test rendering a simple template with one variable."""
+        template = PromptTemplate(sample_template_text)
+        result = template.render(name="World")
+        assert result == "Hello, World!"
 
-            # Verify that _preprocess_env was called with the environment
-            mock_env.from_string.assert_called_once_with(sample_template_text)
+    def test_render_complex_template(self, complex_template_text):
+        """Test rendering a template with multiple variables."""
+        template = PromptTemplate(complex_template_text)
+        result = template.render(name="Alice", age=30)
+        assert result == "Hello, Alice! You are 30 years old."
 
-    def test_render_with_kwargs(self, sample_template_text):
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_template.render.return_value = "Hello, World!"
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+    def test_render_with_no_variables(self):
+        """Test rendering a template with no variables."""
+        template = PromptTemplate("Hello, World!")
+        result = template.render()
+        assert result == "Hello, World!"
 
-            template = PromptTemplate(sample_template_text)
-            result = template.render(name="World")
+    def test_render_with_extra_variables(self, sample_template_text):
+        """Test rendering with extra variables that aren't used in template."""
+        template = PromptTemplate(sample_template_text)
+        result = template.render(name="World", extra="unused")
+        assert result == "Hello, World!"
 
-            mock_template.render.assert_called_once_with(name="World")
-            assert result == "Hello, World!"
+    def test_render_with_missing_variables(self, sample_template_text):
+        """Test rendering with missing required variables raises an error."""
+        template = PromptTemplate(sample_template_text)
+        with pytest.raises(jinja2.UndefinedError):
+            template.render()
 
-    def test_render_with_multiple_kwargs(self, complex_template_text):
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_template.render.return_value = "Hello, Alice! You are 30 years old."
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
-
-            template = PromptTemplate(complex_template_text)
-            result = template.render(name="Alice", age=30)
-
-            mock_template.render.assert_called_once_with(name="Alice", age=30)
-            assert result == "Hello, Alice! You are 30 years old."
-
-    def test_render_with_no_kwargs(self, sample_template_text):
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_template.render.return_value = "rendered without args"
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
-
-            template = PromptTemplate(sample_template_text)
-            result = template.render()
-
-            mock_template.render.assert_called_once_with()
-            assert result == "rendered without args"
+    def test_render_with_various_data_types(self):
+        """Test rendering with different data types."""
+        template = PromptTemplate("Number: {{ num }}, Boolean: {{ flag }}, List: {{ items }}")
+        result = template.render(num=42, flag=True, items=[1, 2, 3])
+        assert result == "Number: 42, Boolean: True, List: [1, 2, 3]"
 
     def test_from_file_with_string_path(self, temp_template_file):
-        with patch('hbllmutils.template.render.auto_decode') as mock_auto_decode, \
-                patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_auto_decode.return_value = "Hello, {{ name }} from file!"
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
-
-            template = PromptTemplate.from_file(temp_template_file)
-
-            # Verify auto_decode was called with the file bytes
-            mock_auto_decode.assert_called_once()
-            # Verify the template was created with the decoded content
-            mock_env.from_string.assert_called_once_with("Hello, {{ name }} from file!")
-            assert isinstance(template, PromptTemplate)
+        """Test creating PromptTemplate from file using string path."""
+        template = PromptTemplate.from_file(temp_template_file)
+        result = template.render(user="John", day="Monday")
+        assert result == "Welcome, John! Today is Monday."
 
     def test_from_file_with_pathlib_path(self, temp_template_file):
-        with patch('hbllmutils.template.render.auto_decode') as mock_auto_decode, \
-                patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_auto_decode.return_value = "Hello, {{ name }} from pathlib!"
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+        """Test creating PromptTemplate from file using pathlib.Path."""
+        path_obj = pathlib.Path(temp_template_file)
+        template = PromptTemplate.from_file(path_obj)
+        result = template.render(user="Jane", day="Tuesday")
+        assert result == "Welcome, Jane! Today is Tuesday."
 
-            path_obj = pathlib.Path(temp_template_file)
-            template = PromptTemplate.from_file(path_obj)
+    def test_from_file_nonexistent_file(self):
+        """Test creating PromptTemplate from non-existent file raises an error."""
+        with pytest.raises(FileNotFoundError):
+            PromptTemplate.from_file("nonexistent_file.txt")
 
-            mock_auto_decode.assert_called_once()
-            mock_env.from_string.assert_called_once_with("Hello, {{ name }} from pathlib!")
-            assert isinstance(template, PromptTemplate)
+    def test_from_file_with_different_encodings(self):
+        """Test from_file works with different file encodings."""
+        # Create a temporary file with UTF-8 encoding containing special characters
+        content = "Héllo, {{ nàme }}! 你好"
 
-    def test_from_file_reads_file_bytes(self, temp_template_file):
-        with patch('hbllmutils.template.render.auto_decode') as mock_auto_decode, \
-                patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_auto_decode.return_value = "decoded content"
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+            f.write(content)
+            temp_file_path = f.name
 
-            # Mock pathlib.Path.read_bytes to verify it's called
-            with patch('pathlib.Path.read_bytes') as mock_read_bytes:
-                mock_read_bytes.return_value = b"file content bytes"
+        try:
+            template = PromptTemplate.from_file(temp_file_path)
+            result = template.render(nàme="Wörld")
+            assert "Héllo, Wörld! 你好" == result
+        finally:
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
 
-                template = PromptTemplate.from_file(temp_template_file)
+    def test_template_with_jinja2_features(self):
+        """Test template using various Jinja2 features like filters and conditionals."""
+        template_text = """
+        {%- if name is defined -%}
+        Hello, {{ name | upper }}!
+        {%- else -%}
+        Hello, Anonymous!
+        {%- endif -%}
+        """
+        template = PromptTemplate(template_text)
 
-                mock_read_bytes.assert_called_once()
-                mock_auto_decode.assert_called_once_with(b"file content bytes")
+        result_with_name = template.render(name="alice")
+        assert result_with_name.strip() == "Hello, ALICE!"
 
-    def test_preprocess_env_can_be_overridden(self, sample_template_text):
+        result_without_name = template.render()
+        assert result_without_name.strip() == "Hello, Anonymous!"
+
+    def test_template_inheritance_preprocess_env(self):
+        """Test that subclasses can override _preprocess_env."""
+
         class CustomPromptTemplate(PromptTemplate):
             def _preprocess_env(self, env):
-                env.custom_attribute = "custom_value"
+                env.globals['custom_var'] = 'custom_value'
                 return env
 
-        with patch('hbllmutils.template.render.create_env') as mock_create_env:
-            mock_env = Mock(spec=jinja2.Environment)
-            mock_template = Mock()
-            mock_env.from_string.return_value = mock_template
-            mock_create_env.return_value = mock_env
+        template = CustomPromptTemplate("Hello {{ custom_var }}!")
+        result = template.render()
+        assert result == "Hello custom_value!"
 
-            template = CustomPromptTemplate(sample_template_text)
+    def test_multiple_renders_same_template(self, sample_template_text):
+        """Test that the same template can be rendered multiple times with different data."""
+        template = PromptTemplate(sample_template_text)
 
-            # Verify the custom preprocessing was applied
-            assert hasattr(mock_env, 'custom_attribute')
-            assert mock_env.custom_attribute == "custom_value"
+        result1 = template.render(name="Alice")
+        result2 = template.render(name="Bob")
+        result3 = template.render(name="Charlie")
+
+        assert result1 == "Hello, Alice!"
+        assert result2 == "Hello, Bob!"
+        assert result3 == "Hello, Charlie!"

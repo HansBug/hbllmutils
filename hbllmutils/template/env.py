@@ -13,6 +13,7 @@ import textwrap
 
 import jinja2
 from hbutils.string import plural_word, ordinalize, titleize
+from jinja2 import StrictUndefined, Undefined
 
 
 def add_builtins_to_env(env: jinja2.Environment) -> jinja2.Environment:
@@ -140,7 +141,7 @@ def add_settings_for_env(env: jinja2.Environment) -> jinja2.Environment:
     return env
 
 
-def create_env() -> jinja2.Environment:
+def create_env(strict_undefined: bool = True) -> jinja2.Environment:
     """
     Create a new Jinja2 environment with enhanced settings.
 
@@ -148,6 +149,10 @@ def create_env() -> jinja2.Environment:
     including Python builtins, custom filters, and environment variables via
     :func:`add_settings_for_env`. This is a convenience function that provides
     a fully configured environment ready for template rendering.
+
+    :param strict_undefined: If True, use StrictUndefined to raise errors for undefined variables;
+                            if False, use default Undefined behavior
+    :type strict_undefined: bool
 
     :return: A fully configured Jinja2 environment with all enhancements
     :rtype: jinja2.Environment
@@ -163,6 +168,6 @@ def create_env() -> jinja2.Environment:
         >>> template.render()
         '3rd'
     """
-    env = jinja2.Environment()
+    env = jinja2.Environment(undefined=StrictUndefined if strict_undefined else Undefined)
     env = add_settings_for_env(env)
     return env

@@ -24,6 +24,8 @@ class PromptTemplate:
 
     :param template_text: The Jinja2 template string to use for rendering.
     :type template_text: str
+    :param strict_undefined: Whether to raise errors on undefined variables. Defaults to True.
+    :type strict_undefined: bool
 
     Example::
         >>> template = PromptTemplate("Hello, {{ name }}!")
@@ -31,14 +33,16 @@ class PromptTemplate:
         'Hello, World!'
     """
 
-    def __init__(self, template_text: str):
+    def __init__(self, template_text: str, strict_undefined: bool = True):
         """
         Initialize a PromptTemplate with the given template text.
 
         :param template_text: The Jinja2 template string.
         :type template_text: str
+        :param strict_undefined: Whether to raise errors on undefined variables. Defaults to True.
+        :type strict_undefined: bool
         """
-        env = create_env()
+        env = create_env(strict_undefined=strict_undefined)
         env = self._preprocess_env(env)
         self._template = env.from_string(template_text)
 
