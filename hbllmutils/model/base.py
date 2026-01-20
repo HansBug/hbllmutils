@@ -5,10 +5,12 @@ The module provides a common interface that all LLM implementations should follo
 including methods for chat interactions, question-answering, and streaming responses.
 It serves as a contract that ensures consistent behavior across different LLM implementations.
 """
+import logging
 from abc import ABC
 from typing import List, Union, Tuple, Optional
 
 from .stream import ResponseStream
+from ..utils import get_global_logger
 
 
 class LLMModel(ABC):
@@ -23,6 +25,36 @@ class LLMModel(ABC):
     The class supports both synchronous and streaming responses, as well as optional
     reasoning output for models that support chain-of-thought or similar capabilities.
     """
+
+    @property
+    def _logger_name(self) -> str:
+        """
+        Get the logger name for this LLM model instance.
+
+        This property should be implemented by subclasses to provide a unique
+        identifier for logging purposes. The name is used to create a child
+        logger under the global logger hierarchy.
+
+        :return: The logger name string.
+        :rtype: str
+
+        :raises NotImplementedError: This property must be implemented by subclasses.
+        """
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def _logger(self) -> logging.Logger:
+        """
+        Get the logger instance for this LLM model.
+
+        This property returns a logger that is a child of the global logger,
+        with a name that includes 'LLM:' prefix followed by the model's logger name.
+        This allows for hierarchical logging and easy filtering of LLM-related logs.
+
+        :return: A logger instance specific to this LLM model.
+        :rtype: logging.Logger
+        """
+        return get_global_logger().getChild(f'LLM:{self._logger_name}')
 
     def ask(self, messages: List[dict], with_reasoning: bool = False, **params) \
             -> Union[str, Tuple[Optional[str], str]]:

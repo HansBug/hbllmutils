@@ -101,6 +101,16 @@ class FakeLLMModel(LLMModel):
         self._rules: List[Tuple[Callable, FakeResponseTyping]] = []
 
     @property
+    def _logger_name(self) -> str:
+        """
+        Get the logger name for this model.
+
+        :return: The logger name string.
+        :rtype: str
+        """
+        return '<faker>'
+
+    @property
     def rules_count(self) -> int:
         """
         Get the number of configured response rules.

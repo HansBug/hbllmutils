@@ -111,6 +111,21 @@ class RemoteLLMModel(LLMModel):
 
         self._client_non_async = None
 
+    @property
+    def _logger_name(self) -> str:
+        """
+        Get the logger name for this model instance.
+
+        :return: The model name to be used as logger identifier
+        :rtype: str
+
+        Example::
+            >>> model = RemoteLLMModel(base_url="...", api_token="...", model_name="gpt-3.5-turbo")
+            >>> model._logger_name
+            'gpt-3.5-turbo'
+        """
+        return self.model_name
+
     def _create_openai_client(self, use_async: bool = False) -> Union[OpenAI, AsyncOpenAI]:
         """
         Create an OpenAI client instance (synchronous or asynchronous).
