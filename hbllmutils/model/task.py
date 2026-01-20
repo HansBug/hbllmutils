@@ -5,7 +5,7 @@ It defines the LLMTask class which acts as a wrapper around LLMModel and LLMHist
 providing convenient methods for asking questions and streaming responses while
 maintaining conversation history.
 """
-
+import logging
 from abc import ABC
 from typing import Union, Tuple, Optional
 
@@ -43,6 +43,17 @@ class LLMTask(ABC):
         """
         self.model = model
         self.history: LLMHistory = history or LLMHistory()
+
+    @property
+    def _logger(self) -> logging.Logger:
+        """
+        Get the logger instance from the underlying model.
+
+        :return: The logger instance used by the model.
+        :rtype: logging.Logger
+        """
+        # noinspection PyProtectedMember
+        return self.model._logger
 
     def ask(self, with_reasoning: bool = False, **params) -> Union[str, Tuple[Optional[str], str]]:
         """
