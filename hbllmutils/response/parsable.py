@@ -22,20 +22,20 @@ class OutputParseFailed(Exception):
 class ParsableLLMTask(LLMTask):
     __exceptions__: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception
 
-    def __init__(self, model: LLMModel, history: Optional[LLMHistory] = None, default_retries: int = 5):
+    def __init__(self, model: LLMModel, history: Optional[LLMHistory] = None, default_max_retries: int = 5):
         super().__init__(model, history)
-        self.default_retries = default_retries
+        self.default_max_retries = default_max_retries
 
     def _parse_output(self, content: str):
-        pass
+        raise NotImplementedError  # pragma: no cover
 
-    def ask_then_parse(self, with_reasoning: bool = False, retries: Optional[int] = None, **params):
-        if retries is None:
-            retries = self.default_retries
+    def ask_then_parse(self, with_reasoning: bool = False, max_retries: Optional[int] = None, **params):
+        if max_retries is None:
+            max_retries = self.default_max_retries
 
         tries = 0
         err_tries = []
-        while tries < retries:
+        while tries < max_retries:
             if with_reasoning:
                 _, content = self.ask(with_reasoning=with_reasoning, **params)
             else:
@@ -44,8 +44,8 @@ class ParsableLLMTask(LLMTask):
             try:
                 parsed_output = self._parse_output(content)
             except self.__exceptions__ as err:
-                self._logger.error(f'Error when parse output of model - {err!r}')
                 tries += 1
+                self._logger.warning(f'Error when parsing output of model ({tries}/{max_retries}) - {err!r}')
                 err_tries.append((content, err))
             else:
                 return parsed_output
