@@ -41,7 +41,7 @@ class LLMTask(ABC):
         :param history: Optional conversation history. If not provided, a new empty history is created.
         :type history: Optional[LLMHistory]
         """
-        self.model = model
+        self.model: LLMModel = model
         self.history: LLMHistory = history or LLMHistory()
 
     @property
