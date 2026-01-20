@@ -14,4 +14,5 @@ hbllmutils.model
     load
     remote
     stream
+    task
 
