@@ -17,6 +17,7 @@ from openai.types.chat import ChatCompletionMessage
 
 from .base import LLMModel
 from .stream import OpenAIResponseStream, ResponseStream
+from ..utils import log_pformat
 
 
 class RemoteLLMModel(LLMModel):
@@ -141,6 +142,7 @@ class RemoteLLMModel(LLMModel):
             >>> sync_client = model._create_openai_client(use_async=False)
             >>> async_client = model._create_openai_client(use_async=True)
         """
+        self._logger.debug(f'Remote LLM ({"async" if use_async else "non-async"} client created: {self!r}')
         return (AsyncOpenAI if use_async else OpenAI)(
             api_key=self.api_token,
             base_url=self.base_url,
@@ -188,6 +190,8 @@ class RemoteLLMModel(LLMModel):
             >>> messages = [{"role": "user", "content": "Hello"}]
             >>> session = model._get_non_async_session(messages, stream=False)
         """
+        self._logger.info(f'Remote LLM {self.model_name!r} chat created:\n'
+                          f'{log_pformat(messages)}')
         return self._client.chat.completions.create(
             model=self.model_name,
             messages=messages,
@@ -217,6 +221,8 @@ class RemoteLLMModel(LLMModel):
             >>> print(response.content)
         """
         session = self._get_non_async_session(messages=messages, stream=False, **params)
+        self._logger.info(f'Answer of remote LLM {self.model_name!r}:\n'
+                          f'{log_pformat(session.choices[0].message.content)}')
         return session.choices[0].message
 
     def ask(self, messages: List[dict], with_reasoning: bool = False, **params) \
@@ -274,6 +280,7 @@ class RemoteLLMModel(LLMModel):
             ...     print(chunk, end='', flush=True)
         """
         session = self._get_non_async_session(messages=messages, stream=True, **params)
+        self._logger.info(f'Answer of remote LLM {self.model_name!r} streamed.')
         return OpenAIResponseStream(session, with_reasoning=with_reasoning)
 
     def __repr__(self) -> str:

@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 def _truncate_dict(
         obj: Any,
-        max_string_len: int = 200,
+        max_string_len: int = 250,
         max_list_items: int = 4,
         max_dict_keys: int = 5,
         current_depth: int = 0
@@ -98,7 +98,7 @@ def _truncate_dict(
 
 def log_pformat(
         obj: Any,
-        max_string_len: int = 200,
+        max_string_len: int = 250,
         max_list_items: int = 4,
         max_dict_keys: int = 5,
         width: Optional[int] = None,
@@ -113,7 +113,7 @@ def log_pformat(
 
     :param obj: The object to format for logging.
     :type obj: Any
-    :param max_string_len: Maximum length for string values before truncation. Defaults to 200.
+    :param max_string_len: Maximum length for string values before truncation. Defaults to 250.
     :type max_string_len: int
     :param max_list_items: Maximum number of items to display in lists/tuples. Defaults to 4.
     :type max_list_items: int
