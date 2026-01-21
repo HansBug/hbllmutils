@@ -197,7 +197,7 @@ class TestHistoryHistoryModule:
         history = LLMHistory(sample_history)
         result = history.to_json()
         assert result == sample_history
-        assert result is history._history
+        assert result is not history._history
 
     def test_clone_empty_history(self):
         history = LLMHistory()

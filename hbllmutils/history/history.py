@@ -8,6 +8,7 @@ It includes functionality for:
 
 The module supports multiple content types including strings, PIL Images, and lists of mixed content.
 """
+import copy
 from collections.abc import Sequence
 from typing import Union, List, Optional
 
@@ -117,7 +118,7 @@ class LLMHistory(Sequence):
         if isinstance(result, list):
             return LLMHistory(result)
         else:
-            return result
+            return copy.deepcopy(result)
 
     def __len__(self) -> int:
         """
@@ -157,7 +158,7 @@ class LLMHistory(Sequence):
         """
         Append a user message to the history.
 
-        This is a convenience method equivalent to calling append with role='user'.
+        This is a convenience method equivalent to calling with_message with role='user'.
         Creates a new LLMHistory instance with the appended message.
 
         :param message: The message content.
@@ -178,7 +179,7 @@ class LLMHistory(Sequence):
         """
         Append an assistant message to the history.
 
-        This is a convenience method equivalent to calling append with role='assistant'.
+        This is a convenience method equivalent to calling with_message with role='assistant'.
         Creates a new LLMHistory instance with the appended message.
 
         :param message: The message content.
@@ -236,7 +237,7 @@ class LLMHistory(Sequence):
             >>> history.to_json()
             [{'role': 'user', 'content': 'Hello!'}]
         """
-        return self._history
+        return copy.deepcopy(self._history)
 
     def clone(self) -> 'LLMHistory':
         """
@@ -259,4 +260,4 @@ class LLMHistory(Sequence):
             >>> len(cloned)
             2
         """
-        return LLMHistory(history=self._history)
+        return LLMHistory(history=copy.deepcopy(self._history))
