@@ -7,7 +7,7 @@ maintaining conversation history.
 """
 import logging
 from abc import ABC
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Any
 
 from .base import LLMModel
 from .stream import ResponseStream
@@ -116,3 +116,63 @@ class LLMTask(ABC):
             with_reasoning=with_reasoning,
             **params,
         )
+
+    def _params(self) -> Tuple[LLMModel, LLMHistory]:
+        """
+        Get the parameters of this LLMTask instance.
+
+        :return: A tuple containing the model and history.
+        :rtype: Tuple[LLMModel, LLMHistory]
+        """
+        return self.model, self.history
+
+    def _values(self) -> Tuple[type, Any]:
+        """
+        Get the class type and parameters of this LLMTask instance.
+
+        This method is used for equality comparison and hashing.
+
+        :return: A tuple containing the class type and the parameters tuple.
+        :rtype: Tuple[type, Any]
+        """
+        return self.__class__, self._params()
+
+    def __eq__(self, other) -> bool:
+        """
+        Check equality between this LLMTask and another object.
+
+        Two LLMTask instances are considered equal if they have the same class type
+        and the same model and history parameters.
+
+        :param other: The object to compare with.
+        :type other: object
+
+        :return: True if the objects are equal, False otherwise.
+        :rtype: bool
+
+        Example::
+            >>> task1 = LLMTask(model, history)
+            >>> task2 = LLMTask(model, history)
+            >>> task1 == task2
+            True
+        """
+        if type(other) != type(self):
+            return False
+        # noinspection PyProtectedMember,PyUnresolvedReferences
+        return self._values() == other._values()
+
+    def __hash__(self) -> int:
+        """
+        Get the hash value of this LLMTask instance.
+
+        The hash is computed based on the class type and the model and history parameters.
+
+        :return: The hash value.
+        :rtype: int
+
+        Example::
+            >>> task = LLMTask(model, history)
+            >>> hash(task)
+            1234567890
+        """
+        return hash(self._values())
