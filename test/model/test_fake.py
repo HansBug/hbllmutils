@@ -89,13 +89,13 @@ class TestFakeLLMModel:
     def test_init_default_stream_wps(self):
         """Test FakeLLMModel initialization with default stream_wps."""
         model = FakeLLMModel()
-        assert model.stream_fps == 50
+        assert model.stream_wps == 50
         assert model.rules_count == 0
 
     def test_init_custom_stream_wps(self):
         """Test FakeLLMModel initialization with custom stream_wps."""
         model = FakeLLMModel(stream_wps=100)
-        assert model.stream_fps == 100
+        assert model.stream_wps == 100
         assert model.rules_count == 0
 
     def test_init_with_rules(self):
@@ -114,8 +114,8 @@ class TestFakeLLMModel:
     def test_immutability_setattr_after_frozen(self):
         """Test that attributes cannot be modified after initialization."""
         model = FakeLLMModel()
-        with pytest.raises(AttributeError, match="Cannot modify attribute '_stream_fps' of immutable FakeLLMModel"):
-            model._stream_fps = 200
+        with pytest.raises(AttributeError, match="Cannot modify attribute '_stream_wps' of immutable FakeLLMModel"):
+            model._stream_wps = 200
 
     def test_immutability_setattr_new_attribute(self):
         """Test that new attributes cannot be added after initialization."""
@@ -126,8 +126,8 @@ class TestFakeLLMModel:
     def test_immutability_delattr(self):
         """Test that attributes cannot be deleted."""
         model = FakeLLMModel()
-        with pytest.raises(AttributeError, match="Cannot delete attribute '_stream_fps' of immutable FakeLLMModel"):
-            del model._stream_fps
+        with pytest.raises(AttributeError, match="Cannot delete attribute '_stream_wps' of immutable FakeLLMModel"):
+            del model._stream_wps
 
     def test_logger_name_property(self):
         """Test _logger_name property."""
@@ -153,7 +153,7 @@ class TestFakeLLMModel:
         new_model = model._create_new_instance()
 
         assert new_model is not model
-        assert new_model.stream_fps == 100
+        assert new_model.stream_wps == 100
         assert new_model.rules_count == 0
 
     def test_create_new_instance_override_stream_wps(self):
@@ -161,7 +161,7 @@ class TestFakeLLMModel:
         model = FakeLLMModel(stream_wps=100)
         new_model = model._create_new_instance(stream_wps=200)
 
-        assert new_model.stream_fps == 200
+        assert new_model.stream_wps == 200
 
     def test_create_new_instance_override_rules(self):
         """Test _create_new_instance with overridden rules."""
@@ -269,8 +269,8 @@ class TestFakeLLMModel:
         new_model = model.with_stream_wps(200)
 
         assert new_model is not model
-        assert new_model.stream_fps == 200
-        assert model.stream_fps == 100
+        assert new_model.stream_wps == 200
+        assert model.stream_wps == 100
 
     def test_with_stream_wps_preserves_rules(self):
         """Test with_stream_wps preserves existing rules."""
@@ -455,7 +455,7 @@ class TestFakeLLMModel:
         expected_chunks = [(None, "Hello"), (None, "world")]
         assert chunks == expected_chunks
         assert mock_sleep.call_count == 2
-        mock_sleep.assert_called_with(1 / 100)  # stream_fps = 100
+        mock_sleep.assert_called_with(1 / 100)  # stream_wps = 100
 
     def test_iter_per_words_reasoning_and_content(self, mock_jieba_cut):
         """Test _iter_per_words with both reasoning and content."""
@@ -519,8 +519,8 @@ class TestFakeLLMModel:
         expected_chunks = [("Think", None)]
         assert chunks == expected_chunks
 
-    def test_iter_per_words_stream_fps_timing(self, mock_jieba_cut):
-        """Test _iter_per_words uses correct timing based on stream_fps."""
+    def test_iter_per_words_stream_wps_timing(self, mock_jieba_cut):
+        """Test _iter_per_words uses correct timing based on stream_wps."""
         model = FakeLLMModel(stream_wps=50)
         mock_jieba_cut.return_value = ["Hello"]
 
@@ -577,19 +577,19 @@ class TestFakeLLMModel:
         """Test __repr__ with default stream_wps."""
         model = FakeLLMModel()
         result = repr(model)
-        assert result == "FakeLLMModel(stream_fps=50, rules_count=0)"
+        assert result == "FakeLLMModel(stream_wps=50, rules_count=0)"
 
     def test_repr_custom_stream_wps(self):
         """Test __repr__ with custom stream_wps."""
         model = FakeLLMModel(stream_wps=100)
         result = repr(model)
-        assert result == "FakeLLMModel(stream_fps=100, rules_count=0)"
+        assert result == "FakeLLMModel(stream_wps=100, rules_count=0)"
 
     def test_repr_with_rules(self):
         """Test __repr__ with rules added."""
         model = FakeLLMModel(stream_wps=100).response_always("response1").response_always("response2")
         result = repr(model)
-        assert result == "FakeLLMModel(stream_fps=100, rules_count=2)"
+        assert result == "FakeLLMModel(stream_wps=100, rules_count=2)"
 
     def test_params_method_basic(self):
         """Test _params method returns correct parameters."""
@@ -597,7 +597,7 @@ class TestFakeLLMModel:
         params = model._params()
 
         assert isinstance(params, tuple)
-        assert params[0] == 100  # stream_fps
+        assert params[0] == 100  # stream_wps
         assert params[1] == tuple()  # empty rules
 
     def test_params_method_with_rules(self):

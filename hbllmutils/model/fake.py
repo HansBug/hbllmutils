@@ -101,7 +101,7 @@ class FakeLLMModel(LLMModel):
         :param rules: List of (rule_function, response) tuples. Internal parameter, not intended for direct use.
         :type rules: Optional[List[Tuple[Callable, FakeResponseTyping]]]
         """
-        self._stream_fps = stream_wps
+        self._stream_wps = stream_wps
         # Create a defensive copy to ensure immutability
         self._rules = tuple(rules) if rules is not None else tuple()
 
@@ -133,14 +133,14 @@ class FakeLLMModel(LLMModel):
         raise AttributeError(f"Cannot delete attribute '{name}' of immutable {self.__class__.__name__}")
 
     @property
-    def stream_fps(self) -> float:
+    def stream_wps(self) -> float:
         """
         Get the streaming words per second rate.
 
         :return: The words per second rate for streaming.
         :rtype: float
         """
-        return self._stream_fps
+        return self._stream_wps
 
     @property
     def _logger_name(self) -> str:
@@ -171,10 +171,10 @@ class FakeLLMModel(LLMModel):
         :return: A new FakeLLMModel instance.
         :rtype: FakeLLMModel
         """
-        new_stream_fps = kwargs.get('stream_wps', self._stream_fps)
+        new_stream_wps = kwargs.get('stream_wps', self._stream_wps)
         new_rules = kwargs.get('rules', self._rules)
 
-        return FakeLLMModel(stream_wps=new_stream_fps, rules=new_rules)
+        return FakeLLMModel(stream_wps=new_stream_wps, rules=new_rules)
 
     def _get_response(self, messages: List[dict], **params) -> Tuple[str, str]:
         """
@@ -214,9 +214,9 @@ class FakeLLMModel(LLMModel):
         Example::
             >>> model = FakeLLMModel(stream_wps=50)
             >>> fast_model = model.with_stream_wps(100)
-            >>> fast_model.stream_fps
+            >>> fast_model.stream_wps
             100
-            >>> model.stream_fps  # Original unchanged
+            >>> model.stream_wps  # Original unchanged
             50
         """
         return self._create_new_instance(stream_wps=stream_wps)
@@ -370,7 +370,7 @@ class FakeLLMModel(LLMModel):
         Generate word-by-word chunks for streaming, with delays between words.
 
         This method uses jieba to segment text into words and yields them one at a time,
-        with a delay calculated based on the stream_fps (words per second) setting.
+        with a delay calculated based on the stream_wps (words per second) setting.
         Reasoning content is yielded first if provided, followed by the main content.
 
         :param content: The main content to stream.
@@ -384,13 +384,13 @@ class FakeLLMModel(LLMModel):
             for word in jieba.cut(reasoning_content):
                 if word:
                     yield word, None
-                    time.sleep(1 / self._stream_fps)
+                    time.sleep(1 / self._stream_wps)
 
         if content:
             for word in jieba.cut(content):
                 if word:
                     yield None, word
-                    time.sleep(1 / self._stream_fps)
+                    time.sleep(1 / self._stream_wps)
 
     def ask_stream(
             self,
@@ -434,7 +434,7 @@ class FakeLLMModel(LLMModel):
         """
         Return a string representation of the FakeLLMModel instance.
 
-        Shows the stream_fps parameter and the number of configured rules.
+        Shows the stream_wps parameter and the number of configured rules.
 
         :return: String representation of the instance.
         :rtype: str
@@ -442,11 +442,11 @@ class FakeLLMModel(LLMModel):
         Example::
             >>> model = FakeLLMModel(stream_wps=100).response_always("Hello")
             >>> repr(model)
-            'FakeLLMModel(stream_fps=100, rules_count=1)'
+            'FakeLLMModel(stream_wps=100, rules_count=1)'
         """
         # Collect all parameters
         params = {
-            'stream_fps': self._stream_fps,
+            'stream_wps': self._stream_wps,
             'rules_count': len(self._rules),
         }
 
@@ -498,6 +498,6 @@ class FakeLLMModel(LLMModel):
             hashable_rules.append((rule_key, response_key))
 
         return (
-            self._stream_fps,
+            self._stream_wps,
             tuple(hashable_rules)  # Convert list to tuple for hashability
         )

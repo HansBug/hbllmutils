@@ -182,13 +182,6 @@ class ParsableLLMTask(LLMTask):
             >>> result = task.ask_then_parse(input_content="What is 2+2?", max_retries=3)
             >>> print(result)
             4
-            >>> 
-            >>> # With reasoning
-            >>> result = task.ask_then_parse(
-            ...     input_content="Solve this problem",
-            ...     max_retries=2
-            ... )
-            >>> print(f"Result: {result}")
         """
         if max_retries is None:
             max_retries = self.default_max_retries
