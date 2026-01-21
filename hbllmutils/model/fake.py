@@ -11,7 +11,7 @@ The module includes:
 """
 
 import time
-from typing import List, Union, Tuple, Optional, Any, Callable
+from typing import List, Union, Tuple, Optional, Any, Callable, Generator
 
 import jieba
 
@@ -365,9 +365,13 @@ class FakeLLMModel(LLMModel):
             self,
             content: str,
             reasoning_content: Optional[str] = None
-    ):
+    ) -> Generator[Tuple[Optional[str], Optional[str]], None, None]:
         """
         Generate word-by-word chunks for streaming, with delays between words.
+
+        This method uses jieba to segment text into words and yields them one at a time,
+        with a delay calculated based on the stream_fps (words per second) setting.
+        Reasoning content is yielded first if provided, followed by the main content.
 
         :param content: The main content to stream.
         :type content: str
@@ -396,6 +400,10 @@ class FakeLLMModel(LLMModel):
     ) -> ResponseStream:
         """
         Send messages and get a streaming response.
+
+        This method returns a ResponseStream that yields the response word-by-word,
+        simulating the streaming behavior of a real LLM. The streaming speed is
+        controlled by the stream_wps parameter set during initialization.
 
         :param messages: The list of message dictionaries containing conversation history.
         :type messages: List[dict]
@@ -450,7 +458,7 @@ class FakeLLMModel(LLMModel):
         params_str = ', '.join(param_strings)
         return f"{self.__class__.__name__}({params_str})"
 
-    def _params(self):
+    def _params(self) -> tuple:
         """
         Get the parameters that define this model instance.
 
