@@ -110,6 +110,80 @@ class TestLLMTask:
         response = task.ask(temperature=0.5)
         assert response == "Custom response"
 
+    def test_ask_with_input_content(self, mock_model, history_with_messages):
+        """Test ask method with input_content parameter."""
+        # Create a model that captures the messages parameter
+        captured_messages = None
+
+        def capture_messages(messages, **params):
+            nonlocal captured_messages
+            captured_messages = messages
+            return "Response"
+
+        model = FakeLLMModel().response_always(capture_messages)
+        task = LLMTask(model, history_with_messages)
+
+        # Call ask with input_content
+        response = task.ask(input_content="New user message")
+
+        assert response == "Response"
+        assert captured_messages is not None
+
+        # Verify that the new message was added to the history passed to the model
+        expected_history = history_with_messages.with_user_message("New user message")
+        assert captured_messages == expected_history.to_json()
+
+        # Verify that the original task history is unchanged
+        assert len(task.history) == 2
+
+    def test_ask_with_input_content_and_reasoning(self, mock_model_with_reasoning, history_with_messages):
+        """Test ask method with input_content and reasoning=True."""
+        captured_messages = None
+
+        def capture_messages_with_reasoning(messages, **params):
+            nonlocal captured_messages
+            captured_messages = messages
+            return ("Test reasoning", "Response with new content")
+
+        model = FakeLLMModel().response_always(capture_messages_with_reasoning)
+        task = LLMTask(model, history_with_messages)
+
+        response = task.ask(input_content="What is AI?", with_reasoning=True)
+
+        assert isinstance(response, tuple)
+        assert response[0] == "Test reasoning"
+        assert response[1] == "Response with new content"
+
+        # Verify the modified history was passed to the model
+        expected_history = history_with_messages.with_user_message("What is AI?")
+        assert captured_messages == expected_history.to_json()
+
+    def test_ask_with_input_content_and_params(self, mock_model, history_with_messages):
+        """Test ask method with input_content and additional parameters."""
+        captured_messages = None
+        captured_params = None
+
+        def capture_all(messages, **params):
+            nonlocal captured_messages, captured_params
+            captured_messages = messages
+            captured_params = params
+            return "Response with params"
+
+        model = FakeLLMModel().response_always(capture_all)
+        task = LLMTask(model, history_with_messages)
+
+        response = task.ask(input_content="Test message", temperature=0.7, max_tokens=100)
+
+        assert response == "Response with params"
+
+        # Verify the modified history was passed
+        expected_history = history_with_messages.with_user_message("Test message")
+        assert captured_messages == expected_history.to_json()
+
+        # Verify parameters were passed through
+        assert captured_params['temperature'] == 0.7
+        assert captured_params['max_tokens'] == 100
+
     def test_ask_stream_without_reasoning(self, mock_stream_model, history_with_messages):
         """Test ask_stream method without reasoning."""
 
@@ -163,6 +237,89 @@ class TestLLMTask:
         chunks = list(stream)
         full_response = ''.join(chunks)
         assert "Limited response" in full_response
+
+    def test_ask_stream_with_input_content(self, mock_stream_model, history_with_messages):
+        """Test ask_stream method with input_content parameter."""
+        captured_messages = None
+
+        def capture_messages(messages, **params):
+            nonlocal captured_messages
+            captured_messages = messages
+            return "Stream response with new content"
+
+        model = FakeLLMModel(stream_wps=100).response_always(capture_messages)
+        task = LLMTask(model, history_with_messages)
+
+        stream = task.ask_stream(input_content="Stream this message")
+
+        assert isinstance(stream, ResponseStream)
+
+        # Consume the stream to trigger the model call
+        chunks = list(stream)
+        full_response = ''.join(chunks)
+        assert "Stream response with new content" in full_response
+
+        # Verify the modified history was passed to the model
+        expected_history = history_with_messages.with_user_message("Stream this message")
+        assert captured_messages == expected_history.to_json()
+
+        # Verify that the original task history is unchanged
+        assert len(task.history) == 2
+
+    def test_ask_stream_with_input_content_and_reasoning(self, mock_stream_model, history_with_messages):
+        """Test ask_stream method with input_content and reasoning=True."""
+        captured_messages = None
+
+        def capture_messages_with_reasoning(messages, **params):
+            nonlocal captured_messages
+            captured_messages = messages
+            return ("Stream reasoning", "Stream response with reasoning")
+
+        model = FakeLLMModel(stream_wps=100).response_always(capture_messages_with_reasoning)
+        task = LLMTask(model, history_with_messages)
+
+        stream = task.ask_stream(input_content="Reason about this", with_reasoning=True)
+
+        assert isinstance(stream, ResponseStream)
+
+        # Consume the stream
+        chunks = list(stream)
+        assert len(chunks) > 0
+
+        # Verify the modified history was passed to the model
+        expected_history = history_with_messages.with_user_message("Reason about this")
+        assert captured_messages == expected_history.to_json()
+
+    def test_ask_stream_with_input_content_and_params(self, mock_stream_model, history_with_messages):
+        """Test ask_stream method with input_content and additional parameters."""
+        captured_messages = None
+        captured_params = None
+
+        def capture_all(messages, **params):
+            nonlocal captured_messages, captured_params
+            captured_messages = messages
+            captured_params = params
+            return "Stream response with all params"
+
+        model = FakeLLMModel(stream_wps=100).response_always(capture_all)
+        task = LLMTask(model, history_with_messages)
+
+        stream = task.ask_stream(input_content="Stream with params", temperature=0.8, max_tokens=50)
+
+        assert isinstance(stream, ResponseStream)
+
+        # Consume the stream
+        chunks = list(stream)
+        full_response = ''.join(chunks)
+        assert "Stream response with all params" in full_response
+
+        # Verify the modified history was passed
+        expected_history = history_with_messages.with_user_message("Stream with params")
+        assert captured_messages == expected_history.to_json()
+
+        # Verify parameters were passed through
+        assert captured_params['temperature'] == 0.8
+        assert captured_params['max_tokens'] == 50
 
     def test_params_method(self, mock_model, history_with_messages):
         """Test _params method returns model and history."""
