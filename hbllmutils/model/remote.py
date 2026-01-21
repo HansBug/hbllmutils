@@ -334,3 +334,42 @@ class RemoteLLMModel(LLMModel):
 
         params_str = ', '.join(param_strings)
         return f"{self.__class__.__name__}({params_str})"
+
+    def _params(self):
+        """
+        Get the parameters that define this model instance.
+
+        This method returns a stable and hashable representation of the model's
+        parameters including all constructor arguments. It is used for equality
+        comparison and hashing of model instances.
+
+        :return: A hashable tuple representation of the model's parameters.
+        :rtype: tuple
+
+        Example::
+            >>> model = RemoteLLMModel(
+            ...     base_url="https://api.openai.com/v1",
+            ...     api_token="sk-xxx",
+            ...     model_name="gpt-3.5-turbo",
+            ...     max_tokens=1000
+            ... )
+            >>> params = model._params()
+            >>> isinstance(params, tuple)
+            True
+        """
+        # Convert headers dict to sorted tuple of tuples for hashability
+        headers_tuple = tuple(sorted(self.headers.items())) if self.headers else ()
+
+        # Convert default_params dict to sorted tuple of tuples for hashability
+        default_params_tuple = tuple(sorted(self.default_params.items())) if self.default_params else ()
+
+        return (
+            self.base_url,
+            self.api_token,
+            self.model_name,
+            self.organization_id,
+            self.timeout,
+            self.max_retries,
+            headers_tuple,
+            default_params_tuple
+        )
