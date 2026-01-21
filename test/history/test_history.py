@@ -1,7 +1,11 @@
-from collections.abc import Sequence
+import json
+import tempfile
+from pathlib import Path
+from typing import Sequence
 from unittest.mock import Mock, patch
 
 import pytest
+import yaml
 from PIL import Image
 
 from hbllmutils.history import create_llm_message, LLMHistory
@@ -26,6 +30,40 @@ def sample_history():
         {"role": "user", "content": "Hello"},
         {"role": "assistant", "content": "Hi there!"}
     ]
+
+
+@pytest.fixture
+def complex_history():
+    return [
+        {"role": "system", "content": "You are a helpful AI assistant specializing in data analysis."},
+        {"role": "user", "content": "Can you help me analyze some data?"},
+        {"role": "assistant", "content": "Of course! I'd be happy to help you with data analysis."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Here's a chart showing sales data:"},
+                {"type": "image_url", "image_url": "blob:chart_data_url"}
+            ]
+        },
+        {
+            "role": "assistant",
+            "content": "I can see the chart. The sales show an upward trend with some seasonal variations."
+        },
+        {"role": "user", "content": "What about Q4 performance?"},
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "Q4 shows strong performance with 25% growth."},
+                {"type": "image_url", "image_url": "blob:q4_analysis_url"}
+            ]
+        }
+    ]
+
+
+@pytest.fixture
+def temp_dir():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        yield Path(tmp_dir)
 
 
 @pytest.mark.unittest
@@ -422,3 +460,379 @@ class TestHistoryHistoryModule:
         history1 = LLMHistory(deeply_nested)
         history2 = LLMHistory(deeply_nested.copy())
         assert hash(history1) == hash(history2)
+
+    # JSON export/import tests
+    def test_dump_json_simple(self, temp_dir, sample_history):
+        history = LLMHistory(sample_history)
+        json_file = temp_dir / "test.json"
+
+        history.dump_json(str(json_file))
+
+        assert json_file.exists()
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        assert data == sample_history
+
+    def test_dump_json_complex(self, temp_dir, complex_history):
+        history = LLMHistory(complex_history)
+        json_file = temp_dir / "complex.json"
+
+        history.dump_json(str(json_file))
+
+        assert json_file.exists()
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        assert data == complex_history
+
+    def test_dump_json_with_custom_params(self, temp_dir, sample_history):
+        history = LLMHistory(sample_history)
+        json_file = temp_dir / "custom.json"
+
+        history.dump_json(str(json_file), indent=4, ensure_ascii=True, sort_keys=False)
+
+        assert json_file.exists()
+        with open(json_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Check that custom formatting was applied
+            assert "    " in content  # 4-space indentation
+            data = json.loads(content)
+        assert data == sample_history
+
+    def test_dump_json_creates_directory(self, temp_dir, sample_history):
+        history = LLMHistory(sample_history)
+        nested_dir = temp_dir / "nested" / "dir"
+        json_file = nested_dir / "test.json"
+
+        history.dump_json(str(json_file))
+
+        assert json_file.exists()
+        assert nested_dir.exists()
+
+    def test_load_json_simple(self, temp_dir, sample_history):
+        json_file = temp_dir / "test.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(sample_history, f)
+
+        loaded_history = LLMHistory.load_json(str(json_file))
+
+        assert len(loaded_history) == len(sample_history)
+        assert loaded_history._history == sample_history
+
+    def test_load_json_complex(self, temp_dir, complex_history):
+        json_file = temp_dir / "complex.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(complex_history, f)
+
+        loaded_history = LLMHistory.load_json(str(json_file))
+
+        assert len(loaded_history) == len(complex_history)
+        assert loaded_history._history == complex_history
+
+    def test_load_json_file_not_found(self, temp_dir):
+        non_existent_file = temp_dir / "nonexistent.json"
+
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            LLMHistory.load_json(str(non_existent_file))
+
+    def test_load_json_invalid_json(self, temp_dir):
+        json_file = temp_dir / "invalid.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            f.write("invalid json content")
+
+        with pytest.raises(json.JSONDecodeError):
+            LLMHistory.load_json(str(json_file))
+
+    def test_load_json_invalid_structure_not_list(self, temp_dir):
+        json_file = temp_dir / "invalid_structure.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump({"not": "a list"}, f)
+
+        with pytest.raises(ValueError, match="JSON file must contain a list of messages"):
+            LLMHistory.load_json(str(json_file))
+
+    def test_load_json_invalid_message_not_dict(self, temp_dir):
+        json_file = temp_dir / "invalid_message.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(["not a dict"], f)
+
+        with pytest.raises(ValueError, match="Message at index 0 must be a dictionary"):
+            LLMHistory.load_json(str(json_file))
+
+    def test_load_json_missing_required_fields(self, temp_dir):
+        json_file = temp_dir / "missing_fields.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump([{"role": "user"}], f)  # Missing 'content'
+
+        with pytest.raises(ValueError, match="Message at index 0 must have 'role' and 'content' fields"):
+            LLMHistory.load_json(str(json_file))
+
+    def test_json_roundtrip_simple(self, temp_dir, sample_history):
+        original_history = LLMHistory(sample_history)
+        json_file = temp_dir / "roundtrip.json"
+
+        # Export
+        original_history.dump_json(str(json_file))
+
+        # Import
+        loaded_history = LLMHistory.load_json(str(json_file))
+
+        # Verify equality
+        assert original_history == loaded_history
+        assert original_history._history == loaded_history._history
+
+    def test_json_roundtrip_complex(self, temp_dir, complex_history):
+        original_history = LLMHistory(complex_history)
+        json_file = temp_dir / "complex_roundtrip.json"
+
+        # Export
+        original_history.dump_json(str(json_file))
+
+        # Import
+        loaded_history = LLMHistory.load_json(str(json_file))
+
+        # Verify equality
+        assert original_history == loaded_history
+        assert original_history._history == loaded_history._history
+
+    def test_json_multiple_roundtrips(self, temp_dir, complex_history):
+        original_history = LLMHistory(complex_history)
+
+        # Perform multiple export/import cycles
+        current_history = original_history
+        for i in range(5):
+            json_file = temp_dir / f"roundtrip_{i}.json"
+
+            # Export
+            current_history.dump_json(str(json_file))
+
+            # Import
+            current_history = LLMHistory.load_json(str(json_file))
+
+            # Verify data integrity after each cycle
+            assert current_history == original_history
+            assert current_history._history == original_history._history
+
+    # YAML export/import tests
+    def test_dump_yaml_simple(self, temp_dir, sample_history):
+        history = LLMHistory(sample_history)
+        yaml_file = temp_dir / "test.yaml"
+
+        history.dump_yaml(str(yaml_file))
+
+        assert yaml_file.exists()
+        with open(yaml_file, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+        assert data == sample_history
+
+    def test_dump_yaml_complex(self, temp_dir, complex_history):
+        history = LLMHistory(complex_history)
+        yaml_file = temp_dir / "complex.yaml"
+
+        history.dump_yaml(str(yaml_file))
+
+        assert yaml_file.exists()
+        with open(yaml_file, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+        assert data == complex_history
+
+    def test_dump_yaml_with_custom_params(self, temp_dir, sample_history):
+        history = LLMHistory(sample_history)
+        yaml_file = temp_dir / "custom.yaml"
+
+        history.dump_yaml(str(yaml_file), default_flow_style=True, indent=4, sort_keys=False)
+
+        assert yaml_file.exists()
+        with open(yaml_file, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+        assert data == sample_history
+
+    def test_dump_yaml_creates_directory(self, temp_dir, sample_history):
+        history = LLMHistory(sample_history)
+        nested_dir = temp_dir / "nested" / "dir"
+        yaml_file = nested_dir / "test.yaml"
+
+        history.dump_yaml(str(yaml_file))
+
+        assert yaml_file.exists()
+        assert nested_dir.exists()
+
+    def test_load_yaml_simple(self, temp_dir, sample_history):
+        yaml_file = temp_dir / "test.yaml"
+        with open(yaml_file, 'w', encoding='utf-8') as f:
+            yaml.dump(sample_history, f)
+
+        loaded_history = LLMHistory.load_yaml(str(yaml_file))
+
+        assert len(loaded_history) == len(sample_history)
+        assert loaded_history._history == sample_history
+
+    def test_load_yaml_complex(self, temp_dir, complex_history):
+        yaml_file = temp_dir / "complex.yaml"
+        with open(yaml_file, 'w', encoding='utf-8') as f:
+            yaml.dump(complex_history, f)
+
+        loaded_history = LLMHistory.load_yaml(str(yaml_file))
+
+        assert len(loaded_history) == len(complex_history)
+        assert loaded_history._history == complex_history
+
+    def test_load_yaml_file_not_found(self, temp_dir):
+        non_existent_file = temp_dir / "nonexistent.yaml"
+
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            LLMHistory.load_yaml(str(non_existent_file))
+
+    def test_load_yaml_invalid_yaml(self, temp_dir):
+        yaml_file = temp_dir / "invalid.yaml"
+        with open(yaml_file, 'w', encoding='utf-8') as f:
+            f.write("invalid: yaml: content: [")
+
+        with pytest.raises(yaml.YAMLError):
+            LLMHistory.load_yaml(str(yaml_file))
+
+    def test_load_yaml_invalid_structure_not_list(self, temp_dir):
+        yaml_file = temp_dir / "invalid_structure.yaml"
+        with open(yaml_file, 'w', encoding='utf-8') as f:
+            yaml.dump({"not": "a list"}, f)
+
+        with pytest.raises(ValueError, match="YAML file must contain a list of messages"):
+            LLMHistory.load_yaml(str(yaml_file))
+
+    def test_load_yaml_invalid_message_not_dict(self, temp_dir):
+        yaml_file = temp_dir / "invalid_message.yaml"
+        with open(yaml_file, 'w', encoding='utf-8') as f:
+            yaml.dump(["not a dict"], f)
+
+        with pytest.raises(ValueError, match="Message at index 0 must be a dictionary"):
+            LLMHistory.load_yaml(str(yaml_file))
+
+    def test_load_yaml_missing_required_fields(self, temp_dir):
+        yaml_file = temp_dir / "missing_fields.yaml"
+        with open(yaml_file, 'w', encoding='utf-8') as f:
+            yaml.dump([{"role": "user"}], f)  # Missing 'content'
+
+        with pytest.raises(ValueError, match="Message at index 0 must have 'role' and 'content' fields"):
+            LLMHistory.load_yaml(str(yaml_file))
+
+    def test_yaml_roundtrip_simple(self, temp_dir, sample_history):
+        original_history = LLMHistory(sample_history)
+        yaml_file = temp_dir / "roundtrip.yaml"
+
+        # Export
+        original_history.dump_yaml(str(yaml_file))
+
+        # Import
+        loaded_history = LLMHistory.load_yaml(str(yaml_file))
+
+        # Verify equality
+        assert original_history == loaded_history
+        assert original_history._history == loaded_history._history
+
+    def test_yaml_roundtrip_complex(self, temp_dir, complex_history):
+        original_history = LLMHistory(complex_history)
+        yaml_file = temp_dir / "complex_roundtrip.yaml"
+
+        # Export
+        original_history.dump_yaml(str(yaml_file))
+
+        # Import
+        loaded_history = LLMHistory.load_yaml(str(yaml_file))
+
+        # Verify equality
+        assert original_history == loaded_history
+        assert original_history._history == loaded_history._history
+
+    def test_yaml_multiple_roundtrips(self, temp_dir, complex_history):
+        original_history = LLMHistory(complex_history)
+
+        # Perform multiple export/import cycles
+        current_history = original_history
+        for i in range(5):
+            yaml_file = temp_dir / f"roundtrip_{i}.yaml"
+
+            # Export
+            current_history.dump_yaml(str(yaml_file))
+
+            # Import
+            current_history = LLMHistory.load_yaml(str(yaml_file))
+
+            # Verify data integrity after each cycle
+            assert current_history == original_history
+            assert current_history._history == original_history._history
+
+    def test_cross_format_compatibility_json_to_yaml(self, temp_dir, complex_history):
+        original_history = LLMHistory(complex_history)
+        json_file = temp_dir / "test.json"
+        yaml_file = temp_dir / "test.yaml"
+
+        # Export as JSON
+        original_history.dump_json(str(json_file))
+
+        # Load from JSON and export as YAML
+        json_loaded = LLMHistory.load_json(str(json_file))
+        json_loaded.dump_yaml(str(yaml_file))
+
+        # Load from YAML
+        yaml_loaded = LLMHistory.load_yaml(str(yaml_file))
+
+        # All should be equal
+        assert original_history == json_loaded == yaml_loaded
+
+    def test_cross_format_compatibility_yaml_to_json(self, temp_dir, complex_history):
+        original_history = LLMHistory(complex_history)
+        yaml_file = temp_dir / "test.yaml"
+        json_file = temp_dir / "test.json"
+
+        # Export as YAML
+        original_history.dump_yaml(str(yaml_file))
+
+        # Load from YAML and export as JSON
+        yaml_loaded = LLMHistory.load_yaml(str(yaml_file))
+        yaml_loaded.dump_json(str(json_file))
+
+        # Load from JSON
+        json_loaded = LLMHistory.load_json(str(json_file))
+
+        # All should be equal
+        assert original_history == yaml_loaded == json_loaded
+
+    def test_empty_history_export_import(self, temp_dir):
+        empty_history = LLMHistory()
+        json_file = temp_dir / "empty.json"
+        yaml_file = temp_dir / "empty.yaml"
+
+        # Test JSON
+        empty_history.dump_json(str(json_file))
+        loaded_json = LLMHistory.load_json(str(json_file))
+        assert empty_history == loaded_json
+        assert len(loaded_json) == 0
+
+        # Test YAML
+        empty_history.dump_yaml(str(yaml_file))
+        loaded_yaml = LLMHistory.load_yaml(str(yaml_file))
+        assert empty_history == loaded_yaml
+        assert len(loaded_yaml) == 0
+
+    def test_unicode_content_preservation(self, temp_dir):
+        unicode_history = [
+            {"role": "user", "content": "Hello 世界! 🌍"},
+            {"role": "assistant", "content": "Bonjour! Здравствуй! こんにちは! 🎉"},
+            {"role": "user", "content": "Emoji test: 😀😃😄😁🥰🤔💭✨🚀"}
+        ]
+        original_history = LLMHistory(unicode_history)
+
+        # Test JSON roundtrip
+        json_file = temp_dir / "unicode.json"
+        original_history.dump_json(str(json_file))
+        json_loaded = LLMHistory.load_json(str(json_file))
+        assert original_history == json_loaded
+
+        # Test YAML roundtrip
+        yaml_file = temp_dir / "unicode.yaml"
+        original_history.dump_yaml(str(yaml_file))
+        yaml_loaded = LLMHistory.load_yaml(str(yaml_file))
+        assert original_history == yaml_loaded
+
+        # Verify specific unicode content
+        assert json_loaded[0]["content"] == "Hello 世界! 🌍"
+        assert yaml_loaded[1]["content"] == "Bonjour! Здравствуй! こんにちは! 🎉"
