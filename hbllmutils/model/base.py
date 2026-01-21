@@ -132,3 +132,18 @@ class LLMModel(ABC):
             # Prints the story as it's generated, chunk by chunk
         """
         raise NotImplementedError  # pragma: no cover
+
+    def _params(self):
+        # must be a stable and hashable return
+        raise NotImplementedError  # pragma: no cover
+
+    def _values(self):
+        return self.__class__, self._params()
+
+    def __eq__(self, other):
+        if type(other) != type(self):
+            return False
+        return self._values() == other._values()
+
+    def __hash__(self):
+        return hash(self._values())
