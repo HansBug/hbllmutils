@@ -9,9 +9,12 @@ It includes functionality for:
 The module supports multiple content types including strings, PIL Images, and lists of mixed content.
 """
 import copy
+import json
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Union, List, Optional
 
+import yaml
 from PIL import Image
 
 from .image import to_blob_url
@@ -327,3 +330,139 @@ class LLMHistory(Sequence):
         if not isinstance(other, LLMHistory):
             return False
         return self._history == other._history
+
+    def dump_json(self, file: str, **params) -> None:
+        """
+        Export the history to a JSON file.
+
+        :param file: The file path to save the JSON data.
+        :type file: str
+        :param params: Additional parameters to pass to json.dump (e.g., indent, ensure_ascii).
+
+        :raises IOError: If the file cannot be written.
+
+        Example::
+            >>> history = LLMHistory()
+            >>> history = history.with_user_message('Hello!')
+            >>> history.dump_json('conversation.json', indent=2)
+        """
+        # Set default parameters for better formatting
+        default_params = {'indent': 2, 'ensure_ascii': False, 'sort_keys': True}
+        default_params.update(params)
+
+        file_path = Path(file)
+        # Create directory if it doesn't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(self.to_json(), f, **default_params)
+
+    @classmethod
+    def load_json(cls, file: str) -> 'LLMHistory':
+        """
+        Load history from a JSON file.
+
+        :param file: The file path to load the JSON data from.
+        :type file: str
+
+        :return: A new LLMHistory instance loaded from the file.
+        :rtype: LLMHistory
+
+        :raises FileNotFoundError: If the file does not exist.
+        :raises json.JSONDecodeError: If the file contains invalid JSON.
+        :raises ValueError: If the JSON structure is invalid for LLMHistory.
+
+        Example::
+            >>> history = LLMHistory.load_json('conversation.json')
+            >>> len(history)
+            1
+        """
+        file_path = Path(file)
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file}")
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Validate the loaded data
+        if not isinstance(data, list):
+            raise ValueError("JSON file must contain a list of messages")
+
+        # Validate each message structure
+        for i, message in enumerate(data):
+            if not isinstance(message, dict):
+                raise ValueError(f"Message at index {i} must be a dictionary")
+            if 'role' not in message or 'content' not in message:
+                raise ValueError(f"Message at index {i} must have 'role' and 'content' fields")
+
+        return cls(history=data)
+
+    def dump_yaml(self, file: str, **params) -> None:
+        """
+        Export the history to a YAML file.
+
+        :param file: The file path to save the YAML data.
+        :type file: str
+        :param params: Additional parameters to pass to yaml.dump (e.g., default_flow_style, indent).
+
+        :raises IOError: If the file cannot be written.
+        :raises ImportError: If PyYAML is not installed.
+
+        Example::
+            >>> history = LLMHistory()
+            >>> history = history.with_user_message('Hello!')
+            >>> history.dump_yaml('conversation.yaml', default_flow_style=False)
+        """
+        # Set default parameters for better formatting
+        default_params = {'default_flow_style': False, 'allow_unicode': True, 'indent': 2, 'sort_keys': True}
+        default_params.update(params)
+
+        file_path = Path(file)
+        # Create directory if it doesn't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            yaml.dump(self.to_json(), f, **default_params)
+
+    @classmethod
+    def load_yaml(cls, file: str) -> 'LLMHistory':
+        """
+        Load history from a YAML file.
+
+        :param file: The file path to load the YAML data from.
+        :type file: str
+
+        :return: A new LLMHistory instance loaded from the file.
+        :rtype: LLMHistory
+
+        :raises FileNotFoundError: If the file does not exist.
+        :raises yaml.YAMLError: If the file contains invalid YAML.
+        :raises ValueError: If the YAML structure is invalid for LLMHistory.
+        :raises ImportError: If PyYAML is not installed.
+
+        Example::
+            >>> history = LLMHistory.load_yaml('conversation.yaml')
+            >>> len(history)
+            1
+        """
+        file_path = Path(file)
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file}")
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+
+        # Validate the loaded data
+        if not isinstance(data, list):
+            raise ValueError("YAML file must contain a list of messages")
+
+        # Validate each message structure
+        for i, message in enumerate(data):
+            if not isinstance(message, dict):
+                raise ValueError(f"Message at index {i} must be a dictionary")
+            if 'role' not in message or 'content' not in message:
+                raise ValueError(f"Message at index {i} must have 'role' and 'content' fields")
+
+        return cls(history=data)
