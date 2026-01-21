@@ -130,53 +130,68 @@ class TestHistoryHistoryModule:
 
     def test_append_with_string(self, mock_to_blob_url):
         history = LLMHistory()
-        history.append("user", "Hello")
-        assert len(history) == 1
-        assert history[0]["role"] == "user"
-        assert history[0]["content"] == "Hello"
+        new_history = history.append("user", "Hello")
+        assert len(new_history) == 1
+        assert new_history[0]["role"] == "user"
+        assert new_history[0]["content"] == "Hello"
+        # Verify original is unchanged
+        assert len(history) == 0
 
     def test_append_with_image(self, mock_image, mock_to_blob_url):
         history = LLMHistory()
-        history.append("user", mock_image)
-        assert len(history) == 1
-        assert history[0]["role"] == "user"
-        assert history[0]["content"] == [{"type": "image_url", "image_url": "blob:mock_url"}]
+        new_history = history.append("user", mock_image)
+        assert len(new_history) == 1
+        assert new_history[0]["role"] == "user"
+        assert new_history[0]["content"] == [{"type": "image_url", "image_url": "blob:mock_url"}]
+        # Verify original is unchanged
+        assert len(history) == 0
 
     def test_append_user(self, mock_to_blob_url):
         history = LLMHistory()
-        history.append_user("Hello user")
-        assert len(history) == 1
-        assert history[0]["role"] == "user"
-        assert history[0]["content"] == "Hello user"
+        new_history = history.append_user("Hello user")
+        assert len(new_history) == 1
+        assert new_history[0]["role"] == "user"
+        assert new_history[0]["content"] == "Hello user"
+        # Verify original is unchanged
+        assert len(history) == 0
 
     def test_append_assistant(self, mock_to_blob_url):
         history = LLMHistory()
-        history.append_assistant("Hello assistant")
-        assert len(history) == 1
-        assert history[0]["role"] == "assistant"
-        assert history[0]["content"] == "Hello assistant"
+        new_history = history.append_assistant("Hello assistant")
+        assert len(new_history) == 1
+        assert new_history[0]["role"] == "assistant"
+        assert new_history[0]["content"] == "Hello assistant"
+        # Verify original is unchanged
+        assert len(history) == 0
 
     def test_set_system_prompt_empty_history(self, mock_to_blob_url):
         history = LLMHistory()
-        history.set_system_prompt("System message")
-        assert len(history) == 1
-        assert history[0]["role"] == "system"
-        assert history[0]["content"] == "System message"
+        new_history = history.set_system_prompt("System message")
+        assert len(new_history) == 1
+        assert new_history[0]["role"] == "system"
+        assert new_history[0]["content"] == "System message"
+        # Verify original is unchanged
+        assert len(history) == 0
 
     def test_set_system_prompt_replace_existing(self, mock_to_blob_url):
         history = LLMHistory([{"role": "system", "content": "Old system"}])
-        history.set_system_prompt("New system")
-        assert len(history) == 1
-        assert history[0]["role"] == "system"
-        assert history[0]["content"] == "New system"
+        new_history = history.set_system_prompt("New system")
+        assert len(new_history) == 1
+        assert new_history[0]["role"] == "system"
+        assert new_history[0]["content"] == "New system"
+        # Verify original is unchanged
+        assert history[0]["content"] == "Old system"
 
     def test_set_system_prompt_insert_at_beginning(self, mock_to_blob_url):
         history = LLMHistory([{"role": "user", "content": "Hello"}])
-        history.set_system_prompt("System message")
-        assert len(history) == 2
-        assert history[0]["role"] == "system"
-        assert history[0]["content"] == "System message"
-        assert history[1]["role"] == "user"
+        new_history = history.set_system_prompt("System message")
+        assert len(new_history) == 2
+        assert new_history[0]["role"] == "system"
+        assert new_history[0]["content"] == "System message"
+        assert new_history[1]["role"] == "user"
+        # Verify original is unchanged
+        assert len(history) == 1
+        assert history[0]["role"] == "user"
 
     def test_to_json(self, sample_history):
         history = LLMHistory(sample_history)
@@ -202,34 +217,58 @@ class TestHistoryHistoryModule:
 
     def test_clone_independence(self, mock_to_blob_url):
         history = LLMHistory()
-        history.append_user("Original message")
-        cloned = history.clone()
+        history_with_msg = history.append_user("Original message")
+        cloned = history_with_msg.clone()
 
         # Modify original
-        history.append_user("New message in original")
+        new_history = history_with_msg.append_user("New message in original")
 
         # Modify clone
-        cloned.append_assistant("New message in clone")
+        new_cloned = cloned.append_assistant("New message in clone")
 
         # Verify independence
-        assert len(history) == 2
-        assert len(cloned) == 2
-        assert history[1]["content"] == "New message in original"
-        assert cloned[1]["content"] == "New message in clone"
+        assert len(new_history) == 2
+        assert len(new_cloned) == 2
+        assert new_history[1]["content"] == "New message in original"
+        assert new_cloned[1]["content"] == "New message in clone"
+        # Verify original instances are unchanged
+        assert len(history_with_msg) == 1
+        assert len(cloned) == 1
 
-    def test_clone_deep_copy(self, sample_history):
-        # Modify sample_history to have nested mutable objects
-        nested_history = [
-            {"role": "system", "content": ["System", "message"]},
-            {"role": "user", "content": {"text": "Hello"}}
-        ]
-        history = LLMHistory(nested_history)
-        cloned = history.clone()
+    def test_method_chaining(self, mock_to_blob_url):
+        history = LLMHistory()
+        result = (history
+                  .set_system_prompt("You are helpful")
+                  .append_user("Hello")
+                  .append_assistant("Hi there"))
 
-        # Modify nested content in original
-        history._history[0]["content"].append("modified")
-        history._history[1]["content"]["text"] = "Modified"
+        assert len(result) == 3
+        assert result[0]["role"] == "system"
+        assert result[1]["role"] == "user"
+        assert result[2]["role"] == "assistant"
+        # Verify original is unchanged
+        assert len(history) == 0
 
-        # Verify clone is not affected
-        assert cloned._history[0]["content"] == ["System", "message"]
-        assert cloned._history[1]["content"]["text"] == "Hello"
+    def test_immutability_verification(self, mock_to_blob_url):
+        history = LLMHistory()
+
+        # Test that all operations return new instances
+        h1 = history.append_user("msg1")
+        h2 = history.append_assistant("msg2")
+        h3 = history.set_system_prompt("system")
+
+        # All should be different instances
+        assert h1 is not history
+        assert h2 is not history
+        assert h3 is not history
+        assert h1 is not h2
+        assert h1 is not h3
+        assert h2 is not h3
+
+        # Original should remain empty
+        assert len(history) == 0
+
+        # Each should have expected content
+        assert len(h1) == 1
+        assert len(h2) == 1
+        assert len(h3) == 1

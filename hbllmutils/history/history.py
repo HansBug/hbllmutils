@@ -8,7 +8,6 @@ It includes functionality for:
 
 The module supports multiple content types including strings, PIL Images, and lists of mixed content.
 """
-import copy
 from collections.abc import Sequence
 from typing import Union, List, Optional
 
@@ -71,6 +70,8 @@ def create_llm_message(message: LLMContentTyping, role: LLMRoleTyping = 'user') 
     }
 
 
+# Notice: LLMHistory is an immutable object
+#         Any operation will cause a new object creation.
 class LLMHistory(Sequence):
     """
     A sequence-like container for managing LLM conversation history.
@@ -142,8 +143,7 @@ class LLMHistory(Sequence):
             >>> history = LLMHistory()
             >>> history.append('user', 'Hello!')
         """
-        self._history.append(create_llm_message(message=message, role=role))
-        return self
+        return LLMHistory(history=[*self._history, create_llm_message(message=message, role=role)])
 
     def append_user(self, message: LLMContentTyping) -> 'LLMHistory':
         """
@@ -203,10 +203,9 @@ class LLMHistory(Sequence):
         """
         message = create_llm_message(message=message, role='system')
         if self._history and self._history[0]['role'] == 'system':
-            self._history[0] = message
+            return LLMHistory(history=[message, *self._history[1:]])
         else:
-            self._history.insert(0, message)
-        return self
+            return LLMHistory(history=[message, *self._history])
 
     def to_json(self) -> List[dict]:
         """
@@ -244,4 +243,4 @@ class LLMHistory(Sequence):
             >>> len(cloned)
             2
         """
-        return LLMHistory(history=copy.deepcopy(self._history))
+        return LLMHistory(history=self._history)
