@@ -449,3 +449,47 @@ class FakeLLMModel(LLMModel):
 
         params_str = ', '.join(param_strings)
         return f"{self.__class__.__name__}({params_str})"
+
+    def _params(self):
+        """
+        Get the parameters that define this model instance.
+
+        This method returns a stable and hashable representation of the model's
+        parameters, including the streaming rate and rules configuration.
+        Since rules contain functions which are not directly hashable in a stable way,
+        we use their string representation and memory addresses for comparison.
+
+        :return: A hashable tuple representation of the model's parameters.
+        :rtype: tuple
+        """
+        # Convert rules to a hashable format
+        # Each rule is (function, response), we need to make this hashable
+        hashable_rules = []
+        for fn_rule, response in self._rules:
+            # For functions, use their string representation and id for uniqueness
+            # This ensures that the same function object will have the same hash
+            rule_key = (
+                id(fn_rule),  # Memory address for uniqueness
+                str(fn_rule),  # String representation for readability
+            )
+
+            # Handle different response types
+            if callable(response):
+                response_key = (
+                    'callable',
+                    id(response),
+                    str(response)
+                )
+            elif isinstance(response, (list, tuple)):
+                # Convert to tuple to make it hashable
+                response_key = ('tuple', tuple(response))
+            else:
+                # String or other hashable type
+                response_key = ('value', response)
+
+            hashable_rules.append((rule_key, response_key))
+
+        return (
+            self._stream_fps,
+            tuple(hashable_rules)  # Convert list to tuple for hashability
+        )
