@@ -18,4 +18,4 @@ Example::
 """
 
 from .logging import get_global_logger
-from .truncate import log_pformat
+from .truncate import log_pformat, truncate_dict

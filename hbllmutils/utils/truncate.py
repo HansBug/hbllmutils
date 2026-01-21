@@ -18,7 +18,7 @@ from pprint import pformat
 from typing import Any, Optional
 
 
-def _truncate_dict(
+def truncate_dict(
         obj: Any,
         max_string_len: int = 250,
         max_list_items: int = 4,
@@ -46,9 +46,9 @@ def _truncate_dict(
     :rtype: Any
 
     Example::
-        >>> _truncate_dict("a" * 300, max_string_len=10)
+        >>> truncate_dict("a" * 300, max_string_len=10)
         'aaaaaaaaaa...<truncated, total 300 chars>'
-        >>> _truncate_dict([1, 2, 3, 4, 5], max_list_items=3)
+        >>> truncate_dict([1, 2, 3, 4, 5], max_list_items=3)
         [1, 2, 3, '...<2 more items>']
     """
     if isinstance(obj, str):
@@ -59,16 +59,16 @@ def _truncate_dict(
     elif isinstance(obj, (list, tuple)):
         if len(obj) > max_list_items:
             truncated = [
-                _truncate_dict(item, max_string_len, max_list_items,
-                               max_dict_keys, current_depth + 1)
+                truncate_dict(item, max_string_len, max_list_items,
+                              max_dict_keys, current_depth + 1)
                 for item in obj[:max_list_items]
             ]
             truncated.append(f"...<{len(obj) - max_list_items} more items>")
             return truncated
         else:
             return [
-                _truncate_dict(item, max_string_len, max_list_items,
-                               max_dict_keys, current_depth + 1)
+                truncate_dict(item, max_string_len, max_list_items,
+                              max_dict_keys, current_depth + 1)
                 for item in obj
             ]
 
@@ -77,7 +77,7 @@ def _truncate_dict(
             keys = list(obj.keys())[:max_dict_keys]
             result = {}
             for key in keys:
-                result[key] = _truncate_dict(
+                result[key] = truncate_dict(
                     obj[key], max_string_len, max_list_items,
                     max_dict_keys, current_depth + 1
                 )
@@ -85,7 +85,7 @@ def _truncate_dict(
             return result
         else:
             return {
-                key: _truncate_dict(
+                key: truncate_dict(
                     value, max_string_len, max_list_items,
                     max_dict_keys, current_depth + 1
                 )
@@ -139,7 +139,7 @@ def log_pformat(
           'role': 'user'},
          {'content': 'Hi there!', 'role': 'assistant'}]
     """
-    truncated = _truncate_dict(
+    truncated = truncate_dict(
         obj=obj,
         max_string_len=max_string_len,
         max_list_items=max_list_items,
