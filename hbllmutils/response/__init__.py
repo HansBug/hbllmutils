@@ -19,4 +19,5 @@ Main exports:
 """
 
 from .code import extract_code, parse_json
+from .datamodel import create_datamodel_task
 from .parsable import OutputParseWithException, OutputParseFailed, ParsableLLMTask
