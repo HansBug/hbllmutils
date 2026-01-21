@@ -261,3 +261,69 @@ class LLMHistory(Sequence):
             2
         """
         return LLMHistory(history=copy.deepcopy(self._history))
+
+    def __hash__(self) -> int:
+        """
+        Generate a hash value for the LLMHistory instance.
+
+        The hash is computed based on the message history content, allowing
+        LLMHistory instances to be used as dictionary keys or in sets.
+
+        :return: Hash value of the history.
+        :rtype: int
+
+        Example::
+            >>> history1 = LLMHistory().with_user_message('Hello!')
+            >>> history2 = LLMHistory().with_user_message('Hello!')
+            >>> hash(history1) == hash(history2)
+            True
+            >>> history_set = {history1, history2}
+            >>> len(history_set)
+            1
+        """
+
+        def _make_hashable(obj):
+            """
+            Recursively convert nested data structures to hashable types.
+
+            :param obj: Object to convert (dict, list, or primitive type)
+            :return: Hashable representation of the object
+            """
+            if isinstance(obj, dict):
+                # Convert dict to sorted tuple of key-value pairs
+                return tuple(sorted((k, _make_hashable(v)) for k, v in obj.items()))
+            elif isinstance(obj, (list, tuple)):
+                # Convert list/tuple to tuple of hashable elements
+                return tuple(_make_hashable(item) for item in obj)
+            elif isinstance(obj, (str, int, float, bool, type(None))):
+                # Primitive types are already hashable
+                return obj
+            else:
+                # For other types (like custom objects), convert to string
+                return str(obj)
+
+        # Convert the entire history to a hashable structure
+        hashable_history = _make_hashable(self._history)
+        return hash(hashable_history)
+
+    def __eq__(self, other) -> bool:
+        """
+        Check equality between LLMHistory instances.
+
+        Two LLMHistory instances are considered equal if they have the same
+        message history content.
+
+        :param other: Another LLMHistory instance to compare with.
+        :type other: LLMHistory
+        :return: True if histories are equal, False otherwise.
+        :rtype: bool
+
+        Example::
+            >>> history1 = LLMHistory().with_user_message('Hello!')
+            >>> history2 = LLMHistory().with_user_message('Hello!')
+            >>> history1 == history2
+            True
+        """
+        if not isinstance(other, LLMHistory):
+            return False
+        return self._history == other._history

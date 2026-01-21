@@ -272,3 +272,153 @@ class TestHistoryHistoryModule:
         assert len(h1) == 1
         assert len(h2) == 1
         assert len(h3) == 1
+
+    def test_eq_same_empty_histories(self):
+        history1 = LLMHistory()
+        history2 = LLMHistory()
+        assert history1 == history2
+
+    def test_eq_same_histories_with_content(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hello")
+        assert history1 == history2
+
+    def test_eq_different_histories(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hi")
+        assert history1 != history2
+
+    def test_eq_different_lengths(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hello").with_assistant_message("Hi")
+        assert history1 != history2
+
+    def test_eq_with_non_llmhistory(self, mock_to_blob_url):
+        history = LLMHistory().with_user_message("Hello")
+        assert history != "not a history"
+        assert history != []
+        assert history != {"role": "user", "content": "Hello"}
+
+    def test_eq_complex_histories(self, sample_history):
+        history1 = LLMHistory(sample_history)
+        history2 = LLMHistory(sample_history.copy())
+        assert history1 == history2
+
+    def test_hash_empty_histories(self):
+        history1 = LLMHistory()
+        history2 = LLMHistory()
+        assert hash(history1) == hash(history2)
+
+    def test_hash_same_content(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hello")
+        assert hash(history1) == hash(history2)
+
+    def test_hash_different_content(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hi")
+        assert hash(history1) != hash(history2)
+
+    def test_hash_with_nested_structures(self, mock_image, mock_to_blob_url):
+        history1 = LLMHistory().with_message("user", ["Hello", mock_image])
+        history2 = LLMHistory().with_message("user", ["Hello", mock_image])
+        assert hash(history1) == hash(history2)
+
+    def test_hash_with_different_roles(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_assistant_message("Hello")
+        assert hash(history1) != hash(history2)
+
+    def test_hash_consistency_after_operations(self, mock_to_blob_url):
+        history = LLMHistory().with_user_message("Hello")
+        hash1 = hash(history)
+        hash2 = hash(history)
+        assert hash1 == hash2
+
+    def test_hash_with_complex_nested_data(self):
+        complex_history = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Hello"},
+                    {"type": "image_url", "image_url": "blob:test"}
+                ]
+            },
+            {
+                "role": "assistant",
+                "content": "Hi there!"
+            }
+        ]
+        history1 = LLMHistory(complex_history)
+        history2 = LLMHistory(complex_history.copy())
+        assert hash(history1) == hash(history2)
+
+    def test_hash_with_none_values(self):
+        history_with_none = [{"role": "user", "content": None}]
+        history1 = LLMHistory(history_with_none)
+        history2 = LLMHistory(history_with_none.copy())
+        assert hash(history1) == hash(history2)
+
+    def test_hash_with_boolean_values(self):
+        history_with_bool = [{"role": "user", "content": "Hello", "enabled": True}]
+        history1 = LLMHistory(history_with_bool)
+        history2 = LLMHistory(history_with_bool.copy())
+        assert hash(history1) == hash(history2)
+
+    def test_hash_with_numeric_values(self):
+        history_with_numbers = [
+            {"role": "user", "content": "Hello", "id": 123, "score": 45.6}
+        ]
+        history1 = LLMHistory(history_with_numbers)
+        history2 = LLMHistory(history_with_numbers.copy())
+        assert hash(history1) == hash(history2)
+
+    def test_hash_usable_in_set(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hello")
+        history3 = LLMHistory().with_user_message("Hi")
+
+        history_set = {history1, history2, history3}
+        assert len(history_set) == 2
+
+    def test_hash_usable_as_dict_key(self, mock_to_blob_url):
+        history1 = LLMHistory().with_user_message("Hello")
+        history2 = LLMHistory().with_user_message("Hello")
+
+        history_dict = {history1: "value1"}
+        history_dict[history2] = "value2"
+
+        assert len(history_dict) == 1
+        assert history_dict[history1] == "value2"
+
+    def test_hash_make_hashable_with_custom_object(self):
+        class CustomObject:
+            def __init__(self, value):
+                self.value = value
+
+            def __str__(self):
+                return f"CustomObject({self.value})"
+
+        custom_obj = CustomObject("test")
+        history_with_custom = [{"role": "user", "content": custom_obj}]
+        history = LLMHistory(history_with_custom)
+
+        # Should not raise an exception
+        hash_value = hash(history)
+        assert isinstance(hash_value, int)
+
+    def test_hash_deep_nested_structures(self):
+        deeply_nested = [
+            {
+                "role": "user",
+                "content": {
+                    "messages": [
+                        {"text": "Hello", "metadata": {"id": 1, "tags": ["greeting"]}},
+                        {"text": "World", "metadata": {"id": 2, "tags": ["noun"]}}
+                    ]
+                }
+            }
+        ]
+        history1 = LLMHistory(deeply_nested)
+        history2 = LLMHistory(deeply_nested.copy())
+        assert hash(history1) == hash(history2)
