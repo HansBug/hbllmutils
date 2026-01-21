@@ -57,7 +57,7 @@ class _HelloTest(BinaryTest):
             'Hello! How can I help you today?'
         """
         content = model.ask(
-            messages=LLMHistory().append_user('hello!').to_json(),
+            messages=LLMHistory().with_user_message('hello!').to_json(),
             **params,
         )
         return BinaryTestResult(
@@ -135,7 +135,7 @@ class _PingTest(BinaryTest):
             'Pong!'
         """
         content = model.ask(
-            messages=LLMHistory().append_user('ping!').to_json(),
+            messages=LLMHistory().with_user_message('ping!').to_json(),
             **params,
         )
         return BinaryTestResult(

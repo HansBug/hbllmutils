@@ -122,24 +122,24 @@ print(f"Loaded Model: {model}")
 pprint(model)
 
 # Initialize conversation history with a system prompt
-history = LLMHistory().set_system_prompt(
-    'tell me the appearance of this guy, use json format, like {\'description\': \'xxxxx\', \'name\': \'original name\'}.'
-).append_user(
-    'donald trump'
+history = LLMHistory().with_system_prompt(
+  'tell me the appearance of this guy, use json format, like {\'description\': \'xxxxx\', \'name\': \'original name\'}.'
+).with_user_message(
+  'donald trump'
 )
 
 # Ask the model a question and get a streaming response
 # with_reasoning=True will include any internal reasoning from the model in the stream
 f = model.ask_stream(
-    messages=history.to_json(),
-    with_reasoning=True,
+  messages=history.to_json(),
+  with_reasoning=True,
 )
 print(f"\nStreaming Response (with reasoning):\n")
 
 # Iterate through the stream and print chunks as they arrive
 for chunk in f:
-    print(chunk, end='')
-    sys.stdout.flush()
+  print(chunk, end='')
+  sys.stdout.flush()
 
 print(f"\n\nAccumulated Reasoning: {f.reasoning_content}")
 print(f"Accumulated Content: {f.content}")
@@ -181,7 +181,7 @@ model = FakeLLMModel(stream_wps=10)
 
 # 1. Always return a specific response
 model.response_always("Hello, I am a fake LLM model ready for your commands!")
-history_always = LLMHistory().append_user("Hi there!")
+history_always = LLMHistory().with_user_message("Hi there!")
 response_always = model.ask(history_always.to_json())
 print(f"Always Response: {response_always}")
 # Expected Output: Always Response: Hello, I am a fake LLM model ready for your commands!
@@ -191,12 +191,12 @@ model = FakeLLMModel(stream_wps=10)  # Re-initialize to clear previous rules
 model.response_when_keyword_in_last_message("weather", "The weather is sunny with a chance of fake clouds.")
 model.response_when_keyword_in_last_message(["time", "hour"], "It\'s always coffee o\'clock in the fake world.")
 
-history_weather = LLMHistory().append_user("What\'s the weather like?")
+history_weather = LLMHistory().with_user_message("What\'s the weather like?")
 response_weather = model.ask(history_weather.to_json())
 print(f"Weather Response: {response_weather}")
 # Expected Output: Weather Response: The weather is sunny with a chance of fake clouds.
 
-history_time = LLMHistory().append_user("What time is it?")
+history_time = LLMHistory().with_user_message("What time is it?")
 response_time = model.ask(history_time.to_json())
 print(f"Time Response: {response_time}")
 # Expected Output: Time Response: It\'s always coffee o\'clock in the fake world.
@@ -206,18 +206,18 @@ model = FakeLLMModel(stream_wps=10)  # Re-initialize to clear previous rules
 
 
 def long_conversation_check(messages, **params):
-    return len(messages) > 2
+  return len(messages) > 2
 
 
 model.response_when(long_conversation_check, "This is a long conversation, isn\'t it?")
 model.response_always("Short conversation.")  # Fallback for shorter conversations
 
-history_short = LLMHistory().append_user("Hello.")
+history_short = LLMHistory().with_user_message("Hello.")
 response_short = model.ask(history_short.to_json())
 print(f"Short Conversation: {response_short}")
 # Expected Output: Short Conversation: Short conversation.
 
-history_long = LLMHistory().append_user("Hello.").append_assistant("Hi!").append_user("How are you?")
+history_long = LLMHistory().with_user_message("Hello.").with_assistant_message("Hi!").with_user_message("How are you?")
 response_long = model.ask(history_long.to_json())
 print(f"Long Conversation: {response_long}")
 # Expected Output: Long Conversation: This is a long conversation, isn\'t it?
@@ -226,16 +226,16 @@ print(f"Long Conversation: {response_long}")
 model = FakeLLMModel(stream_wps=5)  # Slower streaming for demonstration
 model.response_always(("Thinking step by step...", "The final answer is 42."))
 
-history_stream = LLMHistory().append_user("What is the meaning of life?")
+history_stream = LLMHistory().with_user_message("What is the meaning of life?")
 stream = model.ask_stream(history_stream.to_json(), with_reasoning=True)
 
 print("\nStreaming Response (with reasoning):\n")
 for chunk in stream:
-    print(chunk, end='')
-    sys.stdout.flush()
+  print(chunk, end='')
+  sys.stdout.flush()
 
-    print(f"\n\nAccumulated Reasoning: {stream.reasoning_content}")
-    print(f"Accumulated Content: {stream.content}")
+  print(f"\n\nAccumulated Reasoning: {stream.reasoning_content}")
+  print(f"Accumulated Content: {stream.content}")
 # Expected Output (with simulated delay):
 # Streaming Response (with reasoning):
 # Thinking step by step...The final answer is 42.

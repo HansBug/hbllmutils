@@ -47,7 +47,7 @@ def create_datamodel_prompt_generation_task(
     """
     return LLMTask(
         model=model,
-        history=LLMHistory().append_user(
+        history=LLMHistory().with_user_message(
             create_meta_prompt_for_datamodel(
                 datamodel_class=datamodel_class,
                 related_datamodel_classes=related_datamodel_classes,

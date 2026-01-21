@@ -70,8 +70,6 @@ def create_llm_message(message: LLMContentTyping, role: LLMRoleTyping = 'user') 
     }
 
 
-# Notice: LLMHistory is an immutable object
-#         Any operation will cause a new object creation.
 class LLMHistory(Sequence):
     """
     A sequence-like container for managing LLM conversation history.
@@ -80,13 +78,16 @@ class LLMHistory(Sequence):
     with different roles (user, assistant, system, etc.). It implements the
     Sequence protocol, allowing indexing and iteration.
 
+    .. note::
+        LLMHistory is an immutable object. Any operation will cause a new object creation.
+
     :param history: Optional initial history as a list of message dictionaries.
     :type history: Optional[List[dict]]
 
     Example::
         >>> history = LLMHistory()
-        >>> history.append_user("Hello!")
-        >>> history.append_assistant("Hi there!")
+        >>> history = history.with_user_message("Hello!")
+        >>> history = history.with_assistant_message("Hi there!")
         >>> len(history)
         2
         >>> history[0]
@@ -127,79 +128,94 @@ class LLMHistory(Sequence):
         """
         return len(self._history)
 
-    def append(self, role: LLMRoleTyping, message: LLMContentTyping) -> 'LLMHistory':
+    def with_message(self, role: LLMRoleTyping, message: LLMContentTyping) -> 'LLMHistory':
         """
         Append a message with a specific role to the history.
+
+        This method creates a new LLMHistory instance with the appended message,
+        leaving the original instance unchanged.
 
         :param role: The role of the message sender.
         :type role: LLMRoleTyping
         :param message: The message content.
         :type message: LLMContentTyping
 
-        :return: The LLMHistory instance for method chaining.
+        :return: A new LLMHistory instance with the appended message.
         :rtype: LLMHistory
 
         Example::
             >>> history = LLMHistory()
-            >>> history.append('user', 'Hello!')
+            >>> new_history = history.with_message('user', 'Hello!')
+            >>> len(history)
+            0
+            >>> len(new_history)
+            1
         """
         return LLMHistory(history=[*self._history, create_llm_message(message=message, role=role)])
 
-    def append_user(self, message: LLMContentTyping) -> 'LLMHistory':
+    def with_user_message(self, message: LLMContentTyping) -> 'LLMHistory':
         """
         Append a user message to the history.
 
         This is a convenience method equivalent to calling append with role='user'.
+        Creates a new LLMHistory instance with the appended message.
 
         :param message: The message content.
         :type message: LLMContentTyping
 
-        :return: The LLMHistory instance for method chaining.
+        :return: A new LLMHistory instance with the appended user message.
         :rtype: LLMHistory
 
         Example::
             >>> history = LLMHistory()
-            >>> history.append_user('Hello!')
+            >>> new_history = history.with_user_message('Hello!')
+            >>> new_history[0]['role']
+            'user'
         """
-        return self.append(role='user', message=message)
+        return self.with_message(role='user', message=message)
 
-    def append_assistant(self, message: LLMContentTyping) -> 'LLMHistory':
+    def with_assistant_message(self, message: LLMContentTyping) -> 'LLMHistory':
         """
         Append an assistant message to the history.
 
         This is a convenience method equivalent to calling append with role='assistant'.
+        Creates a new LLMHistory instance with the appended message.
 
         :param message: The message content.
         :type message: LLMContentTyping
 
-        :return: The LLMHistory instance for method chaining.
+        :return: A new LLMHistory instance with the appended assistant message.
         :rtype: LLMHistory
 
         Example::
             >>> history = LLMHistory()
-            >>> history.append_assistant('How can I help you?')
+            >>> new_history = history.with_assistant_message('How can I help you?')
+            >>> new_history[0]['role']
+            'assistant'
         """
-        return self.append(role='assistant', message=message)
+        return self.with_message(role='assistant', message=message)
 
-    def set_system_prompt(self, message: LLMContentTyping) -> 'LLMHistory':
+    def with_system_prompt(self, message: LLMContentTyping) -> 'LLMHistory':
         """
         Set or update the system prompt.
 
         If a system message already exists at the beginning of the history,
         it will be replaced. Otherwise, the new system message will be inserted
-        at the start of the history.
+        at the start of the history. This method creates a new LLMHistory instance.
 
         :param message: The system prompt content.
         :type message: LLMContentTyping
 
-        :return: The LLMHistory instance for method chaining.
+        :return: A new LLMHistory instance with the system prompt set or updated.
         :rtype: LLMHistory
 
         Example::
             >>> history = LLMHistory()
-            >>> history.set_system_prompt('You are a helpful assistant.')
-            >>> history[0]['role']
+            >>> new_history = history.with_system_prompt('You are a helpful assistant.')
+            >>> new_history[0]['role']
             'system'
+            >>> new_history[0]['content']
+            'You are a helpful assistant.'
         """
         message = create_llm_message(message=message, role='system')
         if self._history and self._history[0]['role'] == 'system':
@@ -216,7 +232,7 @@ class LLMHistory(Sequence):
 
         Example::
             >>> history = LLMHistory()
-            >>> history.append_user('Hello!')
+            >>> history = history.with_user_message('Hello!')
             >>> history.to_json()
             [{'role': 'user', 'content': 'Hello!'}]
         """
@@ -235,9 +251,9 @@ class LLMHistory(Sequence):
 
         Example::
             >>> history = LLMHistory()
-            >>> history.append_user('Hello!')
+            >>> history = history.with_user_message('Hello!')
             >>> cloned = history.clone()
-            >>> cloned.append_user('Another message')
+            >>> cloned = cloned.with_user_message('Another message')
             >>> len(history)
             1
             >>> len(cloned)
