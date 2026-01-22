@@ -10,5 +10,6 @@ hbllmutils.response
     :maxdepth: 3
 
     code
+    datamodel
     parsable
 

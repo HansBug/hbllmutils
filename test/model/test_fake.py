@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from hbllmutils.model import FakeResponseStream, FakeLLMModel
-from hbllmutils.model.fake import _fn_always_true
+from hbllmutils.model.fake import _fn_always_true, FakeResponseSequence
 
 
 @pytest.fixture
@@ -45,6 +45,267 @@ def mock_jieba_cut():
     """Mock jieba.cut function."""
     with patch('jieba.cut') as mock_cut:
         yield mock_cut
+
+
+@pytest.fixture
+def sample_responses():
+    """Create sample responses for sequence testing."""
+    return ["First response", ("reasoning2", "Second response"), "Third response"]
+
+
+@pytest.fixture
+def empty_responses():
+    """Create empty responses list for testing."""
+    return []
+
+
+@pytest.fixture
+def single_response():
+    """Create single response for testing."""
+    return ["Only response"]
+
+
+@pytest.mark.unittest
+class TestFakeResponseSequence:
+
+    def test_init_default_index(self, sample_responses):
+        """Test FakeResponseSequence initialization with default index."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert sequence.current_index == 0
+        assert sequence.total_responses == 3
+        assert sequence.has_more_responses is True
+
+    def test_init_custom_index(self, sample_responses):
+        """Test FakeResponseSequence initialization with custom index."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        assert sequence.current_index == 2
+        assert sequence.total_responses == 3
+        assert sequence.has_more_responses is True
+
+    def test_init_index_at_end(self, sample_responses):
+        """Test FakeResponseSequence initialization with index at end."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        assert sequence.current_index == 3
+        assert sequence.total_responses == 3
+        assert sequence.has_more_responses is False
+
+    def test_init_empty_responses(self, empty_responses):
+        """Test FakeResponseSequence initialization with empty responses."""
+        sequence = FakeResponseSequence(empty_responses)
+        assert sequence.current_index == 0
+        assert sequence.total_responses == 0
+        assert sequence.has_more_responses is False
+
+    def test_init_immutability(self, sample_responses):
+        """Test that responses are made immutable."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert isinstance(sequence._response_contents, tuple)
+        assert sequence._response_contents == tuple(sample_responses)
+
+    def test_current_index_property(self, sample_responses):
+        """Test current_index property."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        assert sequence.current_index == 1
+
+    def test_total_responses_property(self, sample_responses):
+        """Test total_responses property."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert sequence.total_responses == 3
+
+    def test_has_more_responses_property_true(self, sample_responses):
+        """Test has_more_responses property when True."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        assert sequence.has_more_responses is True
+
+    def test_has_more_responses_property_false(self, sample_responses):
+        """Test has_more_responses property when False."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        assert sequence.has_more_responses is False
+
+    def test_rule_check_has_more_responses(self, sample_responses, sample_messages):
+        """Test rule_check returns True when has more responses."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        result = sequence.rule_check(sample_messages, param1="value1")
+        assert result is True
+
+    def test_rule_check_no_more_responses(self, sample_responses, sample_messages):
+        """Test rule_check returns False when no more responses."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        result = sequence.rule_check(sample_messages, param1="value1")
+        assert result is False
+
+    def test_rule_check_ignores_params(self, sample_responses, sample_messages):
+        """Test rule_check ignores messages and params."""
+        sequence = FakeResponseSequence(sample_responses)
+        result = sequence.rule_check(sample_messages, extra_param="ignored")
+        assert result is True
+
+    def test_response_string_response(self, sample_messages):
+        """Test response method with string response."""
+        responses = ["Test response"]
+        sequence = FakeResponseSequence(responses)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == ""
+        assert content == "Test response"
+
+    def test_response_tuple_response(self, sample_messages):
+        """Test response method with tuple response."""
+        responses = [("reasoning", "content")]
+        sequence = FakeResponseSequence(responses)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == "reasoning"
+        assert content == "content"
+
+    def test_response_list_response(self, sample_messages):
+        """Test response method with list response."""
+        responses = [["reasoning", "content"]]
+        sequence = FakeResponseSequence(responses)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == "reasoning"
+        assert content == "content"
+
+    def test_response_at_different_indices(self, sample_responses, sample_messages):
+        """Test response method returns correct response at different indices."""
+        # Index 0
+        sequence = FakeResponseSequence(sample_responses, index=0)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == ""
+        assert content == "First response"
+
+        # Index 1
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == "reasoning2"
+        assert content == "Second response"
+
+        # Index 2
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == ""
+        assert content == "Third response"
+
+    def test_response_no_more_responses(self, sample_responses, sample_messages):
+        """Test response method raises IndexError when no more responses."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        with pytest.raises(IndexError, match="No more responses available. Current index: 3, Total: 3"):
+            sequence.response(sample_messages)
+
+    def test_response_ignores_params(self, sample_responses, sample_messages):
+        """Test response method ignores additional params."""
+        sequence = FakeResponseSequence(sample_responses)
+        reasoning, content = sequence.response(sample_messages, extra_param="ignored")
+        assert content == "First response"
+
+    def test_advance_creates_new_instance(self, sample_responses):
+        """Test advance method creates new instance."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        new_sequence = sequence.advance()
+
+        assert new_sequence is not sequence
+        assert new_sequence.current_index == 2
+        assert sequence.current_index == 1  # Original unchanged
+
+    def test_advance_preserves_responses(self, sample_responses):
+        """Test advance method preserves responses."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        new_sequence = sequence.advance()
+
+        assert new_sequence._response_contents == sequence._response_contents
+
+    def test_advance_from_end(self, sample_responses):
+        """Test advance method from end position."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        new_sequence = sequence.advance()
+
+        assert new_sequence.current_index == 3
+        assert new_sequence.has_more_responses is False
+
+    def test_reset_creates_new_instance(self, sample_responses):
+        """Test reset method creates new instance."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        new_sequence = sequence.reset()
+
+        assert new_sequence is not sequence
+        assert new_sequence.current_index == 0
+        assert sequence.current_index == 2  # Original unchanged
+
+    def test_reset_preserves_responses(self, sample_responses):
+        """Test reset method preserves responses."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        new_sequence = sequence.reset()
+
+        assert new_sequence._response_contents == sequence._response_contents
+
+    def test_reset_from_beginning(self, sample_responses):
+        """Test reset method from beginning position."""
+        sequence = FakeResponseSequence(sample_responses, index=0)
+        new_sequence = sequence.reset()
+
+        assert new_sequence.current_index == 0
+        assert new_sequence.has_more_responses is True
+
+    def test_equality_same_instance(self, sample_responses):
+        """Test equality with same instance."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        assert sequence == sequence
+
+    def test_equality_different_instances_same_params(self, sample_responses):
+        """Test equality with different instances but same parameters."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=1)
+        assert sequence1 == sequence2
+
+    def test_equality_different_responses(self):
+        """Test inequality with different responses."""
+        sequence1 = FakeResponseSequence(["response1"])
+        sequence2 = FakeResponseSequence(["response2"])
+        assert sequence1 != sequence2
+
+    def test_equality_different_indices(self, sample_responses):
+        """Test inequality with different indices."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=2)
+        assert sequence1 != sequence2
+
+    def test_equality_with_non_sequence(self, sample_responses):
+        """Test inequality with non-FakeResponseSequence object."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert sequence != "not a sequence"
+        assert sequence != 42
+        assert sequence != None
+
+    def test_hash_same_instances(self, sample_responses):
+        """Test hash is same for instances with same parameters."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=1)
+        assert hash(sequence1) == hash(sequence2)
+
+    def test_hash_different_instances(self, sample_responses):
+        """Test hash is different for instances with different parameters."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=2)
+        assert hash(sequence1) != hash(sequence2)
+
+    def test_hash_consistency(self, sample_responses):
+        """Test hash consistency - same object should have same hash."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        hash1 = hash(sequence)
+        hash2 = hash(sequence)
+        assert hash1 == hash2
+
+    def test_repr(self, sample_responses):
+        """Test __repr__ method."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        result = repr(sequence)
+        expected = f"FakeResponseSequence(responses={list(sample_responses)}, index=1)"
+        assert result == expected
+
+    def test_repr_empty_responses(self, empty_responses):
+        """Test __repr__ method with empty responses."""
+        sequence = FakeResponseSequence(empty_responses)
+        result = repr(sequence)
+        expected = "FakeResponseSequence(responses=[], index=0)"
+        assert result == expected
 
 
 @pytest.mark.unittest
@@ -89,76 +350,150 @@ class TestFakeLLMModel:
     def test_init_default_stream_wps(self):
         """Test FakeLLMModel initialization with default stream_wps."""
         model = FakeLLMModel()
-        assert model.stream_fps == 50
-        assert model._rules == []
+        assert model.stream_wps == 50
+        assert model.rules_count == 0
 
     def test_init_custom_stream_wps(self):
         """Test FakeLLMModel initialization with custom stream_wps."""
         model = FakeLLMModel(stream_wps=100)
-        assert model.stream_fps == 100
-        assert model._rules == []
+        assert model.stream_wps == 100
+        assert model.rules_count == 0
+
+    def test_init_with_rules(self):
+        """Test FakeLLMModel initialization with rules parameter."""
+        rules = [(_fn_always_true, "response")]
+        model = FakeLLMModel(stream_wps=50, rules=rules)
+        assert model.rules_count == 1
+        assert model._rules == tuple(rules)
+
+    def test_init_with_none_rules(self):
+        """Test FakeLLMModel initialization with None rules."""
+        model = FakeLLMModel(stream_wps=50, rules=None)
+        assert model.rules_count == 0
+        assert model._rules == tuple()
+
+    def test_immutability_setattr_after_frozen(self):
+        """Test that attributes cannot be modified after initialization."""
+        model = FakeLLMModel()
+        with pytest.raises(AttributeError, match="Cannot modify attribute '_stream_wps' of immutable FakeLLMModel"):
+            model._stream_wps = 200
+
+    def test_immutability_setattr_new_attribute(self):
+        """Test that new attributes cannot be added after initialization."""
+        model = FakeLLMModel()
+        with pytest.raises(AttributeError, match="Cannot modify attribute 'new_attr' of immutable FakeLLMModel"):
+            model.new_attr = "value"
+
+    def test_immutability_delattr(self):
+        """Test that attributes cannot be deleted."""
+        model = FakeLLMModel()
+        with pytest.raises(AttributeError, match="Cannot delete attribute '_stream_wps' of immutable FakeLLMModel"):
+            del model._stream_wps
+
+    def test_logger_name_property(self):
+        """Test _logger_name property."""
+        model = FakeLLMModel()
+        assert model._logger_name == '<faker>'
 
     def test_rules_count_property_empty(self):
         """Test rules_count property with no rules."""
         model = FakeLLMModel()
         assert model.rules_count == 0
 
-    def test_rules_count_property_with_rules(self, fake_model):
+    def test_rules_count_property_with_rules(self):
         """Test rules_count property with multiple rules."""
-        fake_model.response_always("response1")
-        fake_model.response_always("response2")
-        fake_model.response_always("response3")
-        assert fake_model.rules_count == 3
+        model = FakeLLMModel()
+        model = model.response_always("response1")
+        model = model.response_always("response2")
+        model = model.response_always("response3")
+        assert model.rules_count == 3
 
-    def test_get_response_with_string_response(self, fake_model, sample_messages):
+    def test_create_new_instance_default_params(self):
+        """Test _create_new_instance with default parameters."""
+        model = FakeLLMModel(stream_wps=100)
+        new_model = model._create_new_instance()
+
+        assert new_model is not model
+        assert new_model.stream_wps == 100
+        assert new_model.rules_count == 0
+
+    def test_create_new_instance_override_stream_wps(self):
+        """Test _create_new_instance with overridden stream_wps."""
+        model = FakeLLMModel(stream_wps=100)
+        new_model = model._create_new_instance(stream_wps=200)
+
+        assert new_model.stream_wps == 200
+
+    def test_create_new_instance_override_rules(self):
+        """Test _create_new_instance with overridden rules."""
+        model = FakeLLMModel()
+        rules = [(_fn_always_true, "response")]
+        new_model = model._create_new_instance(rules=rules)
+
+        assert new_model.rules_count == 1
+
+    def test_get_response_with_string_response(self, sample_messages):
         """Test _get_response with string response."""
-        fake_model.response_always("test response")
+        model = FakeLLMModel().response_always("test response")
 
-        reasoning, content = fake_model._get_response(sample_messages)
+        reasoning, content = model._get_response(sample_messages)
 
         assert reasoning == ""
         assert content == "test response"
 
-    def test_get_response_with_tuple_response(self, fake_model, sample_messages):
+    def test_get_response_with_tuple_response(self, sample_messages):
         """Test _get_response with tuple response."""
-        fake_model.response_always(("reasoning", "content"))
+        model = FakeLLMModel().response_always(("reasoning", "content"))
 
-        reasoning, content = fake_model._get_response(sample_messages)
+        reasoning, content = model._get_response(sample_messages)
 
         assert reasoning == "reasoning"
         assert content == "content"
 
-    def test_get_response_with_list_response(self, fake_model, sample_messages):
+    def test_get_response_with_list_response(self, sample_messages):
         """Test _get_response with list response."""
-        fake_model.response_always(["reasoning", "content"])
+        model = FakeLLMModel().response_always(["reasoning", "content"])
 
-        reasoning, content = fake_model._get_response(sample_messages)
+        reasoning, content = model._get_response(sample_messages)
 
         assert reasoning == "reasoning"
         assert content == "content"
 
-    def test_get_response_with_callable_string_response(self, fake_model, sample_messages):
+    def test_get_response_with_callable_string_response(self, sample_messages):
         """Test _get_response with callable returning string."""
 
         def response_func(messages, **params):
             return "callable response"
 
-        fake_model.response_always(response_func)
+        model = FakeLLMModel().response_always(response_func)
 
-        reasoning, content = fake_model._get_response(sample_messages)
+        reasoning, content = model._get_response(sample_messages)
 
         assert reasoning == ""
         assert content == "callable response"
 
-    def test_get_response_with_callable_tuple_response(self, fake_model, sample_messages):
+    def test_get_response_with_callable_tuple_response(self, sample_messages):
         """Test _get_response with callable returning tuple."""
 
         def response_func(messages, **params):
             return ("callable reasoning", "callable content")
 
-        fake_model.response_always(response_func)
+        model = FakeLLMModel().response_always(response_func)
 
-        reasoning, content = fake_model._get_response(sample_messages)
+        reasoning, content = model._get_response(sample_messages)
+
+        assert reasoning == "callable reasoning"
+        assert content == "callable content"
+
+    def test_get_response_with_callable_list_response(self, sample_messages):
+        """Test _get_response with callable returning list."""
+
+        def response_func(messages, **params):
+            return ["callable reasoning", "callable content"]
+
+        model = FakeLLMModel().response_always(response_func)
+
+        reasoning, content = model._get_response(sample_messages)
 
         assert reasoning == "callable reasoning"
         assert content == "callable content"
@@ -170,240 +505,467 @@ class TestFakeLLMModel:
         with pytest.raises(AssertionError, match="No response rule found for this message."):
             model._get_response(sample_messages)
 
-    def test_get_response_first_matching_rule(self, fake_model, sample_messages):
+    def test_get_response_first_matching_rule(self, sample_messages):
         """Test _get_response returns first matching rule."""
-        fake_model.response_always("first response")
-        fake_model.response_always("second response")
+        model = FakeLLMModel().response_always("first response").response_always("second response")
 
-        reasoning, content = fake_model._get_response(sample_messages)
+        reasoning, content = model._get_response(sample_messages)
 
         assert content == "first response"
 
-    def test_response_always_returns_self(self, fake_model):
-        """Test response_always returns self for chaining."""
-        result = fake_model.response_always("test")
-        assert result is fake_model
+    def test_get_response_passes_params(self, sample_messages):
+        """Test _get_response passes params to callable response."""
 
-    def test_response_always_adds_rule(self, fake_model):
+        def response_func(messages, **params):
+            return f"param: {params.get('test_param')}"
+
+        model = FakeLLMModel().response_always(response_func)
+        reasoning, content = model._get_response(sample_messages, test_param="test_value")
+
+        assert content == "param: test_value"
+
+    def test_with_stream_wps_returns_new_instance(self):
+        """Test with_stream_wps returns new instance."""
+        model = FakeLLMModel(stream_wps=100)
+        new_model = model.with_stream_wps(200)
+
+        assert new_model is not model
+        assert new_model.stream_wps == 200
+        assert model.stream_wps == 100
+
+    def test_with_stream_wps_preserves_rules(self):
+        """Test with_stream_wps preserves existing rules."""
+        model = FakeLLMModel(stream_wps=100).response_always("test")
+        new_model = model.with_stream_wps(200)
+
+        assert new_model.rules_count == 1
+        assert model.rules_count == 1
+
+    def test_response_always_returns_new_instance(self):
+        """Test response_always returns new instance."""
+        model = FakeLLMModel()
+        new_model = model.response_always("test response")
+
+        assert new_model is not model
+        assert new_model.rules_count == 1
+        assert model.rules_count == 0
+
+    def test_response_always_adds_rule(self):
         """Test response_always adds rule to _rules."""
-        fake_model.response_always("test response")
+        model = FakeLLMModel().response_always("test response")
 
-        assert len(fake_model._rules) == 1
-        rule_func, response = fake_model._rules[0]
+        assert len(model._rules) == 1
+        rule_func, response = model._rules[0]
         assert rule_func is _fn_always_true
         assert response == "test response"
 
-    def test_response_when_returns_self(self, fake_model):
-        """Test response_when returns self for chaining."""
+    def test_response_when_returns_new_instance(self):
+        """Test response_when returns new instance."""
 
         def condition(messages, **params):
             return True
 
-        result = fake_model.response_when(condition, "test")
-        assert result is fake_model
+        model = FakeLLMModel()
+        new_model = model.response_when(condition, "test")
 
-    def test_response_when_adds_rule(self, fake_model):
+        assert new_model is not model
+        assert new_model.rules_count == 1
+        assert model.rules_count == 0
+
+    def test_response_when_adds_rule(self):
         """Test response_when adds rule to _rules."""
 
         def condition(messages, **params):
             return len(messages) > 1
 
-        fake_model.response_when(condition, "conditional response")
+        model = FakeLLMModel().response_when(condition, "conditional response")
 
-        assert len(fake_model._rules) == 1
-        rule_func, response = fake_model._rules[0]
+        assert len(model._rules) == 1
+        rule_func, response = model._rules[0]
         assert rule_func is condition
         assert response == "conditional response"
 
-    def test_response_when_keyword_in_last_message_string_keyword(self, fake_model):
+    def test_response_when_keyword_in_last_message_string_keyword(self):
         """Test response_when_keyword_in_last_message with string keyword."""
-        result = fake_model.response_when_keyword_in_last_message("weather", "weather response")
+        model = FakeLLMModel()
+        new_model = model.response_when_keyword_in_last_message("weather", "weather response")
 
-        assert result is fake_model
-        assert len(fake_model._rules) == 1
+        assert new_model is not model
+        assert new_model.rules_count == 1
+        assert model.rules_count == 0
 
-    def test_response_when_keyword_in_last_message_list_keywords(self, fake_model, weather_keywords):
+    def test_response_when_keyword_in_last_message_list_keywords(self, weather_keywords):
         """Test response_when_keyword_in_last_message with list of keywords."""
-        fake_model.response_when_keyword_in_last_message(weather_keywords, "weather response")
+        model = FakeLLMModel().response_when_keyword_in_last_message(weather_keywords, "weather response")
 
-        assert len(fake_model._rules) == 1
+        assert len(model._rules) == 1
 
-    def test_response_when_keyword_in_last_message_tuple_keywords(self, fake_model):
+    def test_response_when_keyword_in_last_message_tuple_keywords(self):
         """Test response_when_keyword_in_last_message with tuple of keywords."""
         keywords = ("weather", "temperature")
-        fake_model.response_when_keyword_in_last_message(keywords, "weather response")
+        model = FakeLLMModel().response_when_keyword_in_last_message(keywords, "weather response")
 
-        assert len(fake_model._rules) == 1
+        assert len(model._rules) == 1
 
-    def test_keyword_check_function_match(self, fake_model):
+    def test_keyword_check_function_match(self):
         """Test keyword check function matches keyword in last message."""
-        fake_model.response_when_keyword_in_last_message("weather", "weather response")
-        rule_func, _ = fake_model._rules[0]
+        model = FakeLLMModel().response_when_keyword_in_last_message("weather", "weather response")
+        rule_func, _ = model._rules[0]
 
         messages = [{"role": "user", "content": "What's the weather like?"}]
         result = rule_func(messages)
 
         assert result is True
 
-    def test_keyword_check_function_no_match(self, fake_model):
+    def test_keyword_check_function_no_match(self):
         """Test keyword check function doesn't match when keyword absent."""
-        fake_model.response_when_keyword_in_last_message("weather", "weather response")
-        rule_func, _ = fake_model._rules[0]
+        model = FakeLLMModel().response_when_keyword_in_last_message("weather", "weather response")
+        rule_func, _ = model._rules[0]
 
         messages = [{"role": "user", "content": "Hello there!"}]
         result = rule_func(messages)
 
         assert result is False
 
-    def test_keyword_check_function_multiple_keywords_match(self, fake_model, weather_keywords):
+    def test_keyword_check_function_multiple_keywords_match(self, weather_keywords):
         """Test keyword check function with multiple keywords, one matches."""
-        fake_model.response_when_keyword_in_last_message(weather_keywords, "weather response")
-        rule_func, _ = fake_model._rules[0]
+        model = FakeLLMModel().response_when_keyword_in_last_message(weather_keywords, "weather response")
+        rule_func, _ = model._rules[0]
 
         messages = [{"role": "user", "content": "Is it sunny today?"}]
         result = rule_func(messages)
 
         assert result is True
 
-    def test_keyword_check_function_multiple_keywords_no_match(self, fake_model, weather_keywords):
+    def test_keyword_check_function_multiple_keywords_no_match(self, weather_keywords):
         """Test keyword check function with multiple keywords, none match."""
-        fake_model.response_when_keyword_in_last_message(weather_keywords, "weather response")
-        rule_func, _ = fake_model._rules[0]
+        model = FakeLLMModel().response_when_keyword_in_last_message(weather_keywords, "weather response")
+        rule_func, _ = model._rules[0]
 
         messages = [{"role": "user", "content": "Hello world!"}]
         result = rule_func(messages)
 
         assert result is False
 
-    def test_ask_without_reasoning(self, fake_model, sample_messages):
-        """Test ask method without reasoning."""
-        fake_model.response_always("test response")
+    def test_keyword_check_function_ignores_params(self):
+        """Test keyword check function ignores additional params."""
+        model = FakeLLMModel().response_when_keyword_in_last_message("test", "response")
+        rule_func, _ = model._rules[0]
 
-        result = fake_model.ask(sample_messages)
+        messages = [{"role": "user", "content": "test message"}]
+        result = rule_func(messages, extra_param="value")
+
+        assert result is True
+
+    def test_response_sequence_returns_new_instance(self, sample_responses):
+        """Test response_sequence returns new instance."""
+        model = FakeLLMModel()
+        new_model = model.response_sequence(sample_responses)
+
+        assert new_model is not model
+        assert new_model.rules_count == 1
+        assert model.rules_count == 0
+
+    def test_response_sequence_empty_responses(self):
+        """Test response_sequence with empty responses raises ValueError."""
+        model = FakeLLMModel()
+        with pytest.raises(ValueError, match="Response sequence cannot be empty"):
+            model.response_sequence([])
+
+    def test_response_sequence_single_response(self, sample_messages):
+        """Test response_sequence with single response."""
+        model = FakeLLMModel().response_sequence(["Single response"])
+
+        # First call should work
+        result = model.ask(sample_messages)
+        assert result == "Single response"
+
+        # Second call should fail as sequence is exhausted
+        with pytest.raises(AssertionError, match="No response rule found for this message"):
+            model.ask(sample_messages)
+
+    def test_response_sequence_multiple_responses(self, sample_messages):
+        """Test response_sequence with multiple responses."""
+        responses = ["First", "Second", "Third"]
+        model = FakeLLMModel().response_sequence(responses)
+
+        # Test sequential responses
+        assert model.ask(sample_messages) == "First"
+        assert model.ask(sample_messages) == "Second"
+        assert model.ask(sample_messages) == "Third"
+
+        # Fourth call should fail
+        with pytest.raises(AssertionError, match="No response rule found for this message"):
+            model.ask(sample_messages)
+
+    def test_response_sequence_with_tuple_responses(self, sample_messages):
+        """Test response_sequence with tuple responses."""
+        responses = [("reason1", "content1"), ("reason2", "content2")]
+        model = FakeLLMModel().response_sequence(responses)
+
+        # Test with reasoning
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("reason1", "content1")
+
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("reason2", "content2")
+
+    def test_response_sequence_mixed_responses(self, sample_messages):
+        """Test response_sequence with mixed response types."""
+        responses = ["String response", ("reasoning", "tuple response")]
+        model = FakeLLMModel().response_sequence(responses)
+
+        # First response (string)
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("", "String response")
+
+        # Second response (tuple)
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("reasoning", "tuple response")
+
+    def test_response_sequence_with_stream(self, sample_messages, mock_jieba_cut):
+        """Test response_sequence with streaming."""
+        responses = ["First response", "Second response"]
+        model = FakeLLMModel().response_sequence(responses)
+
+        mock_jieba_cut.return_value = ["First", "response"]
+
+        with patch('time.sleep'):
+            stream = model.ask_stream(sample_messages)
+            chunks = list(stream)
+
+        # Should get first response
+        assert len(chunks) == 2
+        assert chunks[0] == "First"
+        assert chunks[1] == "response"
+
+    def test_response_sequence_rule_priority(self, sample_messages):
+        """Test response_sequence rule priority with other rules."""
+        model = (FakeLLMModel()
+                 .response_sequence(["Sequence response"])
+                 .response_always("Always response"))
+
+        # Sequence rule should match first
+        result = model.ask(sample_messages)
+        assert result == "Sequence response"
+
+        # After sequence exhausted, always rule should match
+        result = model.ask(sample_messages)
+        assert result == "Always response"
+
+    def test_response_sequence_wrapper_equality(self, sample_responses):
+        """Test that sequence wrapper handles equality correctly."""
+        model1 = FakeLLMModel().response_sequence(sample_responses)
+        model2 = FakeLLMModel().response_sequence(sample_responses)
+
+        # Models should be different due to different wrapper instances
+        assert model1 != model2
+
+    def test_response_sequence_wrapper_hash(self, sample_responses):
+        """Test that sequence wrapper is hashable."""
+        model = FakeLLMModel().response_sequence(sample_responses)
+
+        # Should be able to hash the model
+        hash_value = hash(model)
+        assert isinstance(hash_value, int)
+
+    def test_response_sequence_wrapper_repr(self, sample_responses):
+        """Test that sequence wrapper has proper repr."""
+        model = FakeLLMModel().response_sequence(sample_responses)
+        rule_func, response_func = model._rules[0]
+
+        # The response function should be the wrapper
+        wrapper_repr = repr(response_func)
+        assert "_SequenceWrapper" in wrapper_repr
+
+    def test_response_sequence_state_isolation(self, sample_messages):
+        """Test that different model instances have isolated sequence state."""
+        responses = ["First", "Second"]
+        model1 = FakeLLMModel().response_sequence(responses)
+        model2 = FakeLLMModel().response_sequence(responses)
+
+        # Both should start with first response
+        assert model1.ask(sample_messages) == "First"
+        assert model2.ask(sample_messages) == "First"
+
+        # Both should continue independently
+        assert model1.ask(sample_messages) == "Second"
+        assert model2.ask(sample_messages) == "Second"
+
+    def test_clear_rules_returns_new_instance(self):
+        """Test clear_rules returns new instance."""
+        model = FakeLLMModel().response_always("test")
+        new_model = model.clear_rules()
+
+        assert new_model is not model
+        assert new_model.rules_count == 0
+        assert model.rules_count == 1
+
+    def test_clear_rules_removes_all_rules(self):
+        """Test clear_rules removes all rules."""
+        model = (FakeLLMModel()
+                 .response_always("test1")
+                 .response_always("test2")
+                 .response_always("test3"))
+
+        clean_model = model.clear_rules()
+
+        assert clean_model.rules_count == 0
+
+    def test_ask_without_reasoning(self, sample_messages):
+        """Test ask method without reasoning."""
+        model = FakeLLMModel().response_always("test response")
+
+        result = model.ask(sample_messages)
 
         assert result == "test response"
 
-    def test_ask_with_reasoning(self, fake_model, sample_messages):
+    def test_ask_with_reasoning(self, sample_messages):
         """Test ask method with reasoning."""
-        fake_model.response_always(("reasoning", "content"))
+        model = FakeLLMModel().response_always(("reasoning", "content"))
 
-        result = fake_model.ask(sample_messages, with_reasoning=True)
+        result = model.ask(sample_messages, with_reasoning=True)
 
         assert result == ("reasoning", "content")
 
-    def test_ask_with_params(self, fake_model, sample_messages):
+    def test_ask_with_params(self, sample_messages):
         """Test ask method passes params to _get_response."""
 
         def response_func(messages, **params):
             return f"param value: {params.get('test_param')}"
 
-        fake_model.response_always(response_func)
+        model = FakeLLMModel().response_always(response_func)
 
-        result = fake_model.ask(sample_messages, test_param="test_value")
+        result = model.ask(sample_messages, test_param="test_value")
 
         assert result == "param value: test_value"
 
-    def test_iter_per_words_content_only(self, fake_model, mock_jieba_cut):
+    def test_iter_per_words_content_only(self, mock_jieba_cut):
         """Test _iter_per_words with content only."""
+        model = FakeLLMModel(stream_wps=100)
         mock_jieba_cut.return_value = ["Hello", "world"]
 
         with patch('time.sleep') as mock_sleep:
-            chunks = list(fake_model._iter_per_words("Hello world"))
+            chunks = list(model._iter_per_words("Hello world"))
 
         expected_chunks = [(None, "Hello"), (None, "world")]
         assert chunks == expected_chunks
         assert mock_sleep.call_count == 2
-        mock_sleep.assert_called_with(1 / 100)  # stream_fps = 100
+        mock_sleep.assert_called_with(1 / 100)  # stream_wps = 100
 
-    def test_iter_per_words_reasoning_and_content(self, fake_model, mock_jieba_cut):
+    def test_iter_per_words_reasoning_and_content(self, mock_jieba_cut):
         """Test _iter_per_words with both reasoning and content."""
+        model = FakeLLMModel(stream_wps=100)
         mock_jieba_cut.side_effect = [["Think", "about"], ["Hello", "world"]]
 
         with patch('time.sleep') as mock_sleep:
-            chunks = list(fake_model._iter_per_words("Hello world", "Think about"))
+            chunks = list(model._iter_per_words("Hello world", "Think about"))
 
         expected_chunks = [("Think", None), ("about", None), (None, "Hello"), (None, "world")]
         assert chunks == expected_chunks
         assert mock_sleep.call_count == 4
 
-    def test_iter_per_words_empty_words_filtered(self, fake_model, mock_jieba_cut):
+    def test_iter_per_words_empty_words_filtered(self, mock_jieba_cut):
         """Test _iter_per_words filters out empty words."""
+        model = FakeLLMModel(stream_wps=100)
         mock_jieba_cut.return_value = ["Hello", "", "world", ""]
 
         with patch('time.sleep'):
-            chunks = list(fake_model._iter_per_words("Hello world"))
+            chunks = list(model._iter_per_words("Hello world"))
 
         expected_chunks = [(None, "Hello"), (None, "world")]
         assert chunks == expected_chunks
 
-    def test_iter_per_words_empty_content(self, fake_model, mock_jieba_cut):
+    def test_iter_per_words_empty_content(self, mock_jieba_cut):
         """Test _iter_per_words with empty content."""
-        chunks = list(fake_model._iter_per_words(""))
+        model = FakeLLMModel(stream_wps=100)
+        chunks = list(model._iter_per_words(""))
         assert chunks == []
 
-    def test_iter_per_words_empty_reasoning(self, fake_model, mock_jieba_cut):
+    def test_iter_per_words_empty_reasoning(self, mock_jieba_cut):
         """Test _iter_per_words with empty reasoning content."""
+        model = FakeLLMModel(stream_wps=100)
         mock_jieba_cut.return_value = ["Hello"]
 
         with patch('time.sleep'):
-            chunks = list(fake_model._iter_per_words("Hello", ""))
+            chunks = list(model._iter_per_words("Hello", ""))
 
         expected_chunks = [(None, "Hello")]
         assert chunks == expected_chunks
 
-    def test_ask_stream_returns_fake_response_stream(self, fake_model, sample_messages):
-        """Test ask_stream returns FakeResponseStream."""
-        fake_model.response_always("test response")
+    def test_iter_per_words_none_reasoning(self, mock_jieba_cut):
+        """Test _iter_per_words with None reasoning content."""
+        model = FakeLLMModel(stream_wps=100)
+        mock_jieba_cut.return_value = ["Hello"]
 
-        stream = fake_model.ask_stream(sample_messages)
+        with patch('time.sleep'):
+            chunks = list(model._iter_per_words("Hello", None))
+
+        expected_chunks = [(None, "Hello")]
+        assert chunks == expected_chunks
+
+    def test_iter_per_words_none_content(self, mock_jieba_cut):
+        """Test _iter_per_words with None content."""
+        model = FakeLLMModel(stream_wps=100)
+        mock_jieba_cut.return_value = ["Think"]
+
+        with patch('time.sleep'):
+            chunks = list(model._iter_per_words(None, "Think"))
+
+        expected_chunks = [("Think", None)]
+        assert chunks == expected_chunks
+
+    def test_iter_per_words_stream_wps_timing(self, mock_jieba_cut):
+        """Test _iter_per_words uses correct timing based on stream_wps."""
+        model = FakeLLMModel(stream_wps=50)
+        mock_jieba_cut.return_value = ["Hello"]
+
+        with patch('time.sleep') as mock_sleep:
+            list(model._iter_per_words("Hello"))
+
+        mock_sleep.assert_called_with(1 / 50)
+
+    def test_ask_stream_returns_fake_response_stream(self, sample_messages):
+        """Test ask_stream returns FakeResponseStream."""
+        model = FakeLLMModel().response_always("test response")
+
+        stream = model.ask_stream(sample_messages)
 
         assert isinstance(stream, FakeResponseStream)
 
-    def test_ask_stream_with_reasoning_true(self, fake_model, sample_messages):
+    def test_ask_stream_with_reasoning_true(self, sample_messages):
         """Test ask_stream with with_reasoning=True."""
-        fake_model.response_always(("reasoning", "content"))
+        model = FakeLLMModel().response_always(("reasoning", "content"))
 
-        stream = fake_model.ask_stream(sample_messages, with_reasoning=True)
+        stream = model.ask_stream(sample_messages, with_reasoning=True)
 
         assert stream._with_reasoning is True
 
-    def test_ask_stream_with_reasoning_false(self, fake_model, sample_messages):
+    def test_ask_stream_with_reasoning_false(self, sample_messages):
         """Test ask_stream with with_reasoning=False."""
-        fake_model.response_always("content")
+        model = FakeLLMModel().response_always("content")
 
-        stream = fake_model.ask_stream(sample_messages, with_reasoning=False)
+        stream = model.ask_stream(sample_messages, with_reasoning=False)
 
         assert stream._with_reasoning is False
 
-    def test_ask_stream_passes_params(self, fake_model, sample_messages):
-        """Test ask_stream passes params to _get_response."""
-
-        def response_func(messages, **params):
-            return f"param: {params.get('test_param')}"
-
-        fake_model.response_always(response_func)
-
-        with patch.object(fake_model, '_get_response', wraps=fake_model._get_response) as mock_get_response:
-            fake_model.ask_stream(sample_messages, test_param="test_value")
-            mock_get_response.assert_called_once_with(messages=sample_messages, test_param="test_value")
-
-    def test_method_chaining(self, fake_model):
+    def test_method_chaining(self):
         """Test method chaining works correctly."""
-        result = (fake_model
+        result = (FakeLLMModel()
                   .response_when_keyword_in_last_message("hello", "hi response")
                   .response_when_keyword_in_last_message("weather", "weather response")
                   .response_always("default response"))
 
-        assert result is fake_model
-        assert len(fake_model._rules) == 3
+        assert result.rules_count == 3
 
-    def test_rule_priority_order(self, fake_model):
+    def test_rule_priority_order(self):
         """Test that rules are checked in the order they were added."""
-        fake_model.response_when_keyword_in_last_message("test", "first match")
-        fake_model.response_always("second match")
+        model = (FakeLLMModel()
+                 .response_when_keyword_in_last_message("test", "first match")
+                 .response_always("second match"))
 
         messages = [{"role": "user", "content": "this is a test message"}]
-        result = fake_model.ask(messages)
+        result = model.ask(messages)
 
         assert result == "first match"
 
@@ -411,17 +973,199 @@ class TestFakeLLMModel:
         """Test __repr__ with default stream_wps."""
         model = FakeLLMModel()
         result = repr(model)
-        assert result == "FakeLLMModel(stream_fps=50, rules_count=0)"
+        assert result == "FakeLLMModel(stream_wps=50, rules_count=0)"
 
     def test_repr_custom_stream_wps(self):
         """Test __repr__ with custom stream_wps."""
         model = FakeLLMModel(stream_wps=100)
         result = repr(model)
-        assert result == "FakeLLMModel(stream_fps=100, rules_count=0)"
+        assert result == "FakeLLMModel(stream_wps=100, rules_count=0)"
 
-    def test_repr_with_rules(self, fake_model):
+    def test_repr_with_rules(self):
         """Test __repr__ with rules added."""
-        fake_model.response_always("response1")
-        fake_model.response_always("response2")
-        result = repr(fake_model)
-        assert result == "FakeLLMModel(stream_fps=100, rules_count=2)"
+        model = FakeLLMModel(stream_wps=100).response_always("response1").response_always("response2")
+        result = repr(model)
+        assert result == "FakeLLMModel(stream_wps=100, rules_count=2)"
+
+    def test_params_method_basic(self):
+        """Test _params method returns correct parameters."""
+        model = FakeLLMModel(stream_wps=100)
+        params = model._params()
+
+        assert isinstance(params, tuple)
+        assert params[0] == 100  # stream_wps
+        assert params[1] == tuple()  # empty rules
+
+    def test_params_method_with_rules(self):
+        """Test _params method with rules."""
+
+        def custom_rule(messages, **params):
+            return True
+
+        model = FakeLLMModel(stream_wps=100).response_when(custom_rule, "response")
+        params = model._params()
+
+        assert params[0] == 100
+        assert len(params[1]) == 1  # one rule
+
+        rule_key, response_key = params[1][0]
+        assert rule_key[0] == id(custom_rule)  # function id
+        assert rule_key[1] == str(custom_rule)  # function string
+        assert response_key == ('value', 'response')
+
+    def test_params_method_with_callable_response(self):
+        """Test _params method with callable response."""
+
+        def response_func(messages, **params):
+            return "response"
+
+        model = FakeLLMModel().response_always(response_func)
+        params = model._params()
+
+        rule_key, response_key = params[1][0]
+        assert response_key[0] == 'callable'
+        assert response_key[1] == id(response_func)
+        assert response_key[2] == str(response_func)
+
+    def test_params_method_with_tuple_response(self):
+        """Test _params method with tuple response."""
+        model = FakeLLMModel().response_always(("reasoning", "content"))
+        params = model._params()
+
+        rule_key, response_key = params[1][0]
+        assert response_key == ('tuple', ('reasoning', 'content'))
+
+    def test_params_method_with_list_response(self):
+        """Test _params method with list response."""
+        model = FakeLLMModel().response_always(["reasoning", "content"])
+        params = model._params()
+
+        rule_key, response_key = params[1][0]
+        assert response_key == ('tuple', ('reasoning', 'content'))
+
+    def test_params_method_multiple_rules(self):
+        """Test _params method with multiple rules."""
+
+        def rule1(messages, **params):
+            return True
+
+        def rule2(messages, **params):
+            return False
+
+        model = (FakeLLMModel(stream_wps=50)
+                 .response_when(rule1, "response1")
+                 .response_when(rule2, ("reasoning", "response2")))
+        params = model._params()
+
+        assert params[0] == 50
+        assert len(params[1]) == 2
+
+    def test_equality_same_instance(self):
+        """Test equality with same instance."""
+        model = FakeLLMModel(stream_wps=100)
+        assert model == model
+
+    def test_equality_different_instances_same_params(self):
+        """Test equality with different instances but same parameters."""
+        model1 = FakeLLMModel(stream_wps=100)
+        model2 = FakeLLMModel(stream_wps=100)
+        assert model1 == model2
+
+    def test_equality_different_stream_wps(self):
+        """Test inequality with different stream_wps."""
+        model1 = FakeLLMModel(stream_wps=100)
+        model2 = FakeLLMModel(stream_wps=200)
+        assert model1 != model2
+
+    def test_equality_different_rules(self):
+        """Test inequality with different rules."""
+        model1 = FakeLLMModel().response_always("response1")
+        model2 = FakeLLMModel().response_always("response2")
+        assert model1 != model2
+
+    def test_equality_same_rules_different_order(self):
+        """Test inequality with same rules in different order."""
+        model1 = (FakeLLMModel()
+                  .response_always("response1")
+                  .response_always("response2"))
+        model2 = (FakeLLMModel()
+                  .response_always("response2")
+                  .response_always("response1"))
+        assert model1 != model2
+
+    def test_equality_with_non_llm_model(self):
+        """Test inequality with non-LLMModel object."""
+        model = FakeLLMModel()
+        assert model != "not a model"
+        assert model != 42
+        assert model != None
+
+    def test_equality_with_different_llm_model_type(self):
+        """Test inequality with different LLMModel subclass."""
+        from hbllmutils.model.base import LLMModel
+
+        class OtherLLMModel(LLMModel):
+            @property
+            def _logger_name(self):
+                return "other"
+
+            def ask(self, messages, with_reasoning=False, **params):
+                return "response"
+
+            def ask_stream(self, messages, with_reasoning=False, **params):
+                pass
+
+            def _params(self):
+                return (100,)
+
+        fake_model = FakeLLMModel(stream_wps=100)
+        other_model = OtherLLMModel()
+        assert fake_model != other_model
+
+    def test_hash_same_instances(self):
+        """Test hash is same for instances with same parameters."""
+        model1 = FakeLLMModel(stream_wps=100)
+        model2 = FakeLLMModel(stream_wps=100)
+        assert hash(model1) == hash(model2)
+
+    def test_hash_different_instances(self):
+        """Test hash is different for instances with different parameters."""
+        model1 = FakeLLMModel(stream_wps=100)
+        model2 = FakeLLMModel(stream_wps=200)
+        assert hash(model1) != hash(model2)
+
+    def test_hash_with_rules(self):
+        """Test hash with rules."""
+        model1 = FakeLLMModel().response_always("response")
+        model2 = FakeLLMModel().response_always("response")
+        # Note: These may not be equal due to different function objects
+        # but they should be hashable
+        assert isinstance(hash(model1), int)
+        assert isinstance(hash(model2), int)
+
+    def test_hash_consistency(self):
+        """Test hash consistency - same object should have same hash."""
+        model = FakeLLMModel(stream_wps=100).response_always("test")
+        hash1 = hash(model)
+        hash2 = hash(model)
+        assert hash1 == hash2
+
+    def test_hashable_in_set(self):
+        """Test that FakeLLMModel instances can be used in sets."""
+        model1 = FakeLLMModel(stream_wps=100)
+        model2 = FakeLLMModel(stream_wps=200)
+        model3 = FakeLLMModel(stream_wps=100)
+
+        model_set = {model1, model2, model3}
+        # model1 and model3 should be considered equal, so set should have 2 elements
+        assert len(model_set) == 2
+
+    def test_hashable_in_dict(self):
+        """Test that FakeLLMModel instances can be used as dict keys."""
+        model1 = FakeLLMModel(stream_wps=100)
+        model2 = FakeLLMModel(stream_wps=200)
+
+        model_dict = {model1: "value1", model2: "value2"}
+        assert len(model_dict) == 2
+        assert model_dict[model1] == "value1"
+        assert model_dict[model2] == "value2"

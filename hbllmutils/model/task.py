@@ -7,7 +7,7 @@ maintaining conversation history.
 """
 import logging
 from abc import ABC
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Any
 
 from .base import LLMModel
 from .stream import ResponseStream
@@ -55,13 +55,17 @@ class LLMTask(ABC):
         # noinspection PyProtectedMember
         return self.model._logger
 
-    def ask(self, with_reasoning: bool = False, **params) -> Union[str, Tuple[Optional[str], str]]:
+    def ask(self, input_content: Optional[str] = None,
+            with_reasoning: bool = False, **params) -> Union[str, Tuple[Optional[str], str]]:
         """
         Ask a question to the LLM model and get a response.
 
         This method sends the current conversation history to the model and retrieves
         a response. The response format depends on the with_reasoning parameter.
 
+        :param input_content: Optional user input content to add to the history before asking.
+                             If None, uses the existing history without modification.
+        :type input_content: Optional[str]
         :param with_reasoning: If True, returns both reasoning and response as a tuple.
                               If False, returns only the response string.
         :type with_reasoning: bool
@@ -74,27 +78,34 @@ class LLMTask(ABC):
 
         Example::
             >>> task = LLMTask(model)
-            >>> response = task.ask()
+            >>> response = task.ask("What is the weather today?")
             >>> print(response)
-            'This is the model response'
+            'The weather is sunny today.'
 
-            >>> reasoning, response = task.ask(with_reasoning=True)
+            >>> reasoning, response = task.ask("Explain quantum physics", with_reasoning=True)
             >>> print(f"Reasoning: {reasoning}, Response: {response}")
-            Reasoning: None, Response: This is the model response
+            Reasoning: Let me break this down step by step..., Response: Quantum physics is...
         """
+        history = self.history
+        if input_content is not None:
+            history = history.with_user_message(input_content)
         return self.model.ask(
-            messages=self.history.to_json(),
+            messages=history.to_json(),
             with_reasoning=with_reasoning,
             **params
         )
 
-    def ask_stream(self, with_reasoning: bool = False, **params) -> ResponseStream:
+    def ask_stream(self, input_content: Optional[str] = None,
+                   with_reasoning: bool = False, **params) -> ResponseStream:
         """
         Ask a question to the LLM model and get a streaming response.
 
         This method sends the current conversation history to the model and retrieves
         a streaming response, allowing for real-time processing of the model's output.
 
+        :param input_content: Optional user input content to add to the history before asking.
+                             If None, uses the existing history without modification.
+        :type input_content: Optional[str]
         :param with_reasoning: If True, the stream includes reasoning information.
                               If False, only the response is streamed.
         :type with_reasoning: bool
@@ -106,13 +117,76 @@ class LLMTask(ABC):
 
         Example::
             >>> task = LLMTask(model)
-            >>> stream = task.ask_stream()
+            >>> stream = task.ask_stream("Tell me a story")
             >>> for chunk in stream:
             ...     print(chunk, end='', flush=True)
-            This is the streaming response...
+            Once upon a time, there was...
         """
+        history = self.history
+        if input_content is not None:
+            history = history.with_user_message(input_content)
         return self.model.ask_stream(
-            messages=self.history.to_json(),
+            messages=history.to_json(),
             with_reasoning=with_reasoning,
             **params,
         )
+
+    def _params(self) -> Tuple[LLMModel, LLMHistory]:
+        """
+        Get the parameters of this LLMTask instance.
+
+        :return: A tuple containing the model and history.
+        :rtype: Tuple[LLMModel, LLMHistory]
+        """
+        return self.model, self.history
+
+    def _values(self) -> Tuple[type, Any]:
+        """
+        Get the class type and parameters of this LLMTask instance.
+
+        This method is used for equality comparison and hashing.
+
+        :return: A tuple containing the class type and the parameters tuple.
+        :rtype: Tuple[type, Any]
+        """
+        return self.__class__, self._params()
+
+    def __eq__(self, other) -> bool:
+        """
+        Check equality between this LLMTask and another object.
+
+        Two LLMTask instances are considered equal if they have the same class type
+        and the same model and history parameters.
+
+        :param other: The object to compare with.
+        :type other: object
+
+        :return: True if the objects are equal, False otherwise.
+        :rtype: bool
+
+        Example::
+            >>> task1 = LLMTask(model, history)
+            >>> task2 = LLMTask(model, history)
+            >>> task1 == task2
+            True
+        """
+        if type(other) != type(self):
+            return False
+        # noinspection PyProtectedMember,PyUnresolvedReferences
+        return self._values() == other._values()
+
+    def __hash__(self) -> int:
+        """
+        Get the hash value of this LLMTask instance.
+
+        The hash is computed based on the class type and the model and history parameters.
+
+        :return: The hash value.
+        :rtype: int
+
+        Example::
+            >>> task = LLMTask(model, history)
+            >>> hash(task)
+            1234567890
+        """
+        return hash(self._values())

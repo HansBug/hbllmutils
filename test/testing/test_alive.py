@@ -14,49 +14,37 @@ def mock_model():
 @pytest.fixture
 def hello_model():
     """Create a FakeLLMModel that responds to hello messages."""
-    model = FakeLLMModel()
-    model.response_when_keyword_in_last_message('hello', 'Hello! How can I help you?')
-    return model
+    return FakeLLMModel().response_when_keyword_in_last_message('hello', 'Hello! How can I help you?')
 
 
 @pytest.fixture
 def empty_response_model():
     """Create a FakeLLMModel that returns empty responses."""
-    model = FakeLLMModel()
-    model.response_always('')
-    return model
+    return FakeLLMModel().response_always('')
 
 
 @pytest.fixture
 def ping_pong_model():
     """Create a FakeLLMModel that responds to ping with pong."""
-    model = FakeLLMModel()
-    model.response_when_keyword_in_last_message('ping', 'Pong!')
-    return model
+    return FakeLLMModel().response_when_keyword_in_last_message('ping', 'Pong!')
 
 
 @pytest.fixture
 def no_pong_model():
     """Create a FakeLLMModel that doesn't respond with pong."""
-    model = FakeLLMModel()
-    model.response_always('Hello there!')
-    return model
+    return FakeLLMModel().response_always('Hello there!')
 
 
 @pytest.fixture
 def case_insensitive_pong_model():
     """Create a FakeLLMModel that responds with uppercase PONG."""
-    model = FakeLLMModel()
-    model.response_when_keyword_in_last_message('ping', 'PONG!')
-    return case_insensitive_pong_model
+    return FakeLLMModel().response_when_keyword_in_last_message('ping', 'PONG!')
 
 
 @pytest.fixture
 def pong_in_sentence_model():
     """Create a FakeLLMModel that has pong within a sentence."""
-    model = FakeLLMModel()
-    model.response_when_keyword_in_last_message('ping', 'I will respond with pong to your ping!')
-    return model
+    return FakeLLMModel().response_when_keyword_in_last_message('ping', 'I will respond with pong to your ping!')
 
 
 @pytest.mark.unittest
@@ -147,8 +135,7 @@ class TestPingFunction:
         test_cases = ['pong', 'PONG', 'Pong', 'PoNg', 'pOnG']
 
         for case in test_cases:
-            model = FakeLLMModel()
-            model.response_when_keyword_in_last_message('ping', case)
+            model = FakeLLMModel().response_when_keyword_in_last_message('ping', case)
 
             result = ping(model, n=1)
 

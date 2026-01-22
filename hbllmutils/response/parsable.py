@@ -152,7 +152,7 @@ class ParsableLLMTask(LLMTask):
         """
         raise NotImplementedError  # pragma: no cover
 
-    def ask_then_parse(self, with_reasoning: bool = False, max_retries: Optional[int] = None, **params):
+    def ask_then_parse(self, input_content: Optional[str] = None, max_retries: Optional[int] = None, **params):
         """
         Ask the model a question and parse the response with automatic retry on parse failure.
 
@@ -164,15 +164,14 @@ class ParsableLLMTask(LLMTask):
         The method uses the _parse_and_validate method to parse outputs and will catch
         exceptions specified in __exceptions__. Other exceptions will propagate immediately.
 
-        :param with_reasoning: Whether to include reasoning in the response. If True, returns
-                              a tuple of (reasoning, parsed_output). Defaults to False.
-        :type with_reasoning: bool
+        :param input_content: Optional user input content to add to the history before asking.
+                             If None, uses the existing history without modification.
+        :type input_content: Optional[str]
         :param max_retries: Maximum number of retry attempts. If None, uses default_max_retries.
                            Must be a positive integer if provided.
         :type max_retries: Optional[int]
         :param params: Additional parameters to pass to the ask method (e.g., prompt, temperature).
-        :return: The successfully parsed output. Return type depends on _parse_and_validate
-                implementation. If with_reasoning is True, returns tuple of (reasoning, parsed_output).
+        :return: The successfully parsed output from the model.
         :raises OutputParseFailed: If parsing fails after all retry attempts. The exception
                                   contains all failed attempts in its tries attribute.
         :raises Exception: Any exception not matching __exceptions__ will propagate immediately.
@@ -180,18 +179,9 @@ class ParsableLLMTask(LLMTask):
         Example::
             >>> task = ParsableLLMTask(model)
             >>> # Simple usage
-            >>> result = task.ask_then_parse(prompt="What is 2+2?", max_retries=3)
+            >>> result = task.ask_then_parse(input_content="What is 2+2?", max_retries=3)
             >>> print(result)
             4
-            >>> 
-            >>> # With reasoning
-            >>> reasoning, result = task.ask_then_parse(
-            ...     prompt="Solve this problem",
-            ...     with_reasoning=True,
-            ...     max_retries=2
-            ... )
-            >>> print(f"Reasoning: {reasoning}")
-            >>> print(f"Result: {result}")
         """
         if max_retries is None:
             max_retries = self.default_max_retries
@@ -199,11 +189,7 @@ class ParsableLLMTask(LLMTask):
         tries = 0
         err_tries = []
         while tries < max_retries:
-            if with_reasoning:
-                _, content = self.ask(with_reasoning=with_reasoning, **params)
-            else:
-                content = self.ask(with_reasoning=with_reasoning, **params)
-
+            content = self.ask(input_content=input_content, **params)
             try:
                 parsed_output = self._parse_and_validate(content)
             except self.__exceptions__ as err:

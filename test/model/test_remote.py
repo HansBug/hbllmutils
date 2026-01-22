@@ -215,6 +215,24 @@ class TestRemoteLLMModel:
         )
         assert model.headers == {}
 
+    def test_init_invalid_base_url_exception(self, valid_api_token, valid_model_name):
+        with patch('hbllmutils.model.remote.urlparse') as mock_urlparse:
+            mock_urlparse.side_effect = Exception("Parse error")
+            with pytest.raises(ValueError, match="Invalid base_url"):
+                RemoteLLMModel(
+                    base_url="https://api.openai.com/v1",
+                    api_token=valid_api_token,
+                    model_name=valid_model_name
+                )
+
+    def test_logger_name_property(self, valid_base_url, valid_api_token, valid_model_name):
+        model = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+        assert model._logger_name == valid_model_name
+
     @patch('hbllmutils.model.remote.OpenAI')  # Replace with actual import path
     def test_create_openai_client_sync(self, mock_openai_class, valid_base_url, valid_api_token, valid_model_name):
         model = RemoteLLMModel(
@@ -516,3 +534,203 @@ class TestRemoteLLMModel:
 
         repr_str = repr(model)
         assert "api_token='sk-123***abcdef'" in repr_str
+
+    def test_params_method(self, valid_base_url, valid_api_token, valid_model_name, valid_organization_id,
+                           valid_headers, valid_default_params):
+        model = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            organization_id=valid_organization_id,
+            timeout=60,
+            max_retries=5,
+            headers=valid_headers,
+            **valid_default_params
+        )
+
+        params = model._params()
+
+        expected_headers_tuple = tuple(sorted(valid_headers.items()))
+        expected_default_params_tuple = tuple(sorted(valid_default_params.items()))
+
+        expected_params = (
+            valid_base_url,
+            valid_api_token,
+            valid_model_name,
+            valid_organization_id,
+            60,
+            5,
+            expected_headers_tuple,
+            expected_default_params_tuple
+        )
+
+        assert params == expected_params
+        assert isinstance(params, tuple)
+
+    def test_params_method_empty_headers_and_default_params(self, valid_base_url, valid_api_token, valid_model_name):
+        model = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+
+        params = model._params()
+
+        expected_params = (
+            valid_base_url,
+            valid_api_token,
+            valid_model_name,
+            None,
+            30,
+            3,
+            (),
+            ()
+        )
+
+        assert params == expected_params
+
+    def test_params_method_none_headers(self, valid_base_url, valid_api_token, valid_model_name):
+        model = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            headers=None
+        )
+
+        params = model._params()
+        assert params[6] == ()  # headers should be empty tuple
+
+    def test_eq_same_instances(self, valid_base_url, valid_api_token, valid_model_name):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+
+        assert model1 == model2
+
+    def test_eq_different_parameters(self, valid_base_url, valid_api_token, valid_model_name):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            timeout=30
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            timeout=60
+        )
+
+        assert model1 != model2
+
+    def test_eq_different_types(self, valid_base_url, valid_api_token, valid_model_name):
+        model = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+
+        assert model != "not a model"
+        assert model != 123
+        assert model != None
+
+    def test_eq_with_all_parameters(self, valid_base_url, valid_api_token, valid_model_name, valid_organization_id,
+                                    valid_headers, valid_default_params):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            organization_id=valid_organization_id,
+            timeout=60,
+            max_retries=5,
+            headers=valid_headers,
+            **valid_default_params
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            organization_id=valid_organization_id,
+            timeout=60,
+            max_retries=5,
+            headers=valid_headers,
+            **valid_default_params
+        )
+
+        assert model1 == model2
+
+    def test_hash_same_instances(self, valid_base_url, valid_api_token, valid_model_name):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+
+        assert hash(model1) == hash(model2)
+
+    def test_hash_different_parameters(self, valid_base_url, valid_api_token, valid_model_name):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            timeout=30
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            timeout=60
+        )
+
+        assert hash(model1) != hash(model2)
+
+    def test_hash_can_be_used_in_set(self, valid_base_url, valid_api_token, valid_model_name):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+        model3 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name,
+            timeout=60
+        )
+
+        model_set = {model1, model2, model3}
+        assert len(model_set) == 2  # model1 and model2 are equal, so only 2 unique models
+
+    def test_hash_can_be_used_as_dict_key(self, valid_base_url, valid_api_token, valid_model_name):
+        model1 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+        model2 = RemoteLLMModel(
+            base_url=valid_base_url,
+            api_token=valid_api_token,
+            model_name=valid_model_name
+        )
+
+        model_dict = {model1: "value1"}
+        model_dict[model2] = "value2"
+
+        assert len(model_dict) == 1  # model1 and model2 are equal, so only 1 key
+        assert model_dict[model1] == "value2"  # model2 overwrote model1's value

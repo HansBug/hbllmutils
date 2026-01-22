@@ -132,3 +132,62 @@ class LLMModel(ABC):
             # Prints the story as it's generated, chunk by chunk
         """
         raise NotImplementedError  # pragma: no cover
+
+    def _params(self):
+        """
+        Get the parameters that define this model instance.
+        
+        This method should return a stable and hashable representation of the model's
+        parameters. It is used for equality comparison and hashing of model instances.
+        The returned value must be hashable (e.g., tuple, frozenset) to support
+        the __hash__ method.
+        
+        :return: A hashable representation of the model's parameters.
+        
+        :raises NotImplementedError: This method must be implemented by subclasses.
+        """
+        raise NotImplementedError  # pragma: no cover
+
+    def _values(self):
+        """
+        Get the values that uniquely identify this model instance.
+        
+        This method returns a tuple containing the model's class and its parameters,
+        which together uniquely identify the model instance. This is used for
+        equality comparison and hashing.
+        
+        :return: A tuple of (class, parameters) that uniquely identifies this model.
+        :rtype: tuple
+        """
+        return self.__class__, self._params()
+
+    def __eq__(self, other):
+        """
+        Check equality between this model and another object.
+        
+        Two LLMModel instances are considered equal if they are of the same class
+        and have the same parameters as returned by _values().
+        
+        :param other: The object to compare with.
+        :type other: object
+        
+        :return: True if the objects are equal, False otherwise.
+        :rtype: bool
+        """
+        if type(other) != type(self):
+            return False
+        # noinspection PyProtectedMember,PyUnresolvedReferences
+        return self._values() == other._values()
+
+    def __hash__(self):
+        """
+        Get the hash value of this model instance.
+        
+        The hash is computed from the values returned by _values(), which includes
+        the model's class and parameters. This allows LLMModel instances to be used
+        as dictionary keys or in sets.
+        
+        :return: The hash value of this model instance.
+        :rtype: int
+        """
+        return hash(self._values())
