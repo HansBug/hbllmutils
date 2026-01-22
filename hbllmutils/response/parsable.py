@@ -16,14 +16,14 @@ formats, with automatic retry when parsing fails due to malformed or unexpected 
 Example::
     >>> import json
     >>> from hbllmutils.model import LLMModel
-    >>> from hbllmutils.response import ParsableLLMTask, extract_code
+    >>> from hbllmutils.response import ParsableLLMTask, extract_code, parse_json
     >>> 
     >>> class JSONParsableTask(ParsableLLMTask):
     ...     '''A task that parses JSON responses from the model.'''
     ...     __exceptions__ = (json.JSONDecodeError, KeyError)
     ...     
     ...     def _parse_and_validate(self, content: str):
-    ...         data = json.loads(extract_code(content))
+    ...         data = parse_json(extract_code(content))
     ...         if 'answer' not in data:
     ...             raise KeyError("Missing 'answer' field")
     ...         return data
@@ -130,11 +130,14 @@ class ParsableLLMTask(LLMTask):
 
     Example::
         >>> import json
+        >>> from hbllmutils.model import LLMModel
+        >>> from hbllmutils.response import ParsableLLMTask, extract_code, parse_json
+        >>>
         >>> class JSONParsableTask(ParsableLLMTask):
         ...     __exceptions__ = (json.JSONDecodeError, KeyError)
         ...     
         ...     def _parse_and_validate(self, content: str):
-        ...         data = json.loads(content)
+        ...         data = parse_json(extract_code(content))
         ...         if 'result' not in data:
         ...             raise KeyError("Missing 'result' field")
         ...         return data['result']
