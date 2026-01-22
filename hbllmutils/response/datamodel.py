@@ -10,12 +10,14 @@ The main components are:
 - DataModelLLMTask: A task class that handles parsing and validation of LLM responses
 - create_datamodel_task: Factory function for creating data model tasks with proper configuration
 """
-
+import dataclasses
+import io
 import json
 import textwrap
 from functools import lru_cache
-from typing import Optional, List, Callable, Any
+from typing import Optional, List, Callable, Any, Tuple
 
+from hbutils.string import plural_word
 from pydantic import BaseModel
 
 from .code import extract_code
@@ -143,9 +145,11 @@ def create_datamodel_task(
         model: LLMModel,
         datamodel_class: type,
         task_requirements: str,
+        samples: Optional[List[Tuple[str, Any]]] = None,
         related_datamodel_classes: Optional[List[type]] = None,
         prompt_generation_model: Optional[LLMModel] = None,
         fn_parse_and_validate: Optional[Callable[[Any], Any]] = None,
+        fn_dump_json: Optional[Callable[[Any], Any]] = None,
 ):
     """
     Create a DataModelLLMTask with configured prompts and validation.
@@ -183,22 +187,6 @@ def create_datamodel_task(
         >>> isinstance(result, MyModel)
         True
     """
-    format_prompt = textwrap.dedent(_get_format_prompt(
-        datamodel_class=datamodel_class,
-        related_datamodel_classes=related_datamodel_classes,
-        prompt_generation_model=prompt_generation_model or model,
-    )).strip()
-    task_requirements = textwrap.dedent(task_requirements).strip()
-
-    system_prompt = textwrap.dedent(f"""
-{task_requirements}
-
-# Output guide
-
-{format_prompt}
-    """).strip()
-
-    history = LLMHistory().with_system_prompt(system_prompt)
     if fn_parse_and_validate is None:
         if isinstance(datamodel_class, type) and issubclass(datamodel_class, BaseModel):
             fn_parse_and_validate = datamodel_class.model_validate
@@ -207,7 +195,60 @@ def create_datamodel_task(
                 f"datamodel_class must be a subclass of pydantic.BaseModel when fn_parse_and_validate is not provided. "
                 f"Got {datamodel_class.__name__ if hasattr(datamodel_class, '__name__') else datamodel_class}"
             )
+    if samples and fn_dump_json is None:
+        if isinstance(datamodel_class, type) and issubclass(datamodel_class, BaseModel):
+            fn_dump_json = datamodel_class.model_dump
+        elif isinstance(datamodel_class, type) and dataclasses.is_dataclass(datamodel_class):
+            fn_dump_json = dataclasses.asdict
+        else:
+            raise ValueError(
+                f"datamodel_class must be a subclass of pydantic.BaseModel or a dataclass when fn_dump_json is not provided. "
+                f"Got {datamodel_class.__name__ if hasattr(datamodel_class, '__name__') else datamodel_class}"
+            )
 
+    format_prompt = textwrap.dedent(_get_format_prompt(
+        datamodel_class=datamodel_class,
+        related_datamodel_classes=related_datamodel_classes,
+        prompt_generation_model=prompt_generation_model or model,
+    )).strip()
+    task_requirements = textwrap.dedent(task_requirements).strip()
+
+    with io.StringIO() as sio:
+        print(f'# Requirements', file=sio)
+        print(f'', file=sio)
+        print(task_requirements, file=sio)
+        print(f'', file=sio)
+
+        if samples:
+            print(f'# Samples', file=sio)
+            print(f'', file=sio)
+            print(f'Here are {plural_word(len(samples), "sample")} for reference.', file=sio)
+            print(f'', file=sio)
+            for i, (sample_input, sample_obj) in enumerate(samples, start=1):
+                print(f'## Sample #{i}', file=sio)
+                print(f'', file=sio)
+                print(f'Sample Input:', file=sio)
+                print(f'', file=sio)
+                print(f'```', file=sio)
+                print(textwrap.dedent(sample_input).strip(), file=sio)
+                print(f'```', file=sio)
+                print(f'', file=sio)
+                print(f'Sample Output:', file=sio)
+                print(f'', file=sio)
+                print(f'```json', file=sio)
+                print(json.dumps(fn_dump_json(sample_obj), indent=4, ensure_ascii=False), file=sio)
+                print(f'```', file=sio)
+                print(f'', file=sio)
+
+        print(f'# Output guide', file=sio)
+        print(f'', file=sio)
+        print(format_prompt, file=sio)
+
+        system_prompt = textwrap.dedent(sio.getvalue()).strip()
+
+    print(system_prompt)
+
+    history = LLMHistory().with_system_prompt(system_prompt)
     return DataModelLLMTask(
         model=model,
         history=history,
