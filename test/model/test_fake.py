@@ -297,14 +297,14 @@ class TestFakeResponseSequence:
         """Test __repr__ method."""
         sequence = FakeResponseSequence(sample_responses, index=1)
         result = repr(sequence)
-        expected = f"_ResponseSequence(responses={list(sample_responses)}, index=1)"
+        expected = f"FakeResponseSequence(responses={list(sample_responses)}, index=1)"
         assert result == expected
 
     def test_repr_empty_responses(self, empty_responses):
         """Test __repr__ method with empty responses."""
         sequence = FakeResponseSequence(empty_responses)
         result = repr(sequence)
-        expected = "_ResponseSequence(responses=[], index=0)"
+        expected = "FakeResponseSequence(responses=[], index=0)"
         assert result == expected
 
 
