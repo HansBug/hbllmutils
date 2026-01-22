@@ -158,6 +158,7 @@ def create_datamodel_task(
     - Generates format prompts based on the data model
     - Configures task requirements
     - Sets up parsing and validation logic
+    - Optionally includes sample inputs and outputs for reference
     
     :param model: The LLM model to use for the main task.
     :type model: LLMModel
@@ -165,22 +166,30 @@ def create_datamodel_task(
     :type datamodel_class: type
     :param task_requirements: Description of what the task should accomplish.
     :type task_requirements: str
+    :param samples: Optional list of (input, output) tuples to provide as examples, defaults to None.
+    :type samples: Optional[List[Tuple[str, Any]]]
     :param related_datamodel_classes: Optional list of related data model classes for context, defaults to None.
     :type related_datamodel_classes: Optional[List[type]]
     :param prompt_generation_model: Optional separate model for prompt generation, defaults to None (uses main model).
     :type prompt_generation_model: Optional[LLMModel]
     :param fn_parse_and_validate: Optional custom parsing and validation function, defaults to None.
     :type fn_parse_and_validate: Optional[Callable[[Any], Any]]
+    :param fn_dump_json: Optional custom function to convert data model instances to JSON-serializable dicts, defaults to None.
+    :type fn_dump_json: Optional[Callable[[Any], Any]]
     
     :return: A configured DataModelLLMTask instance.
     :rtype: DataModelLLMTask
     :raises ValueError: If datamodel_class is not a pydantic BaseModel subclass and fn_parse_and_validate is not provided.
+    :raises ValueError: If samples are provided but datamodel_class is not a pydantic BaseModel or dataclass and fn_dump_json is not provided.
     
     Example::
         >>> task = create_datamodel_task(
-        ...     model=my_model,
+        ...     model=my_llm_model,
         ...     datamodel_class=MyModel,
         ...     task_requirements="Extract user information from the text",
+        ...     samples=[
+        ...         ("John Doe, age 30", MyModel(name="John Doe", age=30)),
+        ...     ],
         ...     related_datamodel_classes=[AddressModel]
         ... )
         >>> result = task.ask("John Doe lives at 123 Main St")
