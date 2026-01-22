@@ -15,6 +15,57 @@ Key Features:
 Main Components:
     - DataModelLLMTask: Core task class for model-based validation
     - create_datamodel_task: Factory function for creating configured tasks
+
+Example::
+    >>> from pydantic import BaseModel
+    >>> from hbllmutils.model import load_llm_model
+    >>> from hbllmutils.response import create_datamodel_task
+    >>> 
+    >>> class Person(BaseModel):
+    ...     gender: str  # male or female
+    ...     age: int
+    ...     hair_color: str  # use hex color
+    ...     skin_color: str  # use readable color
+    ...     appearance_desc: str  # a line of text for description of this guy
+    >>> 
+    >>> model = load_llm_model(model_name='gpt-4o')
+    >>> print(f"Loaded Model: {model}")
+    >>> 
+    >>> task = create_datamodel_task(
+    ...     model=model,
+    ...     datamodel_class=Person,
+    ...     task_requirements=\"\"\"
+    ... You are a bot to tell me the information of a celebrity.
+    ... 
+    ... I will give you his/her name, and you should tell me about his/her appearance information.
+    ... 
+    ...     \"\"\",
+    ...     samples=[
+    ...         # European female
+    ...         ("Taylor Swift", Person(
+    ...             gender="female",
+    ...             age=34,
+    ...             hair_color="#F5DEB3",  # blonde
+    ...             skin_color="fair",
+    ...             appearance_desc="Tall blonde singer with blue eyes, known for her elegant and graceful appearance"
+    ...         )),
+    ... 
+    ...         # African male
+    ...         ("Will Smith", Person(
+    ...             gender="male",
+    ...             age=55,
+    ...             hair_color="#2F1B14",  # dark brown
+    ...             skin_color="dark brown",
+    ...             appearance_desc="Charismatic actor with a bright smile, athletic build and confident demeanor"
+    ...         )),
+    ...     ]
+    ... )
+    >>> print(task.ask_then_parse('Jackie Chan'))
+    gender='male' age=69 hair_color='#1C1C1C' skin_color='light brown' appearance_desc='Martial arts action star with a lively personality, known for his agile physique and distinctive smile'
+    >>> print(task.ask_then_parse('Donald Trump'))
+    gender='male' age=77 hair_color='#FFD700' skin_color='light' appearance_desc='Notable public figure known for his distinct hairstyle and fair complexion, often seen in formal suits'
+    >>> print(task.ask_then_parse('Tohsaka Rin'))
+    gender='female' age=17 hair_color='#2F1B14' skin_color='fair' appearance_desc='A young woman with twin-tailed brown hair and aqua eyes, usually seen wearing a red sweater and black skirt, exuding both elegance and a strong-willed demeanor'
 """
 
 import dataclasses
@@ -39,7 +90,32 @@ class DataModelLLMTask(ParsableLLMTask):
     A specialized LLM task that parses and validates responses against a data model.
     
     This class extends ParsableLLMTask to provide structured data validation
-    using a custom parsing and validation function.
+    using a custom parsing and validation function. It handles the complete workflow
+    of sending prompts to an LLM, receiving responses, and validating them against
+    a predefined data model structure.
+    
+    :param model: The LLM model to use for generating responses.
+    :type model: LLMModel
+    :param history: The conversation history to maintain context.
+    :type history: LLMHistory
+    :param fn_parse_and_validate: Function to parse and validate the response data.
+    :type fn_parse_and_validate: Callable[[Any], Any]
+    :param default_max_retries: Maximum number of retries for failed attempts, defaults to 5.
+    :type default_max_retries: int
+    
+    Example::
+        >>> from pydantic import BaseModel
+        >>> class MyModel(BaseModel):
+        ...     name: str
+        ...     age: int
+        >>> task = DataModelLLMTask(
+        ...     model=my_model,
+        ...     history=my_history,
+        ...     fn_parse_and_validate=MyModel.model_validate
+        ... )
+        >>> result = task.ask_then_parse("Extract info: John is 30 years old")
+        >>> isinstance(result, MyModel)
+        True
     """
 
     def __init__(self, model: LLMModel, history: LLMHistory,
@@ -75,7 +151,9 @@ class DataModelLLMTask(ParsableLLMTask):
         Parse and validate the content from LLM response.
         
         This method extracts code from the content, parses it as JSON,
-        and validates it using the configured validation function.
+        and validates it using the configured validation function. It handles
+        the complete parsing pipeline including code extraction, JSON parsing,
+        and data model validation.
         
         :param content: The raw content string from LLM response.
         :type content: str
@@ -86,8 +164,8 @@ class DataModelLLMTask(ParsableLLMTask):
         :raises ValidationError: If the parsed data fails validation.
         
         Example::
-            >>> task._parse_and_validate('```json\\n{"name": "test"}\\n```')
-            MyModel(name='test')
+            >>> task._parse_and_validate('```json\\n{"name": "test", "age": 25}\\n```')
+            MyModel(name='test', age=25)
         """
         return self._fn_parse_and_validate(json.loads(extract_code(content)))
 
@@ -98,7 +176,8 @@ def _ask_for_format_prompt(pg_task: LLMTask) -> str:
     Get the format prompt from a prompt generation task with caching.
     
     This function is cached to avoid regenerating the same format prompt
-    multiple times for the same task.
+    multiple times for the same task. The cache is based on the task object
+    identity, so the same task instance will always return the cached result.
     
     :param pg_task: The prompt generation task to execute.
     :type pg_task: LLMTask
@@ -109,6 +188,9 @@ def _ask_for_format_prompt(pg_task: LLMTask) -> str:
     Example::
         >>> prompt = _ask_for_format_prompt(my_pg_task)
         >>> # Subsequent calls with the same task return cached result
+        >>> prompt2 = _ask_for_format_prompt(my_pg_task)
+        >>> prompt == prompt2
+        True
     """
     return pg_task.ask()
 
@@ -122,7 +204,9 @@ def _get_format_prompt(
     Generate a format prompt for a given data model class.
     
     This function creates a prompt generation task and retrieves the format
-    prompt that describes how to structure data according to the model.
+    prompt that describes how to structure data according to the model. The
+    generated prompt includes information about the data model fields, types,
+    and any related data models that provide additional context.
     
     :param datamodel_class: The data model class to generate format prompt for.
     :type datamodel_class: type
@@ -139,6 +223,8 @@ def _get_format_prompt(
         ...     datamodel_class=MyModel,
         ...     prompt_generation_model=my_model
         ... )
+        >>> "MyModel" in format_prompt
+        True
     """
     pg_task = create_datamodel_prompt_generation_task(
         model=prompt_generation_model,
@@ -167,6 +253,10 @@ def create_datamodel_task(
     - Sets up parsing and validation logic
     - Optionally includes sample inputs and outputs for reference
     
+    The function automatically handles Pydantic BaseModel and dataclass types,
+    providing default parsing and serialization functions. For custom types,
+    you can provide your own parsing and serialization functions.
+    
     :param model: The LLM model to use for the main task.
     :type model: LLMModel
     :param datamodel_class: The data model class that defines the expected output structure.
@@ -190,6 +280,10 @@ def create_datamodel_task(
     :raises ValueError: If samples are provided but datamodel_class is not a pydantic BaseModel or dataclass and fn_dump_json is not provided.
     
     Example::
+        >>> from pydantic import BaseModel
+        >>> class MyModel(BaseModel):
+        ...     name: str
+        ...     age: int
         >>> task = create_datamodel_task(
         ...     model=my_llm_model,
         ...     datamodel_class=MyModel,
@@ -199,9 +293,13 @@ def create_datamodel_task(
         ...     ],
         ...     related_datamodel_classes=[AddressModel]
         ... )
-        >>> result = task.ask("John Doe lives at 123 Main St")
+        >>> result = task.ask_then_parse("Jane Smith is 25 years old")
         >>> isinstance(result, MyModel)
         True
+        >>> result.name
+        'Jane Smith'
+        >>> result.age
+        25
     """
     if fn_parse_and_validate is None:
         if isinstance(datamodel_class, type) and issubclass(datamodel_class, BaseModel):

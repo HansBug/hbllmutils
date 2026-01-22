@@ -12,6 +12,30 @@ Key Components:
 
 The module is designed to handle scenarios where LLM outputs need to be parsed into specific
 formats, with automatic retry when parsing fails due to malformed or unexpected output.
+
+Example::
+    >>> import json
+    >>> from hbllmutils.model import LLMModel
+    >>> from hbllmutils.response import ParsableLLMTask, extract_code
+    >>> 
+    >>> class JSONParsableTask(ParsableLLMTask):
+    ...     '''A task that parses JSON responses from the model.'''
+    ...     __exceptions__ = (json.JSONDecodeError, KeyError)
+    ...     
+    ...     def _parse_and_validate(self, content: str):
+    ...         data = json.loads(extract_code(content))
+    ...         if 'answer' not in data:
+    ...             raise KeyError("Missing 'answer' field")
+    ...         return data
+    >>> 
+    >>> model = LLMModel(...)
+    >>> task = JSONParsableTask(model, default_max_retries=3)
+    >>> result = task.ask_then_parse(
+    ...     input_content="What is the capital of France? Answer me in format of JSON with a key of \\"answer\\"",
+    ...     max_retries=5
+    ... )
+    >>> print(result['answer'])
+    Paris
 """
 
 from dataclasses import dataclass
@@ -44,6 +68,8 @@ class OutputParseWithException:
         ... )
         >>> print(attempt.output)
         invalid json
+        >>> print(type(attempt.exception))
+        <class 'ValueError'>
     """
     output: str
     exception: Exception
@@ -65,10 +91,11 @@ class OutputParseFailed(Exception):
         ...     OutputParseWithException("bad output 1", ValueError("error 1")),
         ...     OutputParseWithException("bad output 2", ValueError("error 2"))
         ... ]
-        >>> raise OutputParseFailed("Parsing failed", tries)
-        Traceback (most recent call last):
-        ...
-        OutputParseFailed: Parsing failed
+        >>> exc = OutputParseFailed("Parsing failed after 2 tries", tries)
+        >>> print(len(exc.tries))
+        2
+        >>> print(exc.tries[0].output)
+        bad output 1
     """
 
     def __init__(self, message: str, tries: List[OutputParseWithException]):
@@ -102,15 +129,21 @@ class ParsableLLMTask(LLMTask):
     :vartype __exceptions__: Union[Type[Exception], Tuple[Type[Exception], ...]]
 
     Example::
+        >>> import json
         >>> class JSONParsableTask(ParsableLLMTask):
-        ...     __exceptions__ = (ValueError, KeyError)
+        ...     __exceptions__ = (json.JSONDecodeError, KeyError)
         ...     
         ...     def _parse_and_validate(self, content: str):
-        ...         import json
-        ...         return json.loads(content)
+        ...         data = json.loads(content)
+        ...         if 'result' not in data:
+        ...             raise KeyError("Missing 'result' field")
+        ...         return data['result']
         >>> 
+        >>> model = LLMModel(...)
         >>> task = JSONParsableTask(model)
-        >>> result = task.ask_then_parse(prompt="Return JSON with key 'answer'")
+        >>> result = task.ask_then_parse(input_content="Calculate 2+2")
+        >>> print(result)
+        4
     """
     __exceptions__: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception
 
@@ -125,6 +158,12 @@ class ParsableLLMTask(LLMTask):
         :param default_max_retries: Default maximum number of retry attempts for parsing.
                                    Must be a positive integer. Defaults to 5.
         :type default_max_retries: int
+
+        Example::
+            >>> model = LLMModel(...)
+            >>> task = ParsableLLMTask(model, default_max_retries=10)
+            >>> print(task.default_max_retries)
+            10
         """
         super().__init__(model, history)
         self.default_max_retries = default_max_retries
@@ -145,10 +184,19 @@ class ParsableLLMTask(LLMTask):
         :raises NotImplementedError: This method must be implemented by subclasses.
 
         Example::
-            >>> class MyParsableTask(ParsableLLMTask):
+            >>> class IntegerParsableTask(ParsableLLMTask):
+            ...     __exceptions__ = (ValueError,)
+            ...     
             ...     def _parse_and_validate(self, content: str):
-            ...         # Parse content as integer
-            ...         return int(content.strip())
+            ...         value = int(content.strip())
+            ...         if value < 0:
+            ...             raise ValueError("Value must be non-negative")
+            ...         return value
+            >>> 
+            >>> task = IntegerParsableTask(model)
+            >>> result = task._parse_and_validate("42")
+            >>> print(result)
+            42
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -177,11 +225,25 @@ class ParsableLLMTask(LLMTask):
         :raises Exception: Any exception not matching __exceptions__ will propagate immediately.
 
         Example::
-            >>> task = ParsableLLMTask(model)
-            >>> # Simple usage
-            >>> result = task.ask_then_parse(input_content="What is 2+2?", max_retries=3)
+            >>> class NumberTask(ParsableLLMTask):
+            ...     __exceptions__ = (ValueError,)
+            ...     def _parse_and_validate(self, content: str):
+            ...         return int(content.strip())
+            >>> 
+            >>> task = NumberTask(model)
+            >>> # Simple usage with default retries
+            >>> result = task.ask_then_parse(input_content="What is 2+2?")
             >>> print(result)
             4
+            >>> 
+            >>> # Usage with custom max_retries
+            >>> result = task.ask_then_parse(
+            ...     input_content="Calculate 10*5",
+            ...     max_retries=3,
+            ...     temperature=0.7
+            ... )
+            >>> print(result)
+            50
         """
         if max_retries is None:
             max_retries = self.default_max_retries
