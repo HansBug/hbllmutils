@@ -36,6 +36,10 @@ history handling.
   content.
 - **Conversation History Management**: Build and maintain complex conversation histories with support for different
   roles (system, user, assistant) and multimodal content (text, images).
+- **Structured Output with Auto-Prompting**: Automatically generate detailed system prompts from Pydantic/dataclass
+  models, including docstrings and comments, to ensure the LLM returns perfectly structured and validated JSON.
+- **Automatic Retry for Parsing**: Robustly handle malformed LLM output with an automatic retry mechanism until the
+  response conforms to the required data model.
 - **Extensible Design**: Built with extensibility in mind, allowing for easy integration of new models or custom
   behaviors.
 
@@ -110,49 +114,157 @@ First, ensure you have a `.llmconfig.yaml` file set up as described above in you
 
 ```python
 import sys
-from pprint import pprint
-
 from hbllmutils.history import LLMHistory
 from hbllmutils.model import load_llm_model
 
 # Load the LLM model named 'deepseek-V3' from your .llmconfig.yaml
-# The library will automatically look for .llmconfig.yaml in the current directory
 model = load_llm_model(model_name='deepseek-V3')
-print(f"Loaded Model: {model}")
-pprint(model)
 
-# Initialize conversation history with a system prompt
+# Initialize conversation history with a system prompt and a user message
 history = LLMHistory().with_system_prompt(
-  'tell me the appearance of this guy, use json format, like {\'description\': \'xxxxx\', \'name\': \'original name\'}.'
+    'You are a helpful assistant.'
 ).with_user_message(
-  'donald trump'
+    'Tell me a short, interesting fact about the ocean.'
 )
 
 # Ask the model a question and get a streaming response
-# with_reasoning=True will include any internal reasoning from the model in the stream
-f = model.ask_stream(
-  messages=history.to_json(),
-  with_reasoning=True,
-)
-print(f"\nStreaming Response (with reasoning):\n")
+f = model.ask_stream(messages=history.to_json())
+print(f"\nStreaming Response:\n")
 
 # Iterate through the stream and print chunks as they arrive
 for chunk in f:
-  print(chunk, end='')
-  sys.stdout.flush()
+    print(chunk, end='')
+    sys.stdout.flush()
 
-print(f"\n\nAccumulated Reasoning: {f.reasoning_content}")
-print(f"Accumulated Content: {f.content}")
-
-# Alternatively, for non-streaming responses, use the ask method:
-# response_content = model.ask(messages=history.to_json())
-# print(f"\nNon-streaming Response: {response_content}")
-
-# If you need reasoning content for non-streaming:
-# reasoning, content = model.ask(messages=history.to_json(), with_reasoning=True)
-# print(f"\nNon-streaming Reasoning: {reasoning}")
-# print(f"Non-streaming Content: {content}")
+print(f"\n\nAccumulated Content: {f.content}")
 ```
+
+## Structured Output with Data Models and Auto-Prompting
+
+One of the most powerful features of `hbllmutils` is the ability to enforce **structured output** from LLMs using Python
+data models (like Pydantic's `BaseModel` or standard `dataclass`). The `create_datamodel_task` function automates the
+complex process of prompt engineering, validation, and retry logic.
+
+### Key Advantages:
+
+1. **Auto-Prompt Generation**: It uses a meta-LLM to read the source code of your data model class, including **type
+   hints, docstrings, and even field-level comments**, to generate an extremely detailed and robust system prompt. This
+   prompt guides the main LLM to produce perfectly formatted JSON.
+2. **In-Context Learning (ICL)**: You can provide `samples` (input/output pairs) which are automatically formatted and
+   injected into the system prompt, significantly improving the main LLM's adherence to the required structure and
+   style.
+3. **Automatic Retry**: The underlying `ParsableLLMTask` automatically attempts to parse the LLM's JSON output and, if
+   validation fails (e.g., malformed JSON, incorrect data types), it retries the request with an error message, guiding
+   the LLM to correct its mistake.
+
+### Usage Example: `create_datamodel_task`
+
+The following example demonstrates how to define a `Person` data model and use `create_datamodel_task` to reliably
+extract structured information from the LLM.
+
+```python
+import logging
+from pprint import pprint
+
+from hbutils.logging import ColoredFormatter
+from pydantic import BaseModel
+
+from hbllmutils.model import load_llm_model
+from hbllmutils.response import create_datamodel_task
+
+# Set up colored logging (optional, but recommended)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(ColoredFormatter())
+logger.addHandler(console_handler)
+
+
+class Person(BaseModel):
+    gender: str  # male or female
+    age: int
+    hair_color: str  # use hex color
+    skin_color: str  # use readable color
+    appearance_desc: str  # a line of text for description of this guy
+
+
+# Load your LLM model
+model = load_llm_model(model_name='gpt-4o')
+print(f"Loaded Model: {model}")
+
+# 1. Define the task
+task = create_datamodel_task(
+    model=model,
+    datamodel_class=Person,
+    task_requirements="""
+You are a bot to tell me the information of a celebrity.
+
+I will give you his/her name, and you should tell me about his/her appearance information.
+    """,
+    samples=[
+        # European female
+        ("Taylor Swift", Person(
+            gender="female",
+            age=34,
+            hair_color="#F5DEB3",  # blonde
+            skin_color="fair",
+            appearance_desc="Tall blonde singer with blue eyes, known for her elegant and graceful appearance"
+        )),
+
+        # African male
+        ("Will Smith", Person(
+            gender="male",
+            age=55,
+            hair_color="#2F1B14",  # dark brown
+            skin_color="dark brown",
+            appearance_desc="Charismatic actor with a bright smile, athletic build and confident demeanor"
+        )),
+    ]
+)
+
+# 2. Execute the task and automatically parse the result into a Person object
+print(task.ask_then_parse('Jackie Chan'))
+# Expected Output: gender='male' age=69 hair_color='#1C1C1C' skin_color='light brown' appearance_desc='Martial arts action star with a lively personality, known for his agile physique and distinctive smile'
+
+print(task.ask_then_parse('Donald Trump'))
+# Expected Output: gender='male' age=77 hair_color='#FFD700' skin_color='light' appearance_desc='Notable public figure known for his distinct hairstyle and fair complexion, often seen in formal suits'
+
+print(task.ask_then_parse('Tohsaka Rin'))
+# Expected Output: gender='female' age=17 hair_color='#2F1B14' skin_color='fair' appearance_desc='A young woman with twin-tailed brown hair and aqua eyes, usually seen wearing a red sweater and black skirt, exuding both elegance and a strong-willed demeanor'
+```
+
+### The Auto-Prompting Mechanism
+
+The magic happens in the background: `create_datamodel_task` uses a separate LLM (or the same one
+if `prompt_generation_model` is not specified) to analyze the Python source code of the `Person` class. It extracts the
+class definition, including the comments like `# use hex color` for `hair_color`, and uses this information to generate
+a highly specific system prompt that enforces all constraints.
+
+The final system prompt sent to the main LLM will look something like this (simplified):
+
+```markdown
+# Requirements
+
+You are a bot to tell me the information of a celebrity.
+I will give you his/her name, and you should tell me about his/her appearance information.
+
+# Samples
+
+... (Formatted samples here) ...
+
+# Output guide
+
+The output must be a single JSON object that strictly conforms to the following schema:
+
+- **gender** (string): The gender of the person. Must be one of "male" or "female".
+- **age** (integer): The age of the person.
+- **hair_color** (string): The hair color. Must be a valid hex color code (e.g., #RRGGBB).
+- **skin_color** (string): The skin color. Must be a readable color name (e.g., "fair", "dark brown").
+- **appearance_desc** (string): A single line of text for the description of this guy.
+```
+
+This two-stage process (meta-LLM for prompt generation, main LLM for task execution) ensures maximum reliability and
+structure adherence.
 
 ## Advanced Features
 
@@ -206,7 +318,7 @@ model = FakeLLMModel(stream_wps=10)  # Re-initialize to clear previous rules
 
 
 def long_conversation_check(messages, **params):
-  return len(messages) > 2
+    return len(messages) > 2
 
 
 model.response_when(long_conversation_check, "This is a long conversation, isn\'t it?")
@@ -231,11 +343,11 @@ stream = model.ask_stream(history_stream.to_json(), with_reasoning=True)
 
 print("\nStreaming Response (with reasoning):\n")
 for chunk in stream:
-  print(chunk, end='')
-  sys.stdout.flush()
+    print(chunk, end='')
+    sys.stdout.flush()
 
-  print(f"\n\nAccumulated Reasoning: {stream.reasoning_content}")
-  print(f"Accumulated Content: {stream.content}")
+print(f"\n\nAccumulated Reasoning: {stream.reasoning_content}")
+print(f"Accumulated Content: {stream.content}")
 # Expected Output (with simulated delay):
 # Streaming Response (with reasoning):
 # Thinking step by step...The final answer is 42.
@@ -252,7 +364,7 @@ and responding as expected.
 
 #### `hello` Function
 
-The `hello` function sends a basic greeting to the LLM and checks if it receives any response. It\'s a fundamental
+The `hello` function sends a basic greeting to the LLM and checks if it receives any response. It's a fundamental
 liveness probe to confirm that the model is accessible and capable of generating output.
 
 **Usage Example:**
