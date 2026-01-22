@@ -78,7 +78,7 @@ from typing import Optional, List, Callable, Any, Tuple
 from hbutils.string import plural_word
 from pydantic import BaseModel
 
-from .code import extract_code
+from .code import extract_code, parse_json
 from .parsable import ParsableLLMTask
 from ..history import LLMHistory
 from ..meta import create_datamodel_prompt_generation_task
@@ -167,7 +167,7 @@ class DataModelLLMTask(ParsableLLMTask):
             >>> task._parse_and_validate('```json\\n{"name": "test", "age": 25}\\n```')
             MyModel(name='test', age=25)
         """
-        return self._fn_parse_and_validate(json.loads(extract_code(content)))
+        return self._fn_parse_and_validate(parse_json(extract_code(content)))
 
 
 @lru_cache()
