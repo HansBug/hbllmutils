@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from hbllmutils.model import FakeResponseStream, FakeLLMModel
-from hbllmutils.model.fake import _fn_always_true
+from hbllmutils.model.fake import _fn_always_true, FakeResponseSequence
 
 
 @pytest.fixture
@@ -45,6 +45,267 @@ def mock_jieba_cut():
     """Mock jieba.cut function."""
     with patch('jieba.cut') as mock_cut:
         yield mock_cut
+
+
+@pytest.fixture
+def sample_responses():
+    """Create sample responses for sequence testing."""
+    return ["First response", ("reasoning2", "Second response"), "Third response"]
+
+
+@pytest.fixture
+def empty_responses():
+    """Create empty responses list for testing."""
+    return []
+
+
+@pytest.fixture
+def single_response():
+    """Create single response for testing."""
+    return ["Only response"]
+
+
+@pytest.mark.unittest
+class TestFakeResponseSequence:
+
+    def test_init_default_index(self, sample_responses):
+        """Test FakeResponseSequence initialization with default index."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert sequence.current_index == 0
+        assert sequence.total_responses == 3
+        assert sequence.has_more_responses is True
+
+    def test_init_custom_index(self, sample_responses):
+        """Test FakeResponseSequence initialization with custom index."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        assert sequence.current_index == 2
+        assert sequence.total_responses == 3
+        assert sequence.has_more_responses is True
+
+    def test_init_index_at_end(self, sample_responses):
+        """Test FakeResponseSequence initialization with index at end."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        assert sequence.current_index == 3
+        assert sequence.total_responses == 3
+        assert sequence.has_more_responses is False
+
+    def test_init_empty_responses(self, empty_responses):
+        """Test FakeResponseSequence initialization with empty responses."""
+        sequence = FakeResponseSequence(empty_responses)
+        assert sequence.current_index == 0
+        assert sequence.total_responses == 0
+        assert sequence.has_more_responses is False
+
+    def test_init_immutability(self, sample_responses):
+        """Test that responses are made immutable."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert isinstance(sequence._response_contents, tuple)
+        assert sequence._response_contents == tuple(sample_responses)
+
+    def test_current_index_property(self, sample_responses):
+        """Test current_index property."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        assert sequence.current_index == 1
+
+    def test_total_responses_property(self, sample_responses):
+        """Test total_responses property."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert sequence.total_responses == 3
+
+    def test_has_more_responses_property_true(self, sample_responses):
+        """Test has_more_responses property when True."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        assert sequence.has_more_responses is True
+
+    def test_has_more_responses_property_false(self, sample_responses):
+        """Test has_more_responses property when False."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        assert sequence.has_more_responses is False
+
+    def test_rule_check_has_more_responses(self, sample_responses, sample_messages):
+        """Test rule_check returns True when has more responses."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        result = sequence.rule_check(sample_messages, param1="value1")
+        assert result is True
+
+    def test_rule_check_no_more_responses(self, sample_responses, sample_messages):
+        """Test rule_check returns False when no more responses."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        result = sequence.rule_check(sample_messages, param1="value1")
+        assert result is False
+
+    def test_rule_check_ignores_params(self, sample_responses, sample_messages):
+        """Test rule_check ignores messages and params."""
+        sequence = FakeResponseSequence(sample_responses)
+        result = sequence.rule_check(sample_messages, extra_param="ignored")
+        assert result is True
+
+    def test_response_string_response(self, sample_messages):
+        """Test response method with string response."""
+        responses = ["Test response"]
+        sequence = FakeResponseSequence(responses)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == ""
+        assert content == "Test response"
+
+    def test_response_tuple_response(self, sample_messages):
+        """Test response method with tuple response."""
+        responses = [("reasoning", "content")]
+        sequence = FakeResponseSequence(responses)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == "reasoning"
+        assert content == "content"
+
+    def test_response_list_response(self, sample_messages):
+        """Test response method with list response."""
+        responses = [["reasoning", "content"]]
+        sequence = FakeResponseSequence(responses)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == "reasoning"
+        assert content == "content"
+
+    def test_response_at_different_indices(self, sample_responses, sample_messages):
+        """Test response method returns correct response at different indices."""
+        # Index 0
+        sequence = FakeResponseSequence(sample_responses, index=0)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == ""
+        assert content == "First response"
+
+        # Index 1
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == "reasoning2"
+        assert content == "Second response"
+
+        # Index 2
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        reasoning, content = sequence.response(sample_messages)
+        assert reasoning == ""
+        assert content == "Third response"
+
+    def test_response_no_more_responses(self, sample_responses, sample_messages):
+        """Test response method raises IndexError when no more responses."""
+        sequence = FakeResponseSequence(sample_responses, index=3)
+        with pytest.raises(IndexError, match="No more responses available. Current index: 3, Total: 3"):
+            sequence.response(sample_messages)
+
+    def test_response_ignores_params(self, sample_responses, sample_messages):
+        """Test response method ignores additional params."""
+        sequence = FakeResponseSequence(sample_responses)
+        reasoning, content = sequence.response(sample_messages, extra_param="ignored")
+        assert content == "First response"
+
+    def test_advance_creates_new_instance(self, sample_responses):
+        """Test advance method creates new instance."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        new_sequence = sequence.advance()
+
+        assert new_sequence is not sequence
+        assert new_sequence.current_index == 2
+        assert sequence.current_index == 1  # Original unchanged
+
+    def test_advance_preserves_responses(self, sample_responses):
+        """Test advance method preserves responses."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        new_sequence = sequence.advance()
+
+        assert new_sequence._response_contents == sequence._response_contents
+
+    def test_advance_from_end(self, sample_responses):
+        """Test advance method from end position."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        new_sequence = sequence.advance()
+
+        assert new_sequence.current_index == 3
+        assert new_sequence.has_more_responses is False
+
+    def test_reset_creates_new_instance(self, sample_responses):
+        """Test reset method creates new instance."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        new_sequence = sequence.reset()
+
+        assert new_sequence is not sequence
+        assert new_sequence.current_index == 0
+        assert sequence.current_index == 2  # Original unchanged
+
+    def test_reset_preserves_responses(self, sample_responses):
+        """Test reset method preserves responses."""
+        sequence = FakeResponseSequence(sample_responses, index=2)
+        new_sequence = sequence.reset()
+
+        assert new_sequence._response_contents == sequence._response_contents
+
+    def test_reset_from_beginning(self, sample_responses):
+        """Test reset method from beginning position."""
+        sequence = FakeResponseSequence(sample_responses, index=0)
+        new_sequence = sequence.reset()
+
+        assert new_sequence.current_index == 0
+        assert new_sequence.has_more_responses is True
+
+    def test_equality_same_instance(self, sample_responses):
+        """Test equality with same instance."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        assert sequence == sequence
+
+    def test_equality_different_instances_same_params(self, sample_responses):
+        """Test equality with different instances but same parameters."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=1)
+        assert sequence1 == sequence2
+
+    def test_equality_different_responses(self):
+        """Test inequality with different responses."""
+        sequence1 = FakeResponseSequence(["response1"])
+        sequence2 = FakeResponseSequence(["response2"])
+        assert sequence1 != sequence2
+
+    def test_equality_different_indices(self, sample_responses):
+        """Test inequality with different indices."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=2)
+        assert sequence1 != sequence2
+
+    def test_equality_with_non_sequence(self, sample_responses):
+        """Test inequality with non-FakeResponseSequence object."""
+        sequence = FakeResponseSequence(sample_responses)
+        assert sequence != "not a sequence"
+        assert sequence != 42
+        assert sequence != None
+
+    def test_hash_same_instances(self, sample_responses):
+        """Test hash is same for instances with same parameters."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=1)
+        assert hash(sequence1) == hash(sequence2)
+
+    def test_hash_different_instances(self, sample_responses):
+        """Test hash is different for instances with different parameters."""
+        sequence1 = FakeResponseSequence(sample_responses, index=1)
+        sequence2 = FakeResponseSequence(sample_responses, index=2)
+        assert hash(sequence1) != hash(sequence2)
+
+    def test_hash_consistency(self, sample_responses):
+        """Test hash consistency - same object should have same hash."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        hash1 = hash(sequence)
+        hash2 = hash(sequence)
+        assert hash1 == hash2
+
+    def test_repr(self, sample_responses):
+        """Test __repr__ method."""
+        sequence = FakeResponseSequence(sample_responses, index=1)
+        result = repr(sequence)
+        expected = f"_ResponseSequence(responses={list(sample_responses)}, index=1)"
+        assert result == expected
+
+    def test_repr_empty_responses(self, empty_responses):
+        """Test __repr__ method with empty responses."""
+        sequence = FakeResponseSequence(empty_responses)
+        result = repr(sequence)
+        expected = "_ResponseSequence(responses=[], index=0)"
+        assert result == expected
 
 
 @pytest.mark.unittest
@@ -395,6 +656,141 @@ class TestFakeLLMModel:
         result = rule_func(messages, extra_param="value")
 
         assert result is True
+
+    def test_response_sequence_returns_new_instance(self, sample_responses):
+        """Test response_sequence returns new instance."""
+        model = FakeLLMModel()
+        new_model = model.response_sequence(sample_responses)
+
+        assert new_model is not model
+        assert new_model.rules_count == 1
+        assert model.rules_count == 0
+
+    def test_response_sequence_empty_responses(self):
+        """Test response_sequence with empty responses raises ValueError."""
+        model = FakeLLMModel()
+        with pytest.raises(ValueError, match="Response sequence cannot be empty"):
+            model.response_sequence([])
+
+    def test_response_sequence_single_response(self, sample_messages):
+        """Test response_sequence with single response."""
+        model = FakeLLMModel().response_sequence(["Single response"])
+
+        # First call should work
+        result = model.ask(sample_messages)
+        assert result == "Single response"
+
+        # Second call should fail as sequence is exhausted
+        with pytest.raises(AssertionError, match="No response rule found for this message"):
+            model.ask(sample_messages)
+
+    def test_response_sequence_multiple_responses(self, sample_messages):
+        """Test response_sequence with multiple responses."""
+        responses = ["First", "Second", "Third"]
+        model = FakeLLMModel().response_sequence(responses)
+
+        # Test sequential responses
+        assert model.ask(sample_messages) == "First"
+        assert model.ask(sample_messages) == "Second"
+        assert model.ask(sample_messages) == "Third"
+
+        # Fourth call should fail
+        with pytest.raises(AssertionError, match="No response rule found for this message"):
+            model.ask(sample_messages)
+
+    def test_response_sequence_with_tuple_responses(self, sample_messages):
+        """Test response_sequence with tuple responses."""
+        responses = [("reason1", "content1"), ("reason2", "content2")]
+        model = FakeLLMModel().response_sequence(responses)
+
+        # Test with reasoning
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("reason1", "content1")
+
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("reason2", "content2")
+
+    def test_response_sequence_mixed_responses(self, sample_messages):
+        """Test response_sequence with mixed response types."""
+        responses = ["String response", ("reasoning", "tuple response")]
+        model = FakeLLMModel().response_sequence(responses)
+
+        # First response (string)
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("", "String response")
+
+        # Second response (tuple)
+        result = model.ask(sample_messages, with_reasoning=True)
+        assert result == ("reasoning", "tuple response")
+
+    def test_response_sequence_with_stream(self, sample_messages, mock_jieba_cut):
+        """Test response_sequence with streaming."""
+        responses = ["First response", "Second response"]
+        model = FakeLLMModel().response_sequence(responses)
+
+        mock_jieba_cut.return_value = ["First", "response"]
+
+        with patch('time.sleep'):
+            stream = model.ask_stream(sample_messages)
+            chunks = list(stream)
+
+        # Should get first response
+        assert len(chunks) == 2
+        assert chunks[0] == "First"
+        assert chunks[1] == "response"
+
+    def test_response_sequence_rule_priority(self, sample_messages):
+        """Test response_sequence rule priority with other rules."""
+        model = (FakeLLMModel()
+                 .response_sequence(["Sequence response"])
+                 .response_always("Always response"))
+
+        # Sequence rule should match first
+        result = model.ask(sample_messages)
+        assert result == "Sequence response"
+
+        # After sequence exhausted, always rule should match
+        result = model.ask(sample_messages)
+        assert result == "Always response"
+
+    def test_response_sequence_wrapper_equality(self, sample_responses):
+        """Test that sequence wrapper handles equality correctly."""
+        model1 = FakeLLMModel().response_sequence(sample_responses)
+        model2 = FakeLLMModel().response_sequence(sample_responses)
+
+        # Models should be different due to different wrapper instances
+        assert model1 != model2
+
+    def test_response_sequence_wrapper_hash(self, sample_responses):
+        """Test that sequence wrapper is hashable."""
+        model = FakeLLMModel().response_sequence(sample_responses)
+
+        # Should be able to hash the model
+        hash_value = hash(model)
+        assert isinstance(hash_value, int)
+
+    def test_response_sequence_wrapper_repr(self, sample_responses):
+        """Test that sequence wrapper has proper repr."""
+        model = FakeLLMModel().response_sequence(sample_responses)
+        rule_func, response_func = model._rules[0]
+
+        # The response function should be the wrapper
+        wrapper_repr = repr(response_func)
+        assert "_SequenceWrapper" in wrapper_repr
+
+    def test_response_sequence_state_isolation(self, sample_messages):
+        """Test that different model instances have isolated sequence state."""
+        responses = ["First", "Second"]
+        model1 = FakeLLMModel().response_sequence(responses)
+        model2 = FakeLLMModel().response_sequence(responses)
+
+        # Both should start with first response
+        assert model1.ask(sample_messages) == "First"
+        assert model2.ask(sample_messages) == "First"
+
+        # Both should continue independently
+        assert model1.ask(sample_messages) == "Second"
+        assert model2.ask(sample_messages) == "Second"
 
     def test_clear_rules_returns_new_instance(self):
         """Test clear_rules returns new instance."""

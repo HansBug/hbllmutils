@@ -19,6 +19,115 @@ from .base import LLMModel
 from .stream import ResponseStream
 
 
+class FakeResponseSequence:
+    """
+    A sequence-based response handler that returns responses in order.
+
+    This class maintains immutability by creating new instances when the index changes,
+    ensuring thread safety and compatibility with FakeLLMModel's immutable design.
+    """
+
+    def __init__(self, responses: List[Union[str, Tuple[str, str]]], index: int = 0):
+        """
+        Initialize the response sequence.
+
+        :param responses: List of responses to return in order.
+        :type responses: List[Union[str, Tuple[str, str]]]
+        :param index: Current index in the sequence (default: 0).
+        :type index: int
+        """
+        self._response_contents = tuple(responses)  # Make immutable
+        self._index = index
+
+    @property
+    def current_index(self) -> int:
+        """Get the current index in the sequence."""
+        return self._index
+
+    @property
+    def total_responses(self) -> int:
+        """Get the total number of responses in the sequence."""
+        return len(self._response_contents)
+
+    @property
+    def has_more_responses(self) -> bool:
+        """Check if there are more responses available."""
+        return self._index < len(self._response_contents)
+
+    def rule_check(self, messages: List[dict], **params) -> bool:
+        """
+        Check if this sequence can provide a response.
+
+        :param messages: The list of message dictionaries.
+        :type messages: List[dict]
+        :param params: Additional parameters (unused).
+        :type params: dict
+        :return: True if there are more responses available, False otherwise.
+        :rtype: bool
+        """
+        _ = messages, params  # Unused parameters
+        return self.has_more_responses
+
+    def response(self, messages: List[dict], **params) -> Tuple[str, str]:
+        """
+        Get the next response in the sequence.
+
+        :param messages: The list of message dictionaries.
+        :type messages: List[dict]
+        :param params: Additional parameters (unused).
+        :type params: dict
+        :return: A tuple of (reasoning_content, content).
+        :rtype: Tuple[str, str]
+        :raises IndexError: If no more responses are available.
+        """
+        _ = messages, params  # Unused parameters
+
+        if not self.has_more_responses:
+            raise IndexError(
+                f"No more responses available. Current index: {self._index}, Total: {len(self._response_contents)}")
+
+        retval = self._response_contents[self._index]
+        if isinstance(retval, (list, tuple)):
+            reasoning_content, content = retval
+        else:
+            reasoning_content, content = '', retval
+
+        return reasoning_content, content
+
+    def advance(self) -> 'FakeResponseSequence':
+        """
+        Create a new instance with the index advanced by 1.
+
+        :return: A new _ResponseSequence instance with incremented index.
+        :rtype: FakeResponseSequence
+        """
+        return FakeResponseSequence(list(self._response_contents), self._index + 1)
+
+    def reset(self) -> 'FakeResponseSequence':
+        """
+        Create a new instance with the index reset to 0.
+
+        :return: A new _ResponseSequence instance with index reset to 0.
+        :rtype: FakeResponseSequence
+        """
+        return FakeResponseSequence(list(self._response_contents), 0)
+
+    def __eq__(self, other) -> bool:
+        """Check equality with another _ResponseSequence instance."""
+        if not isinstance(other, FakeResponseSequence):
+            return False
+        return (self._response_contents == other._response_contents and
+                self._index == other._index)
+
+    def __hash__(self) -> int:
+        """Return hash for use in sets and as dict keys."""
+        return hash((self._response_contents, self._index))
+
+    def __repr__(self) -> str:
+        """Return string representation of the sequence."""
+        return f"_ResponseSequence(responses={list(self._response_contents)}, index={self._index})"
+
+
 class FakeResponseStream(ResponseStream):
     """
     A fake response stream that handles streaming responses with reasoning and content.
@@ -167,7 +276,6 @@ class FakeLLMModel(LLMModel):
         Create a new instance with modified parameters.
 
         :param kwargs: Parameters to override in the new instance.
-        :type kwargs: dict
         :return: A new FakeLLMModel instance.
         :rtype: FakeLLMModel
         """
@@ -312,6 +420,57 @@ class FakeLLMModel(LLMModel):
 
         new_rules = list(self._rules) + [(_fn_keyword_check, response)]
         return self._create_new_instance(rules=new_rules)
+
+    def response_sequence(self, responses: List[Union[str, Tuple[str, str]]]) -> 'FakeLLMModel':
+        """
+        Create a new instance with a rule that returns responses in sequence.
+
+        Each call to ask() or ask_stream() will return the next response in the sequence.
+        Once all responses are exhausted, the rule will no longer match.
+
+        :param responses: List of responses to return in order. Each can be a string or tuple of (reasoning, content).
+        :type responses: List[Union[str, Tuple[str, str]]]
+        :return: A new FakeLLMModel instance with the sequence rule added.
+        :rtype: FakeLLMModel
+
+        Example::
+            >>> model = FakeLLMModel()
+            >>> seq_model = model.response_sequence([
+            ...     "First response",
+            ...     ("thinking about second", "Second response"),
+            ...     "Third response"
+            ... ])
+            >>> seq_model.ask([{"role": "user", "content": "test1"}])
+            'First response'
+            >>> seq_model.ask([{"role": "user", "content": "test2"}])
+            'Second response'
+            >>> seq_model.ask([{"role": "user", "content": "test3"}])
+            'Third response'
+        """
+        if not responses:
+            raise ValueError("Response sequence cannot be empty")
+
+        sequence = FakeResponseSequence(responses)
+
+        # Create a stateful wrapper that maintains the sequence state
+        class _SequenceWrapper:
+            def __init__(self, initial_sequence: FakeResponseSequence):
+                self._sequence = initial_sequence
+
+            def rule_check(self, messages: List[dict], **params) -> bool:
+                return self._sequence.rule_check(messages, **params)
+
+            def response(self, messages: List[dict], **params) -> Tuple[str, str]:
+                result = self._sequence.response(messages, **params)
+                # Advance the sequence for next call
+                self._sequence = self._sequence.advance()
+                return result
+
+            def __repr__(self) -> str:
+                return f"_SequenceWrapper({self._sequence})"
+
+        wrapper = _SequenceWrapper(sequence)
+        return self.response_when(wrapper.rule_check, wrapper.response)
 
     def clear_rules(self) -> 'FakeLLMModel':
         """
