@@ -11,7 +11,7 @@ setup configuration and package distribution.
 __TITLE__ = "hbllmutils"
 
 #: Version of this project.
-__VERSION__ = "0.1.0"
+__VERSION__ = "0.2.0"
 
 #: Short description of the project, will be included in ``setup.py``.
 __DESCRIPTION__ = ('A Python utility library for streamlined Large Language Model interactions '
