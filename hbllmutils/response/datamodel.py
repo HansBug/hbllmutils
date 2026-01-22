@@ -1,15 +1,22 @@
 """
-This module provides functionality for creating and managing LLM tasks that work with structured data models.
+Data model-based LLM task module.
 
-It includes classes and functions for:
-- Creating LLM tasks that parse and validate responses against data models
-- Generating format prompts for data models
-- Managing task requirements and validation logic
+This module provides functionality for creating and managing LLM tasks that parse and validate
+responses against structured data models. It supports both Pydantic models and dataclasses,
+with automatic prompt generation and validation capabilities.
 
-The main components are:
-- DataModelLLMTask: A task class that handles parsing and validation of LLM responses
-- create_datamodel_task: Factory function for creating data model tasks with proper configuration
+Key Features:
+    - Structured data validation using Pydantic or dataclasses
+    - Automatic format prompt generation
+    - Sample-based learning support
+    - Retry mechanism for failed validations
+    - JSON parsing and validation
+
+Main Components:
+    - DataModelLLMTask: Core task class for model-based validation
+    - create_datamodel_task: Factory function for creating configured tasks
 """
+
 import dataclasses
 import io
 import json
@@ -86,7 +93,7 @@ class DataModelLLMTask(ParsableLLMTask):
 
 
 @lru_cache()
-def _ask_for_format_prompt(pg_task: LLMTask):
+def _ask_for_format_prompt(pg_task: LLMTask) -> str:
     """
     Get the format prompt from a prompt generation task with caching.
     
@@ -110,7 +117,7 @@ def _get_format_prompt(
         datamodel_class: type,
         prompt_generation_model: LLMModel,
         related_datamodel_classes: Optional[List[type]] = None,
-):
+) -> str:
     """
     Generate a format prompt for a given data model class.
     
@@ -150,7 +157,7 @@ def create_datamodel_task(
         prompt_generation_model: Optional[LLMModel] = None,
         fn_parse_and_validate: Optional[Callable[[Any], Any]] = None,
         fn_dump_json: Optional[Callable[[Any], Any]] = None,
-):
+) -> DataModelLLMTask:
     """
     Create a DataModelLLMTask with configured prompts and validation.
     
