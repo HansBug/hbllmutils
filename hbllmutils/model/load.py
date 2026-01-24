@@ -10,7 +10,7 @@ from typing import Optional
 from .remote import RemoteLLMModel
 
 
-def load_llm_model(
+def load_llm_model_from_config(
         config_file_or_dir: Optional[str] = None,
         base_url: Optional[str] = None,
         api_token: Optional[str] = None,
@@ -44,17 +44,17 @@ def load_llm_model(
 
     Example::
         >>> # Load model from config file
-        >>> model = load_llm_model(config_file_or_dir='./config')
+        >>> model = load_llm_model_from_config(config_file_or_dir='./config')
         
         >>> # Load model with explicit parameters
-        >>> model = load_llm_model(
+        >>> model = load_llm_model_from_config(
         ...     base_url='https://api.example.com',
         ...     api_token='your-token',
         ...     model_name='gpt-4'
         ... )
         
         >>> # Load model from config with overrides
-        >>> model = load_llm_model(
+        >>> model = load_llm_model_from_config(
         ...     config_file_or_dir='./config',
         ...     model_name='gpt-4',
         ...     base_url='https://custom-api.example.com'

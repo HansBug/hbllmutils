@@ -18,7 +18,7 @@ Main Components:
 
 Example::
     >>> from pydantic import BaseModel
-    >>> from hbllmutils.model import load_llm_model
+    >>> from hbllmutils.model import load_llm_model_from_config
     >>> from hbllmutils.response import create_datamodel_task
     >>> 
     >>> class Person(BaseModel):
@@ -28,7 +28,7 @@ Example::
     ...     skin_color: str  # use readable color
     ...     appearance_desc: str  # a line of text for description of this guy
     >>> 
-    >>> model = load_llm_model(model_name='gpt-4o')
+    >>> model = load_llm_model_from_config(model_name='gpt-4o')
     >>> print(f"Loaded Model: {model}")
     >>> 
     >>> task = create_datamodel_task(

@@ -6,9 +6,9 @@ hbllmutils.model.load
 .. automodule:: hbllmutils.model.load
 
 
-load\_llm\_model
+load\_llm\_model\_from\_config
 -----------------------------------------------------
 
-.. autofunction:: load_llm_model
+.. autofunction:: load_llm_model_from_config
 
 
