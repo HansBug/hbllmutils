@@ -16,7 +16,7 @@ from typing import List, Union, Optional
 
 from tqdm import tqdm
 
-from ..model import LLMModel
+from ..model import LLMModel, load_llm_model, LLMModelTyping
 
 
 @dataclass
@@ -122,7 +122,7 @@ class BinaryTest:
         """
         raise NotImplementedError  # pragma: no cover
 
-    def test(self, model: LLMModel, n: int = 1, silent: bool = False, **params) \
+    def test(self, model: LLMModelTyping, n: int = 1, silent: bool = False, **params) \
             -> Union[BinaryTestResult, MultiBinaryTestResult]:
         """
         Run the binary test one or multiple times on the given model.
@@ -131,8 +131,8 @@ class BinaryTest:
         If n>1, runs multiple tests and returns a MultiBinaryTestResult with
         aggregated statistics.
 
-        :param model: The language model to test.
-        :type model: LLMModel
+        :param model: The language model to test. Can be a model instance or a model identifier.
+        :type model: LLMModelTyping
         :param n: Number of times to run the test, defaults to 1.
         :type n: int
         :param silent: If True, suppresses the progress bar, defaults to False.
@@ -149,6 +149,7 @@ class BinaryTest:
             >>> print(f"Pass rate: {result.passed_ratio}")
             Pass rate: 0.8
         """
+        model = load_llm_model(model)
         if n == 1:
             return self._single_test(model=model, **params)
         else:

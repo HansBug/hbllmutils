@@ -6,10 +6,10 @@ hbllmutils.model.load
 .. automodule:: hbllmutils.model.load
 
 
-ModelTyping
+LLMModelTyping
 -----------------------------------------------------
 
-.. autodata:: ModelTyping
+.. autodata:: LLMModelTyping
 
 
 load\_llm\_model\_from\_config

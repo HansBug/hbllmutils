@@ -3,6 +3,13 @@ This module provides functionality for loading Large Language Model (LLM) config
 
 The module handles loading LLM configurations from config files or directories, and creates remote model instances
 with appropriate parameters. It supports both pre-configured models and dynamically specified configurations.
+
+Main Functions:
+    - load_llm_model_from_config: Load LLM model with specified configuration from config file or parameters
+    - load_llm_model: Convenience function to load LLM model from various input types
+
+Type Aliases:
+    - LLMModelTyping: Union type for model input (str or LLMModel instance)
 """
 
 from typing import Optional, Union
@@ -103,10 +110,10 @@ def load_llm_model_from_config(
 
 
 #: Type alias for model input, which can be either a string (model name) or an LLMModel instance.
-ModelTyping = Union[str, LLMModel]
+LLMModelTyping = Union[str, LLMModel]
 
 
-def load_llm_model(model: Optional[ModelTyping] = None) -> LLMModel:
+def load_llm_model(model: Optional[LLMModelTyping] = None) -> LLMModel:
     """
     Load a Large Language Model from various input types.
 
@@ -118,7 +125,7 @@ def load_llm_model(model: Optional[ModelTyping] = None) -> LLMModel:
         - A string representing the model name to load from configuration
         - An LLMModel instance to use directly
         - None to load the default model from configuration
-    :type model: Optional[ModelTyping]
+    :type model: Optional[LLMModelTyping]
 
     :return: An initialized LLM model instance.
     :rtype: LLMModel

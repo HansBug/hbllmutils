@@ -82,7 +82,7 @@ from .code import extract_code, parse_json
 from .parsable import ParsableLLMTask
 from ..history import LLMHistory
 from ..meta import create_datamodel_prompt_generation_task
-from ..model import LLMModel, LLMTask
+from ..model import LLMModel, LLMTask, LLMModelTyping, load_llm_model
 
 
 class DataModelLLMTask(ParsableLLMTask):
@@ -235,12 +235,12 @@ def _get_format_prompt(
 
 
 def create_datamodel_task(
-        model: LLMModel,
+        model: LLMModelTyping,
         datamodel_class: type,
         task_requirements: str,
         samples: Optional[List[Tuple[str, Any]]] = None,
         related_datamodel_classes: Optional[List[type]] = None,
-        prompt_generation_model: Optional[LLMModel] = None,
+        prompt_generation_model: Optional[LLMModelTyping] = None,
         fn_parse_and_validate: Optional[Callable[[Any], Any]] = None,
         fn_dump_json: Optional[Callable[[Any], Any]] = None,
 ) -> DataModelLLMTask:
@@ -258,7 +258,7 @@ def create_datamodel_task(
     you can provide your own parsing and serialization functions.
     
     :param model: The LLM model to use for the main task.
-    :type model: LLMModel
+    :type model: ModelTyping
     :param datamodel_class: The data model class that defines the expected output structure.
     :type datamodel_class: type
     :param task_requirements: Description of what the task should accomplish.
@@ -268,7 +268,7 @@ def create_datamodel_task(
     :param related_datamodel_classes: Optional list of related data model classes for context, defaults to None.
     :type related_datamodel_classes: Optional[List[type]]
     :param prompt_generation_model: Optional separate model for prompt generation, defaults to None (uses main model).
-    :type prompt_generation_model: Optional[LLMModel]
+    :type prompt_generation_model: Optional[ModelTyping]
     :param fn_parse_and_validate: Optional custom parsing and validation function, defaults to None.
     :type fn_parse_and_validate: Optional[Callable[[Any], Any]]
     :param fn_dump_json: Optional custom function to convert data model instances to JSON-serializable dicts, defaults to None.
@@ -323,7 +323,7 @@ def create_datamodel_task(
     format_prompt = textwrap.dedent(_get_format_prompt(
         datamodel_class=datamodel_class,
         related_datamodel_classes=related_datamodel_classes,
-        prompt_generation_model=prompt_generation_model or model,
+        prompt_generation_model=load_llm_model(prompt_generation_model or model),
     )).strip()
     task_requirements = textwrap.dedent(task_requirements).strip()
 
@@ -364,7 +364,7 @@ def create_datamodel_task(
 
     history = LLMHistory().with_system_prompt(system_prompt)
     return DataModelLLMTask(
-        model=model,
+        model=load_llm_model(model),
         history=history,
         fn_parse_and_validate=fn_parse_and_validate
     )
