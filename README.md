@@ -115,10 +115,10 @@ First, ensure you have a `.llmconfig.yaml` file set up as described above in you
 ```python
 import sys
 from hbllmutils.history import LLMHistory
-from hbllmutils.model import load_llm_model
+from hbllmutils.model import load_llm_model_from_config
 
 # Load the LLM model named 'deepseek-V3' from your .llmconfig.yaml
-model = load_llm_model(model_name='deepseek-V3')
+model = load_llm_model_from_config(model_name='deepseek-V3')
 
 # Initialize conversation history with a system prompt and a user message
 history = LLMHistory().with_system_prompt(
@@ -169,7 +169,7 @@ from pprint import pprint
 from hbutils.logging import ColoredFormatter
 from pydantic import BaseModel
 
-from hbllmutils.model import load_llm_model
+from hbllmutils.model import load_llm_model_from_config
 from hbllmutils.response import create_datamodel_task
 
 # Set up colored logging (optional, but recommended)
@@ -189,7 +189,7 @@ class Person(BaseModel):
 
 
 # Load your LLM model
-model = load_llm_model(model_name='gpt-4o')
+model = load_llm_model_from_config(model_name='gpt-4o')
 print(f"Loaded Model: {model}")
 
 # 1. Define the task

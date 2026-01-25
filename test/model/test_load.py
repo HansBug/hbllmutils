@@ -28,6 +28,25 @@ def sample_model_params():
     }
 
 
+@pytest.fixture
+def real_remote_model():
+    """Create a real RemoteLLMModel instance for testing"""
+    from hbllmutils.model.remote import RemoteLLMModel
+    return RemoteLLMModel(
+        base_url='https://api.example.com',
+        api_token='test-token',
+        model_name='gpt-4'
+    )
+
+
+@pytest.fixture
+def mock_llm_model():
+    """Create a mock LLMModel instance"""
+    from hbllmutils.model.base import LLMModel
+    model = Mock(spec=LLMModel)
+    return model
+
+
 @pytest.mark.unittest
 class TestLoadLlmModel:
 
@@ -38,8 +57,8 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(config_file_or_dir='./config')
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(config_file_or_dir='./config')
 
             mock_config_class.open.assert_called_once_with('./config')
             mock_llm_config.get_model_params.assert_called_once_with(model_name=None)
@@ -53,8 +72,8 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model()
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config()
 
             mock_config_class.open.assert_called_once_with('.')
             mock_llm_config.get_model_params.assert_called_once_with(model_name=None)
@@ -66,8 +85,8 @@ class TestLoadLlmModel:
                 patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(
                 base_url='https://api.example.com',
                 api_token='test-token',
                 model_name='gpt-4'
@@ -88,8 +107,8 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.side_effect = KeyError('Model not found')
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(
                 config_file_or_dir='./config',
                 base_url='https://api.example.com',
                 api_token='test-token',
@@ -110,8 +129,8 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params.copy()
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(
                 config_file_or_dir='./config',
                 base_url='https://override.example.com',
                 api_token='override-token',
@@ -132,8 +151,8 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params.copy()
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(
                 config_file_or_dir='./config',
                 max_tokens=100,
                 temperature=0.5
@@ -148,45 +167,45 @@ class TestLoadLlmModel:
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
+            from hbllmutils.model import load_llm_model_from_config
             with pytest.raises(ValueError, match="API token must be specified"):
-                load_llm_model(base_url='https://api.example.com', model_name='gpt-4')
+                load_llm_model_from_config(base_url='https://api.example.com', model_name='gpt-4')
 
     def test_load_model_base_url_with_none_api_token_raises_error(self):
         """Test that providing base_url with None api_token raises ValueError"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
+            from hbllmutils.model import load_llm_model_from_config
             with pytest.raises(ValueError, match="API token must be specified"):
-                load_llm_model(base_url='https://api.example.com', api_token=None, model_name='gpt-4')
+                load_llm_model_from_config(base_url='https://api.example.com', api_token=None, model_name='gpt-4')
 
     def test_load_model_base_url_without_model_name_raises_error(self):
         """Test that providing base_url without model_name raises ValueError"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
+            from hbllmutils.model import load_llm_model_from_config
             with pytest.raises(ValueError, match="Model name must be non-empty"):
-                load_llm_model(base_url='https://api.example.com', api_token='test-token')
+                load_llm_model_from_config(base_url='https://api.example.com', api_token='test-token')
 
     def test_load_model_base_url_with_empty_model_name_raises_error(self):
         """Test that providing base_url with empty model_name raises ValueError"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
+            from hbllmutils.model import load_llm_model_from_config
             with pytest.raises(ValueError, match="Model name must be non-empty"):
-                load_llm_model(base_url='https://api.example.com', api_token='test-token', model_name='')
+                load_llm_model_from_config(base_url='https://api.example.com', api_token='test-token', model_name='')
 
     def test_load_model_no_config_no_base_url_raises_runtime_error(self):
         """Test that no config and no base_url raises RuntimeError"""
         with patch('hbllmutils.manage.LLMConfig') as mock_config_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
+            from hbllmutils.model import load_llm_model_from_config
             with pytest.raises(RuntimeError, match="No model parameters specified"):
-                load_llm_model()
+                load_llm_model_from_config()
 
     def test_load_model_config_keyerror_no_base_url_raises_runtime_error(self, mock_llm_config):
         """Test that config KeyError without base_url raises RuntimeError"""
@@ -194,9 +213,9 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.side_effect = KeyError('Model not found')
 
-            from hbllmutils.model import load_llm_model
+            from hbllmutils.model import load_llm_model_from_config
             with pytest.raises(RuntimeError, match="No model parameters specified"):
-                load_llm_model(config_file_or_dir='./config')
+                load_llm_model_from_config(config_file_or_dir='./config')
 
     def test_load_model_with_model_name_parameter(self, mock_llm_config, mock_llm_remote_model, sample_model_params):
         """Test loading model with specific model_name parameter"""
@@ -205,8 +224,8 @@ class TestLoadLlmModel:
             mock_config_class.open.return_value = mock_llm_config
             mock_llm_config.get_model_params.return_value = sample_model_params
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(config_file_or_dir='./config', model_name='specific-model')
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(config_file_or_dir='./config', model_name='specific-model')
 
             mock_llm_config.get_model_params.assert_called_once_with(model_name='specific-model')
             mock_model_class.assert_called_once_with(**sample_model_params)
@@ -217,8 +236,8 @@ class TestLoadLlmModel:
                 patch('hbllmutils.model.load.RemoteLLMModel', return_value=mock_llm_remote_model) as mock_model_class:
             mock_config_class.open.side_effect = FileNotFoundError()
 
-            from hbllmutils.model import load_llm_model
-            result = load_llm_model(
+            from hbllmutils.model import load_llm_model_from_config
+            result = load_llm_model_from_config(
                 base_url='https://api.example.com',
                 api_token='test-token',
                 model_name='gpt-4',
@@ -234,3 +253,69 @@ class TestLoadLlmModel:
                 'max_tokens': 150
             }
             mock_model_class.assert_called_once_with(**expected_params)
+
+    def test_load_llm_model_with_string_model_name(self):
+        """Test load_llm_model with string model name"""
+        with patch('hbllmutils.model.load.load_llm_model_from_config') as mock_load_from_config:
+            mock_model = Mock()
+            mock_load_from_config.return_value = mock_model
+
+            from hbllmutils.model import load_llm_model
+            result = load_llm_model('gpt-4')
+
+            mock_load_from_config.assert_called_once_with(model_name='gpt-4')
+            assert result == mock_model
+
+    def test_load_llm_model_with_llm_model_instance(self, real_remote_model):
+        """Test load_llm_model with LLMModel instance"""
+        from hbllmutils.model import load_llm_model
+        result = load_llm_model(real_remote_model)
+
+        assert result is real_remote_model
+
+    def test_load_llm_model_with_none(self):
+        """Test load_llm_model with None (default model)"""
+        with patch('hbllmutils.model.load.load_llm_model_from_config') as mock_load_from_config:
+            mock_model = Mock()
+            mock_load_from_config.return_value = mock_model
+
+            from hbllmutils.model import load_llm_model
+            result = load_llm_model(None)
+
+            mock_load_from_config.assert_called_once_with()
+            assert result == mock_model
+
+    def test_load_llm_model_with_no_argument(self):
+        """Test load_llm_model with no argument (default model)"""
+        with patch('hbllmutils.model.load.load_llm_model_from_config') as mock_load_from_config:
+            mock_model = Mock()
+            mock_load_from_config.return_value = mock_model
+
+            from hbllmutils.model import load_llm_model
+            result = load_llm_model()
+
+            mock_load_from_config.assert_called_once_with()
+            assert result == mock_model
+
+    def test_load_llm_model_with_invalid_type(self):
+        """Test load_llm_model with invalid type raises TypeError"""
+        from hbllmutils.model import load_llm_model
+
+        with pytest.raises(TypeError, match="Model must be a string, LLMModel instance, or None, but got int: 123"):
+            load_llm_model(123)
+
+    def test_load_llm_model_with_dict_raises_type_error(self):
+        """Test load_llm_model with dict raises TypeError"""
+        from hbllmutils.model import load_llm_model
+
+        test_dict = {'model': 'gpt-4'}
+        with pytest.raises(TypeError, match="Model must be a string, LLMModel instance, or None, but got dict"):
+            load_llm_model(test_dict)
+
+    def test_load_llm_model_with_list_raises_type_error(self):
+        """Test load_llm_model with list raises TypeError"""
+        from hbllmutils.model import load_llm_model
+
+        test_list = ['gpt-4']
+        with pytest.raises(TypeError, match="Model must be a string, LLMModel instance, or None, but got list"):
+            load_llm_model(test_list)

@@ -5,12 +5,13 @@ The module handles loading LLM configurations from config files or directories, 
 with appropriate parameters. It supports both pre-configured models and dynamically specified configurations.
 """
 
-from typing import Optional
+from typing import Optional, Union
 
+from .base import LLMModel
 from .remote import RemoteLLMModel
 
 
-def load_llm_model(
+def load_llm_model_from_config(
         config_file_or_dir: Optional[str] = None,
         base_url: Optional[str] = None,
         api_token: Optional[str] = None,
@@ -44,17 +45,17 @@ def load_llm_model(
 
     Example::
         >>> # Load model from config file
-        >>> model = load_llm_model(config_file_or_dir='./config')
+        >>> model = load_llm_model_from_config(config_file_or_dir='./config')
         
         >>> # Load model with explicit parameters
-        >>> model = load_llm_model(
+        >>> model = load_llm_model_from_config(
         ...     base_url='https://api.example.com',
         ...     api_token='your-token',
         ...     model_name='gpt-4'
         ... )
         
         >>> # Load model from config with overrides
-        >>> model = load_llm_model(
+        >>> model = load_llm_model_from_config(
         ...     config_file_or_dir='./config',
         ...     model_name='gpt-4',
         ...     base_url='https://custom-api.example.com'
@@ -99,3 +100,51 @@ def load_llm_model(
         raise RuntimeError('No model parameters specified and no local configuration for falling back.')
 
     return RemoteLLMModel(**llm_params)
+
+
+#: Type alias for model input, which can be either a string (model name) or an LLMModel instance.
+ModelTyping = Union[str, LLMModel]
+
+
+def load_llm_model(model: Optional[ModelTyping] = None) -> LLMModel:
+    """
+    Load a Large Language Model from various input types.
+
+    This is a convenience function that handles different types of model specifications.
+    It can load a model by name from configuration, use an existing model instance,
+    or load the default model from configuration.
+
+    :param model: The model specification. Can be:
+        - A string representing the model name to load from configuration
+        - An LLMModel instance to use directly
+        - None to load the default model from configuration
+    :type model: Optional[ModelTyping]
+
+    :return: An initialized LLM model instance.
+    :rtype: LLMModel
+
+    :raises TypeError: When model is not a string, LLMModel instance, or None.
+    :raises ValueError: When model name is invalid or not found in configuration.
+    :raises RuntimeError: When no model parameters are specified and no local configuration is available.
+
+    Example::
+        >>> # Load model by name from configuration
+        >>> model = load_llm_model('gpt-4')
+        
+        >>> # Use an existing model instance
+        >>> existing_model = RemoteLLMModel(base_url='...', api_token='...', model_name='gpt-4')
+        >>> model = load_llm_model(existing_model)
+        
+        >>> # Load default model from configuration
+        >>> model = load_llm_model()
+    """
+    model = model or None
+    if isinstance(model, str):
+        return load_llm_model_from_config(model_name=model)
+    elif isinstance(model, LLMModel):
+        return model
+    elif model is None:
+        return load_llm_model_from_config()
+    else:
+        raise TypeError(
+            f'Model must be a string, LLMModel instance, or None, but got {type(model).__name__}: {model!r}')
