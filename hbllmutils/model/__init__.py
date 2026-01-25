@@ -21,7 +21,7 @@ Example::
 
 from .base import LLMModel
 from .fake import FakeResponseStream, FakeLLMModel
-from .load import load_llm_model_from_config, load_llm_model, ModelTyping
+from .load import load_llm_model_from_config, load_llm_model, LLMModelTyping
 from .remote import RemoteLLMModel
 from .stream import ResponseStream, OpenAIResponseStream
 from .task import LLMTask

@@ -10,11 +10,11 @@ from typing import Optional, List
 
 from .prompt import create_meta_prompt_for_datamodel
 from ...history import LLMHistory
-from ...model import LLMModel, LLMTask
+from ...model import LLMTask, load_llm_model, LLMModelTyping
 
 
 def create_datamodel_prompt_generation_task(
-        model: LLMModel,
+        model: LLMModelTyping,
         datamodel_class: type,
         related_datamodel_classes: Optional[List[type]] = None,
 ) -> LLMTask:
@@ -26,8 +26,9 @@ def create_datamodel_prompt_generation_task(
     optionally related datamodel classes, then wraps it in an LLM task with appropriate
     history context.
 
-    :param model: The LLM model to use for the task.
-    :type model: LLMModel
+    :param model: The LLM model to use for the task. Can be a model instance, model name,
+        or any valid LLMModelTyping value.
+    :type model: LLMModelTyping
     :param datamodel_class: The datamodel class for which to generate prompts.
     :type datamodel_class: type
     :param related_datamodel_classes: Optional list of related datamodel classes to
@@ -40,13 +41,14 @@ def create_datamodel_prompt_generation_task(
     Example::
         >>> from dataclasses import dataclass
         >>> @dataclass
-        >>> class MyDataModel:
-        ...     pass
-        >>> task = create_datamodel_prompt_generation_task(model, MyDataModel)
+        ... class MyDataModel:
+        ...     name: str
+        ...     age: int
+        >>> task = create_datamodel_prompt_generation_task('gpt-4', MyDataModel)
         >>> # task is now ready to be executed
     """
     return LLMTask(
-        model=model,
+        model=load_llm_model(model),
         history=LLMHistory().with_user_message(
             create_meta_prompt_for_datamodel(
                 datamodel_class=datamodel_class,

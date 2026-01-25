@@ -18,7 +18,7 @@ from typing import Union
 
 from .base import BinaryTest, BinaryTestResult, MultiBinaryTestResult
 from ..history import LLMHistory
-from ..model import LLMModel
+from ..model import LLMModel, LLMModelTyping
 
 
 class _HelloTest(BinaryTest):
@@ -66,7 +66,7 @@ class _HelloTest(BinaryTest):
         )
 
 
-def hello(model: LLMModel, n: int = 1) -> Union[MultiBinaryTestResult, BinaryTestResult]:
+def hello(model: LLMModelTyping, n: int = 1) -> Union[MultiBinaryTestResult, BinaryTestResult]:
     """
     Perform a hello test on an LLM model.
     
@@ -75,7 +75,7 @@ def hello(model: LLMModel, n: int = 1) -> Union[MultiBinaryTestResult, BinaryTes
     statistical results.
     
     :param model: The LLM model to test.
-    :type model: LLMModel
+    :type model: LLMModelTyping
     :param n: The number of times to run the test. Defaults to 1.
     :type n: int
     
@@ -144,7 +144,7 @@ class _PingTest(BinaryTest):
         )
 
 
-def ping(model: LLMModel, n: int = 1) -> Union[MultiBinaryTestResult, BinaryTestResult]:
+def ping(model: LLMModelTyping, n: int = 1) -> Union[MultiBinaryTestResult, BinaryTestResult]:
     """
     Perform a ping-pong test on an LLM model.
     
@@ -153,7 +153,7 @@ def ping(model: LLMModel, n: int = 1) -> Union[MultiBinaryTestResult, BinaryTest
     test once or multiple times to gather statistical results.
     
     :param model: The LLM model to test.
-    :type model: LLMModel
+    :type model: LLMModelTyping
     :param n: The number of times to run the test. Defaults to 1.
     :type n: int
     
