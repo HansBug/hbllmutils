@@ -5,8 +5,9 @@ The module handles loading LLM configurations from config files or directories, 
 with appropriate parameters. It supports both pre-configured models and dynamically specified configurations.
 """
 
-from typing import Optional
+from typing import Optional, Union
 
+from .base import LLMModel
 from .remote import RemoteLLMModel
 
 
@@ -99,3 +100,19 @@ def load_llm_model_from_config(
         raise RuntimeError('No model parameters specified and no local configuration for falling back.')
 
     return RemoteLLMModel(**llm_params)
+
+
+ModelTyping = Union[str, LLMModel]
+
+
+def load_llm_model(model: Optional[ModelTyping] = None):
+    model = model or None
+    if isinstance(model, str):
+        return load_llm_model_from_config(model_name=model)
+    elif isinstance(model, LLMModel):
+        return model
+    elif model is None:
+        return load_llm_model_from_config()
+    else:
+        raise TypeError(
+            f'Model must be a string, LLMModel instance, or None, but got {type(model).__name__}: {model!r}')
