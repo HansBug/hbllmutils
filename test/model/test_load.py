@@ -28,6 +28,25 @@ def sample_model_params():
     }
 
 
+@pytest.fixture
+def real_remote_model():
+    """Create a real RemoteLLMModel instance for testing"""
+    from hbllmutils.model.remote import RemoteLLMModel
+    return RemoteLLMModel(
+        base_url='https://api.example.com',
+        api_token='test-token',
+        model_name='gpt-4'
+    )
+
+
+@pytest.fixture
+def mock_llm_model():
+    """Create a mock LLMModel instance"""
+    from hbllmutils.model.base import LLMModel
+    model = Mock(spec=LLMModel)
+    return model
+
+
 @pytest.mark.unittest
 class TestLoadLlmModel:
 
@@ -234,3 +253,69 @@ class TestLoadLlmModel:
                 'max_tokens': 150
             }
             mock_model_class.assert_called_once_with(**expected_params)
+
+    def test_load_llm_model_with_string_model_name(self):
+        """Test load_llm_model with string model name"""
+        with patch('hbllmutils.model.load.load_llm_model_from_config') as mock_load_from_config:
+            mock_model = Mock()
+            mock_load_from_config.return_value = mock_model
+
+            from hbllmutils.model import load_llm_model
+            result = load_llm_model('gpt-4')
+
+            mock_load_from_config.assert_called_once_with(model_name='gpt-4')
+            assert result == mock_model
+
+    def test_load_llm_model_with_llm_model_instance(self, real_remote_model):
+        """Test load_llm_model with LLMModel instance"""
+        from hbllmutils.model import load_llm_model
+        result = load_llm_model(real_remote_model)
+
+        assert result is real_remote_model
+
+    def test_load_llm_model_with_none(self):
+        """Test load_llm_model with None (default model)"""
+        with patch('hbllmutils.model.load.load_llm_model_from_config') as mock_load_from_config:
+            mock_model = Mock()
+            mock_load_from_config.return_value = mock_model
+
+            from hbllmutils.model import load_llm_model
+            result = load_llm_model(None)
+
+            mock_load_from_config.assert_called_once_with()
+            assert result == mock_model
+
+    def test_load_llm_model_with_no_argument(self):
+        """Test load_llm_model with no argument (default model)"""
+        with patch('hbllmutils.model.load.load_llm_model_from_config') as mock_load_from_config:
+            mock_model = Mock()
+            mock_load_from_config.return_value = mock_model
+
+            from hbllmutils.model import load_llm_model
+            result = load_llm_model()
+
+            mock_load_from_config.assert_called_once_with()
+            assert result == mock_model
+
+    def test_load_llm_model_with_invalid_type(self):
+        """Test load_llm_model with invalid type raises TypeError"""
+        from hbllmutils.model import load_llm_model
+
+        with pytest.raises(TypeError, match="Model must be a string, LLMModel instance, or None, but got int: 123"):
+            load_llm_model(123)
+
+    def test_load_llm_model_with_dict_raises_type_error(self):
+        """Test load_llm_model with dict raises TypeError"""
+        from hbllmutils.model import load_llm_model
+
+        test_dict = {'model': 'gpt-4'}
+        with pytest.raises(TypeError, match="Model must be a string, LLMModel instance, or None, but got dict"):
+            load_llm_model(test_dict)
+
+    def test_load_llm_model_with_list_raises_type_error(self):
+        """Test load_llm_model with list raises TypeError"""
+        from hbllmutils.model import load_llm_model
+
+        test_list = ['gpt-4']
+        with pytest.raises(TypeError, match="Model must be a string, LLMModel instance, or None, but got list"):
+            load_llm_model(test_list)
