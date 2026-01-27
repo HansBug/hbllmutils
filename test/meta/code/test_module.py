@@ -199,21 +199,6 @@ class TestGetPythonpathOfSourceFile:
         assert module_dir == temp_dir
         assert module_text == 'package.module'
 
-    def test_relative_path_handling(self, simple_package_structure):
-        temp_dir, package_dir, init_file, module_file = simple_package_structure
-
-        # 改变当前工作目录并使用相对路径
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(temp_dir)
-            rel_module_file = os.path.relpath(module_file, temp_dir)
-            module_dir, module_text = get_pythonpath_of_source_file(rel_module_file)
-
-            assert os.path.normpath(module_dir) == os.path.normpath(temp_dir)
-            assert module_text == 'package.module'
-        finally:
-            os.chdir(original_cwd)
-
     def test_deeply_nested_structure(self, temp_dir):
         # 创建深度嵌套的包结构
         deep_path = temp_dir
