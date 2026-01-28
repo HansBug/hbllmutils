@@ -56,7 +56,7 @@ class ImportStatement:
     line: int = 0
     col_offset: int = 0
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         """
         Return a Python-readable representation of the import statement.
 
@@ -65,7 +65,7 @@ class ImportStatement:
 
         Example::
             >>> stmt = ImportStatement(module='os', alias='operating_system')
-            >>> repr(stmt)
+            >>> str(stmt)
             'import os as operating_system'
         """
         if self.alias:
@@ -146,7 +146,7 @@ class FromImportStatement:
     line: int = 0
     col_offset: int = 0
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         """
         Return a Python-readable representation of the from-import statement.
 
@@ -158,10 +158,10 @@ class FromImportStatement:
 
         Example::
             >>> stmt = FromImportStatement(module='typing', name='List', level=0)
-            >>> repr(stmt)
+            >>> str(stmt)
             'from typing import List'
             >>> stmt = FromImportStatement(module='module', name='func', level=2)
-            >>> repr(stmt)
+            >>> str(stmt)
             'from ..module import func'
         """
         # Build the relative import dot prefix
@@ -181,6 +181,10 @@ class FromImportStatement:
             return f"from {module_str} import {self.name}{alias_str}"
         else:
             return f"from . import {self.name}{alias_str}"
+
+    @property
+    def is_relative(self) -> bool:
+        return self.level > 0 or not self.module
 
 
 ImportStatementTyping = Union[ImportStatement, FromImportStatement]
