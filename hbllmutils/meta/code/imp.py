@@ -184,6 +184,23 @@ class FromImportStatement:
 
     @property
     def is_relative(self) -> bool:
+        """
+        Check if this is a relative import statement.
+
+        A relative import is one that uses dots to indicate the current and parent
+        packages, or has no module specified (implying current package).
+
+        :return: True if this is a relative import, False otherwise.
+        :rtype: bool
+
+        Example::
+            >>> stmt = FromImportStatement(module='typing', name='List', level=0)
+            >>> stmt.is_relative
+            False
+            >>> stmt = FromImportStatement(module='module', name='func', level=1)
+            >>> stmt.is_relative
+            True
+        """
         return self.level > 0 or not self.module
 
 
