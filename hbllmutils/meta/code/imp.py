@@ -22,8 +22,11 @@ Example::
 """
 
 import ast
+import inspect
 from dataclasses import dataclass
 from typing import Optional, List, Union
+
+from hbutils.reflection import quick_import_object
 
 
 @dataclass
@@ -69,6 +72,44 @@ class ImportStatement:
             return f"import {self.module} as {self.alias}"
         else:
             return f"import {self.module}"
+
+    @property
+    def root_module(self) -> str:
+        """
+        Get the root module name from a potentially nested module path.
+
+        For example, for 'import os.path', this returns 'os' instead of 'os.path'.
+
+        :return: The root module name.
+        :rtype: str
+
+        Example::
+            >>> stmt = ImportStatement(module='os.path')
+            >>> stmt.root_module
+            'os'
+        """
+        return self.module.split('.')[0]
+
+    @property
+    def module_file(self) -> str:
+        """
+        Get the source code file path of the imported module.
+
+        This property attempts to locate and return the file path where the
+        module's source code is defined.
+
+        :return: The file path of the module's source code.
+        :rtype: str
+
+        :raises TypeError: If the module is a built-in module without a source file.
+
+        Example::
+            >>> stmt = ImportStatement(module='os')
+            >>> stmt.module_file  # doctest: +SKIP
+            '/usr/lib/python3.x/os.py'
+        """
+        obj, _, _ = quick_import_object(self.module)
+        return inspect.getsourcefile(obj)
 
 
 @dataclass
