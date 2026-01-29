@@ -127,6 +127,21 @@ class ObjectInspect:
 
     @property
     def package_name(self) -> Optional[str]:
+        """
+        Get the package name containing the inspected object.
+
+        This property retrieves the package name by analyzing the source file path.
+        It relies on the get_package_name function from the module utility.
+
+        :return: The package name if the source file is available, otherwise None.
+        :rtype: Optional[str]
+
+        Example::
+            >>> # Assuming the object is from package 'mypackage'
+            >>> info = get_object_info(some_function)
+            >>> info.package_name
+            'mypackage'
+        """
         from .module import get_package_name
         if self.source_file is not None:
             return get_package_name(self.source_file)

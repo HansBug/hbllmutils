@@ -11,7 +11,25 @@ import re
 from typing import Tuple, Optional
 
 
-def _get_raw_pythonpath(source_file: str):
+def _get_raw_pythonpath(source_file: str) -> Tuple[str, str]:
+    """
+    Get the normalized absolute path and its package root directory.
+
+    This internal function normalizes the source file path and traverses up the
+    directory tree to find the package root by checking for __init__.py files.
+    The package root is identified as the first parent directory that does not
+    contain an __init__.py file.
+
+    :param source_file: The path to the Python source file.
+    :type source_file: str
+
+    :return: A tuple containing the normalized absolute source file path and the package root directory.
+    :rtype: Tuple[str, str]
+
+    Example::
+        >>> _get_raw_pythonpath('/path/to/project/package/module.py')
+        ('/path/to/project/package/module.py', '/path/to/project')
+    """
     source_file = os.path.normpath(os.path.abspath(source_file))
     module_dir = os.path.dirname(source_file)
     while os.path.exists(os.path.join(module_dir, '__init__.py')):
@@ -31,7 +49,8 @@ def get_package_name(source_file: str, pythonpath_dir: Optional[str] = None) -> 
     :param source_file: The absolute or relative path to the Python source file.
     :type source_file: str
     :param pythonpath_dir: The PYTHONPATH directory (package root) to calculate relative path from.
-    :type pythonpath_dir: str
+                          If not provided, it will be automatically determined.
+    :type pythonpath_dir: Optional[str]
 
     :return: The Python module import path (e.g., 'package.subpackage.module').
     :rtype: str
