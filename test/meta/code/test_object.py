@@ -79,6 +79,49 @@ def mock_object_inspect():
     )
 
 
+@pytest.fixture
+def temp_package_structure():
+    """Create a temporary package structure for testing."""
+    temp_dir = tempfile.mkdtemp()
+
+    # Create package structure
+    package_dir = os.path.join(temp_dir, 'testpackage')
+    os.makedirs(package_dir)
+
+    # Create __init__.py
+    init_file = os.path.join(package_dir, '__init__.py')
+    with open(init_file, 'w') as f:
+        f.write('# Package init\n')
+
+    # Create module file
+    module_file = os.path.join(package_dir, 'module.py')
+    with open(module_file, 'w') as f:
+        f.write('def test_func():\n    pass\n')
+
+    yield temp_dir, module_file
+
+    # Cleanup
+    import shutil
+    shutil.rmtree(temp_dir)
+
+
+@pytest.fixture
+def temp_file_with_encoding_issues():
+    """Create a temporary file that might have encoding issues."""
+    content = '''def test_function():
+    """A test function with special chars: àáâã."""
+    return 42
+'''
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        f.write(content)
+        temp_file = f.name
+
+    yield temp_file
+
+    # Cleanup
+    os.unlink(temp_file)
+
+
 @pytest.mark.unittest
 class TestObjectInspect:
 
@@ -198,6 +241,19 @@ class TestObjectInspect:
 
         assert obj_inspect.source_code is None
 
+    def test_source_code_property_with_empty_source_lines(self, sample_function):
+        """Test source_code property when source_lines is empty."""
+
+        obj_inspect = ObjectInspect(
+            object=sample_function,
+            source_file="/path/to/file.py",
+            start_line=1,
+            end_line=1,
+            source_lines=[]
+        )
+
+        assert obj_inspect.source_code == ""
+
     def test_source_file_code_property_with_file(self, temp_source_file, sample_function):
         """Test source_file_code property when source_file is available."""
 
@@ -226,6 +282,20 @@ class TestObjectInspect:
 
         assert obj_inspect.source_file_code is None
 
+    def test_source_file_code_property_with_encoding(self, temp_file_with_encoding_issues, sample_function):
+        """Test source_file_code property with files containing special characters."""
+
+        obj_inspect = ObjectInspect(
+            object=sample_function,
+            source_file=temp_file_with_encoding_issues,
+            start_line=1,
+            end_line=2,
+            source_lines=["def test():\n"]
+        )
+
+        file_content = obj_inspect.source_file_code
+        assert "àáâã" in file_content
+
     def test_has_source_property_with_source_lines(self, sample_function):
         """Test has_source property when source_lines is available."""
 
@@ -252,6 +322,68 @@ class TestObjectInspect:
 
         assert obj_inspect.has_source is False
 
+    def test_has_source_property_with_empty_source_lines(self, sample_function):
+        """Test has_source property when source_lines is empty list."""
+
+        obj_inspect = ObjectInspect(
+            object=sample_function,
+            source_file="/path/to/file.py",
+            start_line=1,
+            end_line=2,
+            source_lines=[]
+        )
+
+        assert obj_inspect.has_source is True
+
+    @patch('hbllmutils.meta.code.module.get_package_name')
+    def test_package_name_property_with_source_file(self, mock_get_package_name, sample_function):
+        """Test package_name property when source_file is available."""
+
+        mock_get_package_name.return_value = "test.package"
+
+        obj_inspect = ObjectInspect(
+            object=sample_function,
+            source_file="/path/to/file.py",
+            start_line=1,
+            end_line=2,
+            source_lines=["def test():\n"]
+        )
+
+        assert obj_inspect.package_name == "test.package"
+        mock_get_package_name.assert_called_once_with(obj_inspect.source_file)
+
+    def test_package_name_property_without_source_file(self, sample_function):
+        """Test package_name property when source_file is None."""
+
+        obj_inspect = ObjectInspect(
+            object=sample_function,
+            source_file=None,
+            start_line=1,
+            end_line=2,
+            source_lines=["def test():\n"]
+        )
+
+        assert obj_inspect.package_name is None
+
+    @patch('hbllmutils.meta.code.module.get_package_name')
+    def test_package_name_property_integration(self, mock_get_package_name, temp_package_structure, sample_function):
+        """Test package_name property with real package structure."""
+
+        temp_dir, module_file = temp_package_structure
+        mock_get_package_name.return_value = "testpackage.module"
+
+        obj_inspect = ObjectInspect(
+            object=sample_function,
+            source_file=module_file,
+            start_line=1,
+            end_line=2,
+            source_lines=["def test():\n"]
+        )
+
+        package_name = obj_inspect.package_name
+        assert package_name == "testpackage.module"
+        mock_get_package_name.assert_called_once()
+
     def test_get_object_info_with_function(self, sample_function):
         """Test get_object_info with a regular function."""
 
@@ -276,6 +408,19 @@ class TestObjectInspect:
         assert info.source_lines is not None
         assert info.has_source is True
 
+    def test_get_object_info_with_method(self, sample_class):
+        """Test get_object_info with a method."""
+
+        method = sample_class.method
+        info = get_object_info(method)
+
+        assert info.object == method
+        assert info.source_file is not None
+        assert info.start_line is not None
+        assert info.end_line is not None
+        assert info.source_lines is not None
+        assert info.has_source is True
+
     def test_get_object_info_with_builtin_function(self):
         """Test get_object_info with a built-in function."""
 
@@ -287,6 +432,32 @@ class TestObjectInspect:
         assert info.end_line is None
         assert info.source_lines is None
         assert info.has_source is False
+
+    def test_get_object_info_with_builtin_type(self):
+        """Test get_object_info with a built-in type."""
+
+        info = get_object_info(int)
+
+        assert info.object == int
+        assert info.source_file is None
+        assert info.start_line is None
+        assert info.end_line is None
+        assert info.source_lines is None
+        assert info.has_source is False
+
+    def test_get_object_info_with_lambda(self):
+        """Test get_object_info with a lambda function."""
+
+        lambda_func = lambda x: x + 1
+        info = get_object_info(lambda_func)
+
+        assert info.object == lambda_func
+        # Lambda functions should have source information in most cases
+        assert info.source_file is not None
+        assert info.start_line is not None
+        assert info.end_line is not None
+        assert info.source_lines is not None
+        assert info.has_source is True
 
     @patch('inspect.getfile')
     def test_get_object_info_getfile_raises_typeerror(self, mock_getfile, sample_function):
@@ -343,3 +514,44 @@ class TestObjectInspect:
         assert info.end_line == expected_end_line
         assert info.source_lines == source_lines
         assert info.start_line == start_line
+
+    @patch('inspect.getsourcelines')
+    def test_get_object_info_with_single_line_source(self, mock_getsourcelines, sample_function):
+        """Test get_object_info with single line source code."""
+
+        source_lines = ["lambda x: x + 1\n"]
+        start_line = 5
+        mock_getsourcelines.return_value = (source_lines, start_line)
+
+        info = get_object_info(sample_function)
+
+        assert info.start_line == 5
+        assert info.end_line == 5
+        assert info.source_lines == source_lines
+
+    @patch('inspect.getsourcelines')
+    def test_get_object_info_with_empty_source_lines(self, mock_getsourcelines, sample_function):
+        """Test get_object_info with empty source lines."""
+
+        source_lines = []
+        start_line = 1
+        mock_getsourcelines.return_value = (source_lines, start_line)
+
+        info = get_object_info(sample_function)
+
+        assert info.start_line == 1
+        assert info.end_line == 0  # start_line + len([]) - 1 = 0
+        assert info.source_lines == []
+
+    def test_get_object_info_preserves_object_reference(self):
+        """Test that get_object_info preserves the exact object reference."""
+
+        class CustomObject:
+            def __init__(self, value):
+                self.value = value
+
+        obj = CustomObject(42)
+        info = get_object_info(obj)
+
+        assert info.object is obj
+        assert info.object.value == 42
