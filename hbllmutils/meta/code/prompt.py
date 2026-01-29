@@ -1,15 +1,56 @@
+"""
+This module provides functionality for generating comprehensive code prompts for LLM analysis.
+
+It creates structured prompts containing source code and its dependencies, suitable for various
+LLM tasks such as documentation generation, unit testing, code analysis, and code understanding.
+The generated prompts include the primary source code, package information, and detailed
+dependency analysis with import statements and their implementations.
+"""
+
 import io
 
 from .module import get_package_name
 from .source import get_source_info
 
 
-def get_prompt_for_source_file(source_file: str, level: int = 2):
+def get_prompt_for_source_file(source_file: str, level: int = 2) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
     This function creates a structured prompt containing source code and its dependencies,
     suitable for various LLM tasks like documentation generation, unit testing, or code analysis.
+    The prompt includes:
+    
+    - Primary source code analysis section with file location, package namespace, and complete source
+    - Dependency analysis section with all imported dependencies and their implementations
+    - For each import, includes the import statement, source file location, full package path,
+      and either the implementation source code or object representation
+    
+    The generated prompt is formatted in Markdown with code blocks and hierarchical headers,
+    making it easy for LLMs to parse and understand the code structure and dependencies.
+
+    :param source_file: The path to the Python source file to generate a prompt for.
+    :type source_file: str
+    :param level: The heading level for the main sections in the generated Markdown.
+                  Defaults to 2 (##). Subsections will use level+1.
+    :type level: int
+
+    :return: A formatted Markdown string containing the comprehensive code prompt.
+    :rtype: str
+
+    Example::
+        >>> # Generate a prompt for a Python module
+        >>> prompt = get_prompt_for_source_file('mypackage/mymodule.py')
+        >>> print(prompt[:100])
+        '## Primary Source Code Analysis\\n\\n**Source File Location:** `mypackage/mymodule.py`\\n\\n**Package...'
+        
+        >>> # Generate with custom heading level
+        >>> prompt = get_prompt_for_source_file('mymodule.py', level=3)
+        >>> # Will use ### for main sections and #### for subsections
+        
+        >>> # Use the prompt for LLM tasks
+        >>> prompt = get_prompt_for_source_file('calculator.py')
+        >>> # Feed this prompt to an LLM for documentation generation, testing, etc.
     """
     source_info = get_source_info(source_file)
 
