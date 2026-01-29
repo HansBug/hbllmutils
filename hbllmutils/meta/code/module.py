@@ -11,6 +11,15 @@ import re
 from typing import Tuple
 
 
+def get_module_name(source_file: str, pythonpath_dir: str) -> str:
+    rel_file = os.path.relpath(source_file, pythonpath_dir)
+    segments_text, _ = os.path.splitext(rel_file)
+    segments = [t for t in re.split(r'[\\/]+', segments_text) if t]
+    if segments[-1] == '__init__':
+        segments = segments[:-1]
+    return '.'.join(segments)
+
+
 def get_pythonpath_of_source_file(source_file: str) -> Tuple[str, str]:
     """
     Get the PYTHONPATH directory and module import path for a given Python source file.
@@ -32,11 +41,8 @@ def get_pythonpath_of_source_file(source_file: str) -> Tuple[str, str]:
         >>> get_pythonpath_of_source_file('/path/to/standalone_script.py')
         ('/path/to', 'standalone_script')
     """
-    module_dir = os.path.normpath(os.path.abspath(os.path.dirname(source_file)))
+    source_file = os.path.normpath(os.path.abspath(source_file))
+    module_dir = os.path.dirname(source_file)
     while os.path.exists(os.path.join(module_dir, '__init__.py')):
         module_dir = os.path.dirname(module_dir)
-
-    rel_file = os.path.relpath(source_file, module_dir)
-    segments_text, _ = os.path.splitext(rel_file)
-    module_text = re.sub(r'[\\/]+', '.', segments_text)
-    return module_dir, module_text
+    return module_dir, get_module_name(source_file, module_dir)

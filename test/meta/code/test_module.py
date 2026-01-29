@@ -158,7 +158,7 @@ class TestGetPythonpathOfSourceFile:
         module_dir, module_text = get_pythonpath_of_source_file(init_file)
 
         assert module_dir == temp_dir
-        assert module_text == 'package.__init__'
+        assert module_text == 'package'
 
     def test_different_file_extensions(self, file_with_extension_structure):
         temp_dir, package_dir, py_file, pyx_file, no_ext_file = file_with_extension_structure
