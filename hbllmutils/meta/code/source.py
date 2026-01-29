@@ -117,7 +117,7 @@ def get_source_info(source_file: str, skip_when_error: bool = False) -> SourceIn
         'import os\\nimport sys\\nfrom typing import List\\n...'
     """
     source_code = pathlib.Path(source_file).read_text()
-    source_lines = [line.rstrip() for line in source_code.splitlines(keepends=True)]
+    source_lines = [line for line in source_code.splitlines(keepends=True)]
     import_statements = analyze_imports(source_code)
 
     from_imports: List[FromImportStatement] = []
