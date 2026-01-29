@@ -14,11 +14,13 @@ Example::
     >>> code = '''
     ... import os
     ... from typing import List
+    ... from collections import *
     ... '''
     >>> imports = analyze_imports(code)
     >>> print(imports)
     [ImportStatement(module='os', alias=None, line=2, col_offset=0),
-     FromImportStatement(module='typing', name='List', alias=None, level=0, line=3, col_offset=0)]
+     FromImportStatement(module='typing', name='List', alias=None, level=0, line=3, col_offset=0),
+     FromImportStatement(module='collections', name='*', alias=None, level=0, line=4, col_offset=0)]
 """
 
 import ast
@@ -119,11 +121,11 @@ class FromImportStatement:
 
     This class stores information about an import statement of the form
     ``from module import name`` or ``from module import name as alias``.
-    It also supports relative imports with the level parameter.
+    It also supports relative imports with the level parameter and wildcard imports.
 
     :param module: The name of the module to import from.
     :type module: str
-    :param name: The name of the object being imported.
+    :param name: The name of the object being imported (can be '*' for wildcard imports).
     :type name: str
     :param alias: The alias name for the imported object, if any.
     :type alias: Optional[str]
@@ -138,6 +140,9 @@ class FromImportStatement:
         >>> stmt = FromImportStatement(module='typing', name='List', alias=None, level=0, line=1, col_offset=0)
         >>> print(stmt)
         from typing import List
+        >>> stmt = FromImportStatement(module='collections', name='*', level=0)
+        >>> print(stmt)
+        from collections import *
     """
     module: str
     name: str
@@ -163,6 +168,9 @@ class FromImportStatement:
             >>> stmt = FromImportStatement(module='module', name='func', level=2)
             >>> str(stmt)
             'from ..module import func'
+            >>> stmt = FromImportStatement(module='collections', name='*', level=0)
+            >>> str(stmt)
+            'from collections import *'
         """
         # Build the relative import dot prefix
         level_str = "." * self.level
@@ -173,8 +181,8 @@ class FromImportStatement:
         else:
             module_str = level_str if level_str else ""
 
-        # Build the alias part
-        alias_str = f" as {self.alias}" if self.alias else ""
+        # Build the alias part (wildcards cannot have aliases)
+        alias_str = f" as {self.alias}" if self.alias and not self.is_wildcard else ""
 
         # Build the complete from-import statement
         if module_str:
@@ -203,6 +211,27 @@ class FromImportStatement:
         """
         return self.level > 0 or not self.module
 
+    @property
+    def is_wildcard(self) -> bool:
+        """
+        Check if this is a wildcard import statement.
+
+        A wildcard import is one that uses '*' to import all public names from a module,
+        such as ``from module import *``.
+
+        :return: True if this is a wildcard import, False otherwise.
+        :rtype: bool
+
+        Example::
+            >>> stmt = FromImportStatement(module='collections', name='*', level=0)
+            >>> stmt.is_wildcard
+            True
+            >>> stmt = FromImportStatement(module='typing', name='List', level=0)
+            >>> stmt.is_wildcard
+            False
+        """
+        return self.name == '*'
+
 
 ImportStatementTyping = Union[ImportStatement, FromImportStatement]
 """Type alias for either ImportStatement or FromImportStatement."""
@@ -214,17 +243,17 @@ class ImportVisitor(ast.NodeVisitor):
 
     This class extends ast.NodeVisitor to traverse the Abstract Syntax Tree
     and collect all import statements (both regular imports and from-imports)
-    found in the code.
+    found in the code, including wildcard imports.
 
     :ivar imports: List of collected import statements.
     :vartype imports: List[ImportStatementTyping]
 
     Example::
-        >>> tree = ast.parse("import os\\nfrom typing import List")
+        >>> tree = ast.parse("import os\\nfrom typing import List\\nfrom collections import *")
         >>> visitor = ImportVisitor()
         >>> visitor.visit(tree)
         >>> len(visitor.imports)
-        2
+        3
     """
 
     def __init__(self):
@@ -270,18 +299,21 @@ class ImportVisitor(ast.NodeVisitor):
 
         This method is called when a from-import statement is encountered.
         It extracts information about each imported name and creates
-        FromImportStatement objects.
+        FromImportStatement objects. This includes support for wildcard imports
+        (from module import *).
 
         :param node: The ImportFrom AST node to visit.
         :type node: ast.ImportFrom
 
         Example::
-            >>> code = "from typing import List, Dict as D"
+            >>> code = "from typing import List, Dict as D\\nfrom collections import *"
             >>> tree = ast.parse(code)
             >>> visitor = ImportVisitor()
             >>> visitor.visit(tree)
             >>> len(visitor.imports)
-            2
+            3
+            >>> visitor.imports[2].is_wildcard
+            True
         """
         module = node.module or ''
         level = node.level
@@ -304,7 +336,8 @@ def analyze_imports(code_text: str) -> List[ImportStatementTyping]:
     Analyze Python code text and extract all import statements.
 
     This function parses the provided Python code text using the AST module
-    and collects all import statements (both regular imports and from-imports).
+    and collects all import statements (both regular imports and from-imports),
+    including wildcard imports.
 
     :param code_text: The Python source code to analyze.
     :type code_text: str
@@ -320,14 +353,19 @@ def analyze_imports(code_text: str) -> List[ImportStatementTyping]:
         ... import sys as system
         ... from typing import List, Dict
         ... from ..module import func
+        ... from collections import *
         ... '''
         >>> imports = analyze_imports(code)
         >>> len(imports)
-        4
+        5
         >>> print(imports[0])
         import os
         >>> print(imports[2])
         from typing import List
+        >>> print(imports[4])
+        from collections import *
+        >>> imports[4].is_wildcard
+        True
     """
     tree = ast.parse(code_text)
     visitor = ImportVisitor()
