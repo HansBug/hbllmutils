@@ -125,6 +125,14 @@ class ObjectInspect:
         """
         return self.source_lines is not None
 
+    @property
+    def package_name(self) -> Optional[str]:
+        from .module import get_package_name
+        if self.source_file is not None:
+            return get_package_name(self.source_file)
+        else:
+            return None
+
 
 def get_object_info(obj: Any) -> ObjectInspect:
     """
