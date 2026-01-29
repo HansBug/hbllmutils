@@ -8,6 +8,7 @@ point for importing commonly used utility components.
 The module exports:
     - get_global_logger: Function to access the global logger instance
     - log_pformat: Function to format and truncate complex data structures for logging
+    - truncate_dict: Function to recursively truncate complex data structures
 
 Example::
     >>> from hbllmutils.utils import get_global_logger, log_pformat
