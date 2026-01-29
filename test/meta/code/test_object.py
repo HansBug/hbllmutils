@@ -1,8 +1,10 @@
 import os
 import tempfile
+from unittest import skipUnless
 from unittest.mock import patch, MagicMock
 
 import pytest
+from hbutils.testing import OS
 
 from hbllmutils.meta.code.object import ObjectInspect, get_object_info
 
@@ -282,6 +284,7 @@ class TestObjectInspect:
 
         assert obj_inspect.source_file_code is None
 
+    @skipUnless(not OS.windows, 'Windows excluded')
     def test_source_file_code_property_with_encoding(self, temp_file_with_encoding_issues, sample_function):
         """Test source_file_code property with files containing special characters."""
 
