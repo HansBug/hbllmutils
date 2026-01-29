@@ -37,6 +37,40 @@ def relative_import_code():
 
 
 @pytest.fixture
+def wildcard_import_code():
+    return "from collections import *"
+
+
+@pytest.fixture
+def wildcard_import_relative_code():
+    return "from .module import *"
+
+
+@pytest.fixture
+def wildcard_import_nested_relative_code():
+    return "from ..subpackage.module import *"
+
+
+@pytest.fixture
+def multiple_wildcard_imports_code():
+    return """
+from collections import *
+from itertools import *
+from os import *
+"""
+
+
+@pytest.fixture
+def mixed_imports_with_wildcard_code():
+    return """
+import os
+from typing import List
+from collections import *
+from .local import func
+"""
+
+
+@pytest.fixture
 def complex_code():
     return """
 import os
@@ -141,6 +175,19 @@ class TestFromImportStatement:
         assert stmt.name == 'func'
         assert stmt.level == 2
 
+    def test_init_wildcard(self):
+        stmt = FromImportStatement(module='collections', name='*', level=0, line=1, col_offset=0)
+        assert stmt.module == 'collections'
+        assert stmt.name == '*'
+        assert stmt.alias is None
+        assert stmt.level == 0
+
+    def test_init_wildcard_relative(self):
+        stmt = FromImportStatement(module='module', name='*', level=1, line=1, col_offset=0)
+        assert stmt.module == 'module'
+        assert stmt.name == '*'
+        assert stmt.level == 1
+
     def test_str_absolute_import(self):
         stmt = FromImportStatement(module='typing', name='List', level=0)
         assert str(stmt) == "from typing import List"
@@ -165,6 +212,27 @@ class TestFromImportStatement:
         stmt = FromImportStatement(module='', name='something', level=0)
         assert str(stmt) == "from . import something"
 
+    def test_str_wildcard_absolute(self):
+        stmt = FromImportStatement(module='collections', name='*', level=0)
+        assert str(stmt) == "from collections import *"
+
+    def test_str_wildcard_relative(self):
+        stmt = FromImportStatement(module='module', name='*', level=1)
+        assert str(stmt) == "from .module import *"
+
+    def test_str_wildcard_nested_relative(self):
+        stmt = FromImportStatement(module='subpackage.module', name='*', level=2)
+        assert str(stmt) == "from ..subpackage.module import *"
+
+    def test_str_wildcard_with_alias_ignored(self):
+        # Wildcard imports cannot have aliases, so alias should be ignored
+        stmt = FromImportStatement(module='collections', name='*', alias='ignored', level=0)
+        assert str(stmt) == "from collections import *"
+
+    def test_str_wildcard_empty_module(self):
+        stmt = FromImportStatement(module='', name='*', level=1)
+        assert str(stmt) == "from . import *"
+
     def test_is_relative_false(self):
         stmt = FromImportStatement(module='typing', name='List', level=0)
         assert stmt.is_relative is False
@@ -176,6 +244,30 @@ class TestFromImportStatement:
     def test_is_relative_true_no_module(self):
         stmt = FromImportStatement(module='', name='func', level=0)
         assert stmt.is_relative is True
+
+    def test_is_relative_wildcard_false(self):
+        stmt = FromImportStatement(module='collections', name='*', level=0)
+        assert stmt.is_relative is False
+
+    def test_is_relative_wildcard_true(self):
+        stmt = FromImportStatement(module='module', name='*', level=1)
+        assert stmt.is_relative is True
+
+    def test_is_wildcard_true(self):
+        stmt = FromImportStatement(module='collections', name='*', level=0)
+        assert stmt.is_wildcard is True
+
+    def test_is_wildcard_false(self):
+        stmt = FromImportStatement(module='typing', name='List', level=0)
+        assert stmt.is_wildcard is False
+
+    def test_is_wildcard_relative(self):
+        stmt = FromImportStatement(module='module', name='*', level=1)
+        assert stmt.is_wildcard is True
+
+    def test_is_wildcard_empty_module(self):
+        stmt = FromImportStatement(module='', name='*', level=1)
+        assert stmt.is_wildcard is True
 
 
 @pytest.mark.unittest
@@ -274,6 +366,99 @@ class TestImportVisitor:
         assert stmt.name == 'something'
         assert stmt.level == 1
 
+    def test_visit_wildcard_import(self, wildcard_import_code):
+        tree = ast.parse(wildcard_import_code)
+        visitor = ImportVisitor()
+        visitor.visit(tree)
+
+        assert len(visitor.imports) == 1
+        stmt = visitor.imports[0]
+        assert isinstance(stmt, FromImportStatement)
+        assert stmt.module == 'collections'
+        assert stmt.name == '*'
+        assert stmt.alias is None
+        assert stmt.level == 0
+        assert stmt.is_wildcard is True
+
+    def test_visit_wildcard_import_relative(self, wildcard_import_relative_code):
+        tree = ast.parse(wildcard_import_relative_code)
+        visitor = ImportVisitor()
+        visitor.visit(tree)
+
+        assert len(visitor.imports) == 1
+        stmt = visitor.imports[0]
+        assert isinstance(stmt, FromImportStatement)
+        assert stmt.module == 'module'
+        assert stmt.name == '*'
+        assert stmt.level == 1
+        assert stmt.is_wildcard is True
+        assert stmt.is_relative is True
+
+    def test_visit_wildcard_import_nested_relative(self, wildcard_import_nested_relative_code):
+        tree = ast.parse(wildcard_import_nested_relative_code)
+        visitor = ImportVisitor()
+        visitor.visit(tree)
+
+        assert len(visitor.imports) == 1
+        stmt = visitor.imports[0]
+        assert isinstance(stmt, FromImportStatement)
+        assert stmt.module == 'subpackage.module'
+        assert stmt.name == '*'
+        assert stmt.level == 2
+        assert stmt.is_wildcard is True
+        assert stmt.is_relative is True
+
+    def test_visit_multiple_wildcard_imports(self, multiple_wildcard_imports_code):
+        tree = ast.parse(multiple_wildcard_imports_code)
+        visitor = ImportVisitor()
+        visitor.visit(tree)
+
+        assert len(visitor.imports) == 3
+
+        for stmt in visitor.imports:
+            assert isinstance(stmt, FromImportStatement)
+            assert stmt.name == '*'
+            assert stmt.is_wildcard is True
+            assert stmt.level == 0
+
+        assert visitor.imports[0].module == 'collections'
+        assert visitor.imports[1].module == 'itertools'
+        assert visitor.imports[2].module == 'os'
+
+    def test_visit_mixed_imports_with_wildcard(self, mixed_imports_with_wildcard_code):
+        tree = ast.parse(mixed_imports_with_wildcard_code)
+        visitor = ImportVisitor()
+        visitor.visit(tree)
+
+        assert len(visitor.imports) == 4
+
+        # Regular import
+        stmt1 = visitor.imports[0]
+        assert isinstance(stmt1, ImportStatement)
+        assert stmt1.module == 'os'
+
+        # From import
+        stmt2 = visitor.imports[1]
+        assert isinstance(stmt2, FromImportStatement)
+        assert stmt2.module == 'typing'
+        assert stmt2.name == 'List'
+        assert stmt2.is_wildcard is False
+
+        # Wildcard import
+        stmt3 = visitor.imports[2]
+        assert isinstance(stmt3, FromImportStatement)
+        assert stmt3.module == 'collections'
+        assert stmt3.name == '*'
+        assert stmt3.is_wildcard is True
+
+        # Relative import
+        stmt4 = visitor.imports[3]
+        assert isinstance(stmt4, FromImportStatement)
+        assert stmt4.module == 'local'
+        assert stmt4.name == 'func'
+        assert stmt4.level == 1
+        assert stmt4.is_relative is True
+
     def test_visit_complex_code(self, complex_code):
         tree = ast.parse(complex_code)
         visitor = ImportVisitor()
@@ -332,6 +517,41 @@ class TestAnalyzeImports:
         assert isinstance(imports[3], FromImportStatement)
         assert isinstance(imports[4], FromImportStatement)
         assert isinstance(imports[5], FromImportStatement)
+
+    def test_analyze_imports_wildcard(self, wildcard_import_code):
+        imports = analyze_imports(wildcard_import_code)
+
+        assert len(imports) == 1
+        stmt = imports[0]
+        assert isinstance(stmt, FromImportStatement)
+        assert stmt.module == 'collections'
+        assert stmt.name == '*'
+        assert stmt.is_wildcard is True
+
+    def test_analyze_imports_multiple_wildcard(self, multiple_wildcard_imports_code):
+        imports = analyze_imports(multiple_wildcard_imports_code)
+
+        assert len(imports) == 3
+        for stmt in imports:
+            assert isinstance(stmt, FromImportStatement)
+            assert stmt.is_wildcard is True
+
+    def test_analyze_imports_mixed_with_wildcard(self, mixed_imports_with_wildcard_code):
+        imports = analyze_imports(mixed_imports_with_wildcard_code)
+
+        assert len(imports) == 4
+        wildcard_count = sum(1 for stmt in imports if isinstance(stmt, FromImportStatement) and stmt.is_wildcard)
+        assert wildcard_count == 1
+
+    def test_analyze_imports_wildcard_relative(self, wildcard_import_relative_code):
+        imports = analyze_imports(wildcard_import_relative_code)
+
+        assert len(imports) == 1
+        stmt = imports[0]
+        assert isinstance(stmt, FromImportStatement)
+        assert stmt.is_wildcard is True
+        assert stmt.is_relative is True
+        assert stmt.level == 1
 
     def test_analyze_imports_empty_code(self):
         imports = analyze_imports("")
