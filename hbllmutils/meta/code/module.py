@@ -4,6 +4,11 @@ This module provides utilities for extracting Python module paths from source fi
 It analyzes the file system structure to determine the appropriate PYTHONPATH and
 module import path for a given Python source file by traversing up the directory
 tree to find the package root (identified by the absence of __init__.py).
+
+The module contains functions to:
+- Determine the package root directory (PYTHONPATH) for a given source file
+- Convert file paths to Python module import paths
+- Resolve relative and absolute imports to their full module names
 """
 
 import os.path
@@ -97,3 +102,47 @@ def get_pythonpath_of_source_file(source_file: str) -> Tuple[str, str]:
     """
     source_file, module_dir = _get_raw_pythonpath(source_file)
     return module_dir, get_package_name(source_file, module_dir)
+
+
+def get_package_from_import(source_file: str, import_: str) -> str:
+    """
+    Resolve an import statement to its full module name, handling both absolute and relative imports.
+
+    This function takes a source file path and an import string, and resolves it to the
+    full absolute module path. For absolute imports (not starting with a dot), it returns
+    the import string as-is. For relative imports (starting with one or more dots), it
+    resolves the import relative to the source file's package location.
+
+    :param source_file: The path to the Python source file where the import occurs.
+    :type source_file: str
+    :param import_: The import string to resolve (e.g., '.module', '..package.module', 'absolute.module').
+    :type import_: str
+
+    :return: The fully resolved absolute module import path.
+    :rtype: str
+
+    Example::
+        >>> get_package_from_import('/path/to/project/pkg/subpkg/file.py', 'external.module')
+        'external.module'
+        
+        >>> get_package_from_import('/path/to/project/pkg/subpkg/file.py', '.sibling')
+        'pkg.subpkg.sibling'
+
+        >>> get_package_from_import('/path/to/project/pkg/subpkg/__init__.py', '.sibling')
+        'pkg.subpkg.sibling'
+        
+        >>> get_package_from_import('/path/to/project/pkg/subpkg/file.py', '..parent_module')
+        'pkg.parent_module'
+    """
+    imports = import_.split('.')
+    if imports[0] != '':
+        # is absolute import
+        return import_
+    else:
+        # is relative import
+        if imports[-1] == '':
+            imports[-1] = '__init__'
+        _, package_name = get_pythonpath_of_source_file(
+            source_file=os.path.join(source_file, '/'.join([('..' if x == '' else x) for x in imports]))
+        )
+        return package_name

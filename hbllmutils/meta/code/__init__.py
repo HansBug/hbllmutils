@@ -65,7 +65,7 @@ This module is particularly useful for:
 """
 
 from .imp import ImportStatement, analyze_imports
-from .module import get_package_name, get_pythonpath_of_source_file
+from .module import get_package_name, get_pythonpath_of_source_file, get_package_from_import
 from .object import get_object_info, ObjectInspect
 from .prompt import get_prompt_for_source_file
 from .source import ImportSource, SourceInfo, get_source_info
