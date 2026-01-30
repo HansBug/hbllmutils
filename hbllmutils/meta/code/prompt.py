@@ -8,12 +8,15 @@ dependency analysis with import statements and their implementations.
 """
 
 import io
+from typing import Optional
+
+from hbutils.string import titleize
 
 from .module import get_package_name
 from .source import get_source_info
 
 
-def get_prompt_for_source_file(source_file: str, level: int = 2) -> str:
+def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary') -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -34,6 +37,9 @@ def get_prompt_for_source_file(source_file: str, level: int = 2) -> str:
     :param level: The heading level for the main sections in the generated Markdown.
                   Defaults to 2 (##). Subsections will use level+1.
     :type level: int
+    :param code_name: The name to use for the code section title. If None, uses 'Source Code Analysis'.
+                      Defaults to 'primary'.
+    :type code_name: Optional[str]
 
     :return: A formatted Markdown string containing the comprehensive code prompt.
     :rtype: str
@@ -51,12 +57,20 @@ def get_prompt_for_source_file(source_file: str, level: int = 2) -> str:
         >>> # Use the prompt for LLM tasks
         >>> prompt = get_prompt_for_source_file('calculator.py')
         >>> # Feed this prompt to an LLM for documentation generation, testing, etc.
+        
+        >>> # Generate without code name prefix
+        >>> prompt = get_prompt_for_source_file('mymodule.py', code_name=None)
+        >>> # Title will be 'Source Code Analysis' instead of 'Primary Source Code Analysis'
     """
     source_info = get_source_info(source_file)
 
     with io.StringIO() as sf:
         # Main source code section
-        print(f'{"#" * level} Primary Source Code Analysis', file=sf)
+        if code_name:
+            title = f'{code_name} Source Code Analysis'
+        else:
+            title = f'Source Code Analysis'
+        print(f'{"#" * level} {titleize(title)}', file=sf)
         print(f'', file=sf)
         print(f'**Source File Location:** `{source_info.source_file}`', file=sf)
         print(f'', file=sf)
