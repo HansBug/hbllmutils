@@ -7,6 +7,7 @@ and a flexible prompt template system. It serves as the main entry point for the
 template package, exposing key functionality for template rendering and processing.
 
 The module exports:
+
 - auto_decode: Automatic text decoding with support for various encodings
 - Environment configuration utilities: Functions to enhance Jinja2 environments
 - PromptTemplate: A flexible template class for rendering prompts
@@ -14,6 +15,7 @@ The module exports:
 - BaseMatcherPair: Base class for defining and working with matcher pairs
 
 Example::
+
     >>> from hbllmutils.template import PromptTemplate, auto_decode
     >>> # Create a template
     >>> template = PromptTemplate("Hello {{ name }}!")

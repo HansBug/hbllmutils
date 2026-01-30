@@ -22,9 +22,11 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Optional, Tuple, List
 
+from hbutils.string import format_tree
 from openai import OpenAI
 
-from hbutils.string import format_tree
+from hbllmutils.meta.code.prompt import get_prompt_for_source_file
+from hbllmutils.response import extract_code
 
 
 @lru_cache()
@@ -264,11 +266,7 @@ def _unwrap_python_code(code_output: str) -> str:
         >>> _unwrap_python_code('print("hello")')
         'print("hello")'
     """
-    code_output = code_output.strip()
-    lines = code_output.splitlines(keepends=False)
-    if lines[0].startswith('```') and lines[-1].startswith('```'):
-        lines = lines[1:-1]
-    return os.linesep.join(lines)
+    return extract_code(code_output).rstrip()
 
 
 def get_docs(code_text: str, directory_tree: Optional[str] = None, doc_tree: Optional[str] = None) -> str:
@@ -343,7 +341,7 @@ def make_doc_for_file(file: str, include_directory_tree: Optional[bool] = None) 
 
     print(f'Make docs for {file!r} ...')
     new_docs = get_docs(
-        code_text=pathlib.Path(file).read_text(),
+        code_text=get_prompt_for_source_file(file),
         directory_tree=dir_tree_text(os.path.dirname(file)) if include_directory_tree else None,
         doc_tree=get_module_doc_tree(file) if include_directory_tree else None,
     )

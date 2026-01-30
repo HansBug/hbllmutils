@@ -9,5 +9,6 @@ hbllmutils.meta
 .. toctree::
     :maxdepth: 3
 
+    code/index
     datamodel/index
 
