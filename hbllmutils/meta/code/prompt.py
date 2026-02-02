@@ -17,7 +17,7 @@ from .source import get_source_info
 
 
 def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
-                               skip_when_error: bool = True) -> str:
+                               description_text: Optional[str] = None, skip_when_error: bool = True) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -41,6 +41,10 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
     :param code_name: The name to use for the code section title. If None, uses 'Source Code Analysis'.
                       Defaults to 'primary'.
     :type code_name: Optional[str]
+    :param description_text: Optional description text to include after the title and before
+                            the source file information. Can be used to provide context or
+                            instructions for the LLM.
+    :type description_text: Optional[str]
     :param skip_when_error: If True, skip imports that fail to load and issue warnings
                            instead of raising exceptions. Defaults to True.
     :type skip_when_error: bool
@@ -69,6 +73,13 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         >>> # Skip errors when analyzing problematic imports
         >>> prompt = get_prompt_for_source_file('module_with_issues.py', skip_when_error=True)
         >>> # Warnings will be issued for failed imports, but processing continues
+        
+        >>> # Add custom description text
+        >>> prompt = get_prompt_for_source_file(
+        ...     'mymodule.py',
+        ...     description_text='This module implements core business logic for user authentication.'
+        ... )
+        >>> # The description will appear after the title
     """
     source_info = get_source_info(source_file, skip_when_error=skip_when_error)
 
@@ -80,6 +91,9 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
             title = f'Source Code Analysis'
         print(f'{"#" * level} {titleize(title)}', file=sf)
         print(f'', file=sf)
+        if description_text:
+            print(description_text, file=sf)
+            print(f'', file=sf)
         print(f'**Source File Location:** `{source_info.source_file}`', file=sf)
         print(f'', file=sf)
         print(f'**Package Namespace:** `{source_info.package_name}`', file=sf)
