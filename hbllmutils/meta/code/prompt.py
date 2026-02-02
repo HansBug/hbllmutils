@@ -16,7 +16,8 @@ from .module import get_package_name
 from .source import get_source_info
 
 
-def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary') -> str:
+def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
+                               skip_when_error: bool = True) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -40,6 +41,9 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
     :param code_name: The name to use for the code section title. If None, uses 'Source Code Analysis'.
                       Defaults to 'primary'.
     :type code_name: Optional[str]
+    :param skip_when_error: If True, skip imports that fail to load and issue warnings
+                           instead of raising exceptions. Defaults to True.
+    :type skip_when_error: bool
 
     :return: A formatted Markdown string containing the comprehensive code prompt.
     :rtype: str
@@ -61,8 +65,12 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         >>> # Generate without code name prefix
         >>> prompt = get_prompt_for_source_file('mymodule.py', code_name=None)
         >>> # Title will be 'Source Code Analysis' instead of 'Primary Source Code Analysis'
+        
+        >>> # Skip errors when analyzing problematic imports
+        >>> prompt = get_prompt_for_source_file('module_with_issues.py', skip_when_error=True)
+        >>> # Warnings will be issued for failed imports, but processing continues
     """
-    source_info = get_source_info(source_file)
+    source_info = get_source_info(source_file, skip_when_error=skip_when_error)
 
     with io.StringIO() as sf:
         # Main source code section
