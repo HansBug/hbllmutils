@@ -1,9 +1,12 @@
+import os
+import pathlib
+import tempfile
 from unittest.mock import MagicMock
 
 import pytest
 from pathspec import PathSpec
 
-from hbllmutils.meta.code.tree import is_file_should_ignore
+from hbllmutils.meta.code.tree import is_file_should_ignore, build_python_project_tree, get_python_project_tree_text
 
 
 @pytest.fixture
@@ -43,7 +46,76 @@ def mock_pathspec():
 
 @pytest.fixture
 def sorted_extra_patterns():
-    return ("*.bak", "*.log", "*.txt", "temp/")
+    return "*.bak", "*.log", "*.txt", "temp/"
+
+
+@pytest.fixture
+def temp_project_dir():
+    """Create a temporary directory with a sample project structure."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_dir = pathlib.Path(temp_dir) / "test_project"
+        project_dir.mkdir()
+
+        # Create files and directories
+        (project_dir / "main.py").write_text("# Main file")
+        (project_dir / "requirements.txt").write_text("pytest>=6.0")
+        (project_dir / "README.md").write_text("# Test Project")
+
+        # Create src directory
+        src_dir = project_dir / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+        (src_dir / "module.py").write_text("# Module file")
+        (src_dir / "utils.py").write_text("# Utils file")
+
+        # Create tests directory
+        tests_dir = project_dir / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "__init__.py").write_text("")
+        (tests_dir / "test_main.py").write_text("# Test file")
+
+        # Create files that should be ignored
+        (project_dir / "__pycache__").mkdir()
+        (project_dir / "__pycache__" / "main.cpython-39.pyc").write_text("binary")
+
+        (project_dir / ".vscode").mkdir()
+        (project_dir / ".vscode" / "settings.json").write_text("{}")
+
+        (project_dir / "build").mkdir()
+        (project_dir / "build" / "lib").mkdir()
+        (project_dir / "build" / "lib" / "package.py").write_text("# Build file")
+
+        # Create empty directory that should be filtered out
+        (project_dir / "empty_dir").mkdir()
+
+        # Create directory with only ignored files
+        ignored_only_dir = project_dir / "ignored_only"
+        ignored_only_dir.mkdir()
+        (ignored_only_dir / "file.pyc").write_text("binary")
+
+        yield project_dir
+
+
+@pytest.fixture
+def pathlib_paths():
+    """Fixture providing pathlib.Path objects for testing."""
+    return [
+        pathlib.Path("main.py"),
+        pathlib.Path("src/module.py"),
+        pathlib.Path("__pycache__/test.pyc"),
+        pathlib.Path(".vscode/settings.json"),
+        pathlib.Path("requirements.txt")
+    ]
+
+
+@pytest.fixture
+def focus_items_dict():
+    """Fixture for focus items dictionary."""
+    return {
+        "entry": "src/module.py",
+        "test": "tests/test_main.py",
+        "config": "requirements.txt"
+    }
 
 
 @pytest.mark.unittest
@@ -73,6 +145,233 @@ class TestFileIgnorePatterns:
 
         # Should not ignore unmatched files
         assert not is_file_should_ignore("main.py", extra_patterns)
+
+    def test_is_file_should_ignore_with_pathlib_path(self, pathlib_paths):
+        """Test is_file_should_ignore with pathlib.Path objects."""
+        for path in pathlib_paths:
+            if "__pycache__" in str(path) or ".vscode" in str(path):
+                assert is_file_should_ignore(path), f"Expected {path} to be ignored"
+            else:
+                assert not is_file_should_ignore(path), f"Expected {path} to not be ignored"
+
+    def test_is_file_should_ignore_pathlib_with_extra_patterns(self, extra_patterns):
+        """Test pathlib.Path with extra patterns."""
+        path = pathlib.Path("test.txt")
+        assert is_file_should_ignore(path, extra_patterns)
+
+        path = pathlib.Path("temp/file.py")
+        assert is_file_should_ignore(path, extra_patterns)
+
+        path = pathlib.Path("main.py")
+        assert not is_file_should_ignore(path, extra_patterns)
+
+    def test_build_python_project_tree_basic(self, temp_project_dir):
+        """Test basic functionality of build_python_project_tree."""
+        root, tree = build_python_project_tree(str(temp_project_dir))
+
+        assert root == os.path.relpath(str(temp_project_dir), os.path.abspath('.'))
+        assert isinstance(tree, list)
+
+        # Extract names from tree structure
+        tree_names = [item[0] for item in tree]
+
+        # Should include regular files and directories
+        assert "main.py" in tree_names
+        assert "requirements.txt" in tree_names
+        assert "README.md" in tree_names
+        assert "src" in tree_names
+        assert "tests" in tree_names
+
+        # Should not include ignored items
+        assert "__pycache__" not in tree_names
+        assert ".vscode" not in tree_names
+        assert "build" not in tree_names
+        assert "empty_dir" not in tree_names
+        assert "ignored_only" not in tree_names
+
+    def test_build_python_project_tree_with_extra_patterns(self, temp_project_dir):
+        """Test build_python_project_tree with extra ignore patterns."""
+        extra_patterns = ["*.txt", "*.md"]
+        root, tree = build_python_project_tree(str(temp_project_dir), extra_patterns=extra_patterns)
+
+        tree_names = [item[0] for item in tree]
+
+        # Should exclude files matching extra patterns
+        assert "requirements.txt" not in tree_names
+        assert "README.md" not in tree_names
+
+        # Should still include other files
+        assert "main.py" in tree_names
+
+    def test_build_python_project_tree_with_focus_items_relative_paths(self, temp_project_dir, focus_items_dict):
+        """Test build_python_project_tree with focus items using relative paths."""
+        root, tree = build_python_project_tree(str(temp_project_dir), focus_items=focus_items_dict)
+
+        # Find the focused items in the tree
+        def find_focused_items(nodes):
+            focused = []
+            for name, children in nodes:
+                if " <-- (" in name:
+                    focused.append(name)
+                focused.extend(find_focused_items(children))
+            return focused
+
+        focused_items = find_focused_items(tree)
+
+        # Check that focus labels are applied
+        assert any("entry" in item for item in focused_items)
+        assert any("test" in item for item in focused_items)
+        assert any("config" in item for item in focused_items)
+
+    def test_build_python_project_tree_with_focus_items_absolute_paths(self, temp_project_dir):
+        """Test build_python_project_tree with focus items using absolute paths."""
+        focus_items = {
+            "main": str(temp_project_dir / "main.py"),
+            "module": str(temp_project_dir / "src" / "module.py")
+        }
+
+        root, tree = build_python_project_tree(str(temp_project_dir), focus_items=focus_items)
+
+        def find_focused_items(nodes):
+            focused = []
+            for name, children in nodes:
+                if " <-- (" in name:
+                    focused.append(name)
+                focused.extend(find_focused_items(children))
+            return focused
+
+        focused_items = find_focused_items(tree)
+
+        assert any("main" in item for item in focused_items)
+        assert any("module" in item for item in focused_items)
+
+    def test_build_python_project_tree_focus_root_directory(self, temp_project_dir):
+        """Test focusing on the root directory itself."""
+        focus_items = {"root": str(temp_project_dir)}
+
+        root, tree = build_python_project_tree(str(temp_project_dir), focus_items=focus_items)
+
+        # The root focus should not appear in the tree structure since we return tree[1]
+        # But it should not raise an error
+        assert isinstance(tree, list)
+
+    def test_build_python_project_tree_invalid_focus_path(self, temp_project_dir):
+        """Test build_python_project_tree with invalid focus path."""
+        focus_items = {"invalid": "/completely/different/path/file.py"}
+
+        with pytest.raises(ValueError, match="Focus item .* is not within the root path"):
+            build_python_project_tree(str(temp_project_dir), focus_items=focus_items)
+
+    def test_build_python_project_tree_focus_pathlib_path(self, temp_project_dir):
+        """Test build_python_project_tree with pathlib.Path focus items."""
+        focus_items = {
+            "path_obj": pathlib.Path("src/module.py")
+        }
+
+        root, tree = build_python_project_tree(str(temp_project_dir), focus_items=focus_items)
+
+        def find_focused_items(nodes):
+            focused = []
+            for name, children in nodes:
+                if " <-- (" in name:
+                    focused.append(name)
+                focused.extend(find_focused_items(children))
+            return focused
+
+        focused_items = find_focused_items(tree)
+        assert any("path_obj" in item for item in focused_items)
+
+    def test_get_python_project_tree_text_basic(self, temp_project_dir):
+        """Test basic functionality of get_python_project_tree_text."""
+        result = get_python_project_tree_text(str(temp_project_dir))
+
+        assert isinstance(result, str)
+        assert "main.py" in result
+        assert "src" in result
+        assert "tests" in result
+
+        # Should not contain ignored files
+        assert "__pycache__" not in result
+        assert ".vscode" not in result
+
+    def test_get_python_project_tree_text_with_extra_patterns(self, temp_project_dir):
+        """Test get_python_project_tree_text with extra patterns."""
+        extra_patterns = ["*.txt"]
+        result = get_python_project_tree_text(str(temp_project_dir), extra_patterns=extra_patterns)
+
+        assert "main.py" in result
+        assert "requirements.txt" not in result
+
+    def test_get_python_project_tree_text_with_focus_items(self, temp_project_dir):
+        """Test get_python_project_tree_text with focus items."""
+        focus_items = {"entry": "main.py", "source": "src/module.py"}
+        result = get_python_project_tree_text(str(temp_project_dir), focus_items=focus_items)
+
+        assert "<-- (entry)" in result
+        assert "<-- (source)" in result
+
+    def test_get_python_project_tree_text_with_encoding(self, temp_project_dir):
+        """Test get_python_project_tree_text with different encodings."""
+        # Test with ASCII encoding
+        result_ascii = get_python_project_tree_text(str(temp_project_dir), encoding="ascii")
+        assert isinstance(result_ascii, str)
+        assert "main.py" in result_ascii
+
+        # Test with UTF-8 encoding
+        result_utf8 = get_python_project_tree_text(str(temp_project_dir), encoding="utf-8")
+        assert isinstance(result_utf8, str)
+        assert "main.py" in result_utf8
+
+    def test_get_python_project_tree_text_all_parameters(self, temp_project_dir):
+        """Test get_python_project_tree_text with all parameters."""
+        extra_patterns = ["*.md"]
+        focus_items = {"main": "main.py"}
+        encoding = "utf-8"
+
+        result = get_python_project_tree_text(
+            str(temp_project_dir),
+            extra_patterns=extra_patterns,
+            focus_items=focus_items,
+            encoding=encoding
+        )
+
+        assert isinstance(result, str)
+        assert "main.py" in result
+        assert "<-- (main)" in result
+        assert "README.md" not in result
+
+    def test_build_python_project_tree_nested_structure(self, temp_project_dir):
+        """Test build_python_project_tree with nested directory structure."""
+        # Create deeply nested structure
+        deep_dir = temp_project_dir / "level1" / "level2" / "level3"
+        deep_dir.mkdir(parents=True)
+        (deep_dir / "deep_file.py").write_text("# Deep file")
+
+        root, tree = build_python_project_tree(str(temp_project_dir))
+
+        # Verify nested structure is captured
+        def find_deep_file(nodes):
+            for name, children in nodes:
+                if "deep_file.py" in name:
+                    return True
+                if find_deep_file(children):
+                    return True
+            return False
+
+        assert find_deep_file(tree)
+
+    def test_build_python_project_tree_empty_subdirectories_filtered(self, temp_project_dir):
+        """Test that empty subdirectories are filtered out."""
+        # Create directory with only ignored files
+        ignored_dir = temp_project_dir / "only_ignored"
+        ignored_dir.mkdir()
+        (ignored_dir / "file.pyc").write_text("binary")
+        (ignored_dir / "__pycache__").mkdir()
+
+        root, tree = build_python_project_tree(str(temp_project_dir))
+
+        tree_names = [item[0] for item in tree]
+        assert "only_ignored" not in tree_names
 
     @pytest.mark.parametrize("file_path", [
         "__pycache__/main.cpython-39.pyc",
