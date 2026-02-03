@@ -266,7 +266,7 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
     """
     root_path = pathlib.Path(root_path)
 
-    def build_node(path: pathlib.Path):
+    def _build_node(path: pathlib.Path):
         """
         Recursively build a tree node for the given path.
         
@@ -290,7 +290,7 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
                         children.append((item.name, []))
                     elif item.is_dir():
                         # Recursively check if subdirectory contains files
-                        sub_node = build_node(item)
+                        sub_node = _build_node(item)
                         if sub_node[1]:  # If subdirectory has content
                             children.append(sub_node)
                 return path.name, children
@@ -298,5 +298,5 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
                 return f"{path.name} (Permission Denied)", []
         return None
 
-    nx = build_node(root_path)
+    nx = _build_node(root_path)
     return os.path.relpath(os.path.normpath(str(root_path)), os.path.abspath('.')), nx[1]
