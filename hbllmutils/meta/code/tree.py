@@ -6,6 +6,7 @@ The module includes:
 - A comprehensive list of Python gitignore patterns
 - Functions to check if files should be ignored based on these patterns
 - Support for custom additional ignore patterns
+- Functions to build directory tree structures while respecting ignore patterns
 """
 import os
 import pathlib
@@ -217,7 +218,7 @@ def is_file_should_ignore(path: Union[str, pathlib.Path], extra_patterns: Option
     PathSpec matcher for efficient pattern matching.
     
     :param path: The file path to check against ignore patterns.
-    :type path: str
+    :type path: Union[str, pathlib.Path]
     :param extra_patterns: Optional list of additional patterns to check beyond the default Python gitignore patterns.
     :type extra_patterns: Optional[List[str]]
     
@@ -239,9 +240,42 @@ def is_file_should_ignore(path: Union[str, pathlib.Path], extra_patterns: Option
 
 
 def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]] = None) -> Tuple[str, List]:
+    """
+    Build a directory tree structure for a Python project while respecting ignore patterns.
+    
+    This function recursively traverses the directory structure starting from the root path,
+    filtering out files and directories that match the Python gitignore patterns or any
+    additional custom patterns provided. It returns a tree structure representation of the
+    project.
+    
+    :param root_path: The root directory path to start building the tree from.
+    :type root_path: str
+    :param extra_patterns: Optional list of additional patterns to ignore beyond the default Python gitignore patterns.
+    :type extra_patterns: Optional[List[str]]
+    
+    :return: A tuple containing the relative path of the root directory and a list of tree nodes.
+             Each tree node is a tuple of (name, children) where children is a list of child nodes.
+    :rtype: Tuple[str, List]
+    
+    Example::
+        >>> root, tree = build_python_project_tree('/path/to/project')
+        >>> print(root)
+        'project'
+        >>> print(tree)
+        [('src', [('main.py', []), ('utils.py', [])]), ('tests', [('test_main.py', [])])]
+    """
     root_path = pathlib.Path(root_path)
 
     def build_node(path: pathlib.Path):
+        """
+        Recursively build a tree node for the given path.
+        
+        :param path: The path to build a node for.
+        :type path: pathlib.Path
+        
+        :return: A tuple containing the node name and its children list, or None if the path should be ignored.
+        :rtype: Optional[Tuple[str, List]]
+        """
         rel_path = path.relative_to(root_path)
         if path.is_file() and not is_file_should_ignore(rel_path, extra_patterns=extra_patterns):
             return path.name, []
@@ -255,7 +289,7 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
                     if item.is_file():
                         children.append((item.name, []))
                     elif item.is_dir():
-                        # Recursively check if subdirectory contains .py files
+                        # Recursively check if subdirectory contains files
                         sub_node = build_node(item)
                         if sub_node[1]:  # If subdirectory has content
                             children.append(sub_node)
