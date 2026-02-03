@@ -28,10 +28,11 @@ from functools import lru_cache
 from typing import Optional
 
 from hbllmutils.meta.code.pydoc_generation import create_pydoc_generation_task
+from hbllmutils.model import load_llm_model_from_config
 
 
 @lru_cache()
-def _get_llm_task(model_name: Optional[str] = None):
+def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240):
     """
     Get or create a cached LLM task for documentation generation.
 
@@ -42,6 +43,8 @@ def _get_llm_task(model_name: Optional[str] = None):
     :param model_name: Name of the LLM model to use for documentation generation.
                       If None, uses the default model configured in the system.
     :type model_name: Optional[str]
+    :param timeout: Timeout in seconds for LLM API requests. Defaults to 240 seconds.
+    :type timeout: int
 
     :return: A configured pydoc generation task ready for use.
     :rtype: PythonCodeGenerationLLMTask
@@ -53,11 +56,16 @@ def _get_llm_task(model_name: Optional[str] = None):
         True
     """
     return create_pydoc_generation_task(
-        model=model_name
+        model=load_llm_model_from_config(
+            model_name=model_name,
+            timeout=timeout,
+            max_tokens=128000,
+            temperature=0.5
+        )
     )
 
 
-def make_doc_for_file(file: str, model_name: Optional[str] = None) -> None:
+def make_doc_for_file(file: str, model_name: Optional[str] = None, timeout: int = 240) -> None:
     """
     Generate documentation for a single Python file.
 
@@ -71,6 +79,8 @@ def make_doc_for_file(file: str, model_name: Optional[str] = None) -> None:
     :param model_name: Name of the LLM model to use for generation. If None,
                       uses the default model.
     :type model_name: Optional[str]
+    :param timeout: Timeout in seconds for LLM API requests. Defaults to 240 seconds.
+    :type timeout: int
 
     :raises FileNotFoundError: If the specified file does not exist.
     :raises PermissionError: If the file cannot be read or written.
@@ -89,12 +99,13 @@ def make_doc_for_file(file: str, model_name: Optional[str] = None) -> None:
         >>> # File documented using GPT-4 model
     """
     print(f'Make docs for {file!r} ...')
-    new_docs = _get_llm_task(model_name).ask_then_parse(file)
+    new_docs = _get_llm_task(model_name, timeout).ask_then_parse(file)
+    new_docs = new_docs.rstrip()
     with open(file, 'w') as f:
         print(new_docs, file=f)
 
 
-def make_doc_file_directory(directory: str, model_name: Optional[str] = None) -> None:
+def make_doc_file_directory(directory: str, model_name: Optional[str] = None, timeout: int = 240) -> None:
     """
     Generate documentation for all Python files in a directory recursively.
 
@@ -110,6 +121,8 @@ def make_doc_file_directory(directory: str, model_name: Optional[str] = None) ->
     :param model_name: Name of the LLM model to use for generation. If None,
                       uses the default model.
     :type model_name: Optional[str]
+    :param timeout: Timeout in seconds for LLM API requests. Defaults to 240 seconds.
+    :type timeout: int
 
     :raises FileNotFoundError: If the specified directory does not exist.
     :raises PermissionError: If files cannot be read or written.
@@ -130,7 +143,7 @@ def make_doc_file_directory(directory: str, model_name: Optional[str] = None) ->
         >>> # All files documented using GPT-4 model
     """
     for file in glob.glob(os.path.join(directory, '**', '*.py'), recursive=True):
-        make_doc_for_file(file, model_name=model_name)
+        make_doc_for_file(file, model_name=model_name, timeout=timeout)
 
 
 def main():
@@ -146,6 +159,7 @@ def main():
     Command-line Arguments:
         -i, --input: Required. Path to Python file or directory to document.
         -m, --model-name: Optional. LLM model name to use for generation.
+        --timeout: Optional. Timeout in seconds for LLM API requests. Defaults to 210.
 
     Environment Variables:
         OPENAI_MODEL_NAME: Default model name if not specified via argument.
@@ -162,6 +176,8 @@ def main():
         >>> # python remake_docs_via_llm.py -i ./my_project
         >>> # Command line usage with specific model:
         >>> # python remake_docs_via_llm.py -i ./src -m gpt-4
+        >>> # Command line usage with custom timeout:
+        >>> # python remake_docs_via_llm.py -i ./src --timeout 300
         >>> # Using environment variable:
         >>> # export OPENAI_MODEL_NAME=gpt-4
         >>> # python remake_docs_via_llm.py -i ./src
@@ -169,15 +185,16 @@ def main():
     parser = argparse.ArgumentParser(description='Auto create/update docs for file or directory')
     parser.add_argument('-i', '--input', required=True, help='Input code file or directory')
     parser.add_argument('-m', '--model-name', required=False, help='Model name for LLM', default=None)
+    parser.add_argument('--timeout', required=False, type=int, help='Timeout seconds for LLM', default=210)
     args = parser.parse_args()
 
     llm_model = args.model_name or os.environ.get('OPENAI_MODEL_NAME') or os.environ.get('LLM_MODEL_NAME')
     if not os.path.exists(args.input):
         raise FileNotFoundError(f'File not found - {args.input!r}.')
     elif os.path.isfile(args.input):
-        make_doc_for_file(args.input, model_name=llm_model)
+        make_doc_for_file(args.input, model_name=llm_model, timeout=args.timeout)
     elif os.path.isdir(args.input):
-        make_doc_file_directory(args.input, model_name=llm_model)
+        make_doc_file_directory(args.input, model_name=llm_model, timeout=args.timeout)
     else:
         raise RuntimeError(f'Unknown input - {args.input!r}.')
 
