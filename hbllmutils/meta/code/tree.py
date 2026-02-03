@@ -203,7 +203,7 @@ _PYTHON_GITIGNORE_PATTERNS = [
 ]
 
 
-@lru_cache
+@lru_cache()
 def _get_ignore_matcher(extra_patterns: Tuple[str, ...]) -> PathSpec:
     """
     Create and cache a PathSpec matcher for file ignore patterns.
