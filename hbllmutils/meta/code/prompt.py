@@ -8,16 +8,20 @@ dependency analysis with import statements and their implementations.
 """
 
 import io
+import os.path
+import re
 from typing import Optional
 
 from hbutils.string import titleize
 
-from .module import get_package_name
+from .module import get_package_name, get_pythonpath_of_source_file
 from .source import get_source_info
+from .tree import get_python_project_tree_text
 
 
 def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
-                               description_text: Optional[str] = None, skip_when_error: bool = True) -> str:
+                               description_text: Optional[str] = None, show_module_directory_tree: bool = False,
+                               skip_when_error: bool = True) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -45,6 +49,9 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                             the source file information. Can be used to provide context or
                             instructions for the LLM.
     :type description_text: Optional[str]
+    :param show_module_directory_tree: If True, include a directory tree visualization of the module
+                                      structure with the current file highlighted. Defaults to False.
+    :type show_module_directory_tree: bool
     :param skip_when_error: If True, skip imports that fail to load and issue warnings
                            instead of raising exceptions. Defaults to True.
     :type skip_when_error: bool
@@ -80,6 +87,10 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         ...     description_text='This module implements core business logic for user authentication.'
         ... )
         >>> # The description will appear after the title
+        
+        >>> # Include module directory tree visualization
+        >>> prompt = get_prompt_for_source_file('mymodule.py', show_module_directory_tree=True)
+        >>> # The prompt will include a tree view showing the module's location in the project structure
     """
     source_info = get_source_info(source_file, skip_when_error=skip_when_error)
 
@@ -98,6 +109,25 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         print(f'', file=sf)
         print(f'**Package Namespace:** `{source_info.package_name}`', file=sf)
         print(f'', file=sf)
+
+        pythonpath, _ = get_pythonpath_of_source_file(source_info.source_file)
+        rel_source_file = os.path.relpath(source_info.source_file, pythonpath)
+        print(f'**Relative Source File Location:** `{rel_source_file}`', file=sf)
+        print(f'', file=sf)
+
+        if show_module_directory_tree:
+            root_path = os.path.join(pythonpath, re.split(r'[\\/]+', rel_source_file)[0])
+            print('Module directory tree:', file=sf)
+            print(f'```', file=sf)
+            print(get_python_project_tree_text(
+                root_path=root_path,
+                focus_items={
+                    'My Location': source_info.source_file
+                }
+            ), file=sf)
+            print(f'```', file=sf)
+            print(f'', file=sf)
+
         print(f'**Complete Source Code:**', file=sf)
         print(f'', file=sf)
         print(f'```python', file=sf)
@@ -107,7 +137,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
 
         # Import dependencies section
         if source_info.imports:
-            print(f'{"#" * level} Dependency Analysis - Import Statements and Their Implementations', file=sf)
+            print(f'{"#" * (level + 1)} Dependency Analysis - Import Statements and Their Implementations', file=sf)
             print(f'', file=sf)
             print(f'The following section contains all imported dependencies for package `{source_info.package_name}` '
                   f'along with their source code implementations. This information can be used as reference context '
@@ -115,7 +145,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
             print(f'', file=sf)
 
             for imp in source_info.imports:
-                print(f'{"#" * (level + 1)} Import: `{imp.statement}`', file=sf)
+                print(f'{"#" * (level + 2)} Import: `{imp.statement}`', file=sf)
                 print(f'', file=sf)
 
                 # Source file information
