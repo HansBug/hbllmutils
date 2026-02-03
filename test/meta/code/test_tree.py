@@ -118,6 +118,15 @@ def focus_items_dict():
     }
 
 
+@pytest.fixture
+def temp_single_file():
+    """Create a temporary single file for testing."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_path = pathlib.Path(temp_dir) / "single_file.py"
+        file_path.write_text("# Single file content")
+        yield file_path
+
+
 @pytest.mark.unittest
 class TestFileIgnorePatterns:
     def test_is_file_should_ignore_with_none_extra_patterns(self, none_extra_patterns):
@@ -281,6 +290,34 @@ class TestFileIgnorePatterns:
         focused_items = find_focused_items(tree)
         assert any("path_obj" in item for item in focused_items)
 
+    def test_build_python_project_tree_single_file(self, temp_single_file):
+        """Test build_python_project_tree with a single file."""
+        root, tree = build_python_project_tree(str(temp_single_file))
+
+        assert root == os.path.relpath(str(temp_single_file), os.path.abspath('.'))
+        assert isinstance(tree, list)
+        assert len(tree) == 0  # Single file should result in empty tree
+
+    def test_build_python_project_tree_single_file_with_focus(self, temp_single_file):
+        """Test build_python_project_tree with a single file and focus items."""
+        focus_items = {"target": str(temp_single_file)}
+
+        root, tree = build_python_project_tree(str(temp_single_file), focus_items=focus_items)
+
+        assert isinstance(tree, list)
+        assert len(tree) == 0  # Single file should result in empty tree even with focus
+
+    def test_build_python_project_tree_single_ignored_file(self, temp_single_file):
+        """Test build_python_project_tree with a single file that should be ignored."""
+        # Create a file that should be ignored
+        ignored_file = temp_single_file.parent / "test.pyc"
+        ignored_file.write_text("binary")
+
+        root, tree = build_python_project_tree(str(ignored_file))
+
+        assert isinstance(tree, list)
+        assert len(tree) == 0  # Ignored file should result in empty tree
+
     def test_get_python_project_tree_text_basic(self, temp_project_dir):
         """Test basic functionality of get_python_project_tree_text."""
         result = get_python_project_tree_text(str(temp_project_dir))
@@ -372,6 +409,34 @@ class TestFileIgnorePatterns:
 
         tree_names = [item[0] for item in tree]
         assert "only_ignored" not in tree_names
+
+    def test_get_python_project_tree_text_single_file(self, temp_single_file):
+        """Test get_python_project_tree_text with a single file."""
+        result = get_python_project_tree_text(str(temp_single_file))
+
+        assert isinstance(result, str)
+        # Single file results in empty tree, so the result should be minimal
+        assert temp_single_file.name in result or result.strip() == temp_single_file.name
+
+    def test_get_python_project_tree_text_single_file_with_focus(self, temp_single_file):
+        """Test get_python_project_tree_text with a single file and focus items."""
+        focus_items = {"target": str(temp_single_file)}
+
+        result = get_python_project_tree_text(str(temp_single_file), focus_items=focus_items)
+
+        assert isinstance(result, str)
+        # Single file with focus should still result in minimal output
+
+    def test_get_python_project_tree_text_single_ignored_file(self, temp_single_file):
+        """Test get_python_project_tree_text with a single file that should be ignored."""
+        # Create a file that should be ignored
+        ignored_file = temp_single_file.parent / "test.pyc"
+        ignored_file.write_text("binary")
+
+        result = get_python_project_tree_text(str(ignored_file))
+
+        assert isinstance(result, str)
+        # Ignored single file should result in minimal output
 
     @pytest.mark.parametrize("file_path", [
         "__pycache__/main.cpython-39.pyc",
