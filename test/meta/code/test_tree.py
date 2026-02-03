@@ -1,4 +1,3 @@
-import os
 import pathlib
 import tempfile
 from unittest.mock import MagicMock
@@ -178,7 +177,7 @@ class TestFileIgnorePatterns:
         """Test basic functionality of build_python_project_tree."""
         root, tree = build_python_project_tree(str(temp_project_dir))
 
-        assert root == os.path.relpath(str(temp_project_dir), os.path.abspath('.'))
+        assert root == pathlib.Path(temp_project_dir).name
         assert isinstance(tree, list)
 
         # Extract names from tree structure
@@ -294,7 +293,7 @@ class TestFileIgnorePatterns:
         """Test build_python_project_tree with a single file."""
         root, tree = build_python_project_tree(str(temp_single_file))
 
-        assert root == os.path.relpath(str(temp_single_file), os.path.abspath('.'))
+        assert root == pathlib.Path(temp_single_file).name
         assert isinstance(tree, list)
         assert len(tree) == 0  # Single file should result in empty tree
 

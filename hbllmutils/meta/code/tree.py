@@ -27,7 +27,6 @@ Example::
     └── tests
         └── test_main.py
 """
-import os
 import pathlib
 from functools import lru_cache
 from operator import itemgetter
@@ -374,7 +373,7 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
         return None
 
     nx = _build_node(root_path)
-    return os.path.relpath(os.path.normpath(str(root_path)), os.path.abspath('.')), nx[1]
+    return root_path.name, nx[1]
 
 
 def get_python_project_tree_text(root_path: str, extra_patterns: Optional[List[str]] = None,
