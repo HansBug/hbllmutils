@@ -8,7 +8,7 @@ from ...template import PromptTemplate
 
 def create_pydoc_generation_task(model: LLMModelTyping, show_module_directory_tree: bool = False,
                                  skip_when_error: bool = True) -> PythonCodeGenerationLLMTask:
-    system_prompt_file = os.path.join(os.path.dirname(__file__), 'rst-doc-req.j2')
+    system_prompt_file = os.path.join(os.path.dirname(__file__), 'rst-doc-req.md')
     system_prompt_template = PromptTemplate.from_file(system_prompt_file)
     system_prompt = system_prompt_template.render()
 
