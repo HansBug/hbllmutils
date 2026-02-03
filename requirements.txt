@@ -9,3 +9,4 @@ json-repair
 pydantic
 jinja2
 natsort
+pathspec
