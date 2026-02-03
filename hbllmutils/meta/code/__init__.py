@@ -69,3 +69,4 @@ from .module import get_package_name, get_pythonpath_of_source_file, get_package
 from .object import get_object_info, ObjectInspect
 from .prompt import get_prompt_for_source_file
 from .source import ImportSource, SourceInfo, get_source_info
+from .tree import is_file_should_ignore, build_python_project_tree, get_python_project_tree_text

@@ -14,4 +14,5 @@ hbllmutils.meta.code
     object
     prompt
     source
+    tree
 

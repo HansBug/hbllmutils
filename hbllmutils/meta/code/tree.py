@@ -3,10 +3,29 @@ This module provides functionality for managing file path patterns and determini
 should be ignored based on Python project conventions and custom patterns.
 
 The module includes:
+
 - A comprehensive list of Python gitignore patterns
 - Functions to check if files should be ignored based on these patterns
 - Support for custom additional ignore patterns
 - Functions to build directory tree structures while respecting ignore patterns
+
+The main functionality includes:
+
+1. Pattern matching using gitignore-style patterns
+2. Building filtered directory trees for Python projects
+3. Text-based tree visualization with optional focus highlighting
+4. Caching of pattern matchers for performance optimization
+
+Example::
+    >>> from hbllmutils.meta.code.tree import build_python_project_tree, get_python_project_tree_text
+    >>> root, tree = build_python_project_tree('/path/to/project')
+    >>> print(get_python_project_tree_text('/path/to/project'))
+    project
+    ├── src
+    │   ├── main.py
+    │   └── utils.py
+    └── tests
+        └── test_main.py
 """
 import os
 import pathlib
@@ -360,6 +379,47 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
 
 def get_python_project_tree_text(root_path: str, extra_patterns: Optional[List[str]] = None,
                                  focus_items: Optional[dict] = None, encoding: Optional[str] = None) -> str:
+    """
+    Generate a formatted text representation of a Python project's directory tree.
+
+    This function builds a directory tree structure for a Python project and formats it
+    as a text string with tree-like visual formatting (using box-drawing characters).
+    It respects Python gitignore patterns and can optionally highlight specific files
+    or directories with focus labels.
+
+    :param root_path: The root directory path to start building the tree from.
+    :type root_path: str
+    :param extra_patterns: Optional list of additional patterns to ignore beyond the default Python gitignore patterns.
+    :type extra_patterns: Optional[List[str]]
+    :param focus_items: Optional dictionary mapping focus labels to file/directory paths that should be highlighted.
+                       The paths must be within the root_path or its subdirectories.
+    :type focus_items: Optional[dict]
+    :param encoding: Encoding to be used for tree formatting. Default is None which means system encoding.
+                    When ASCII encoding is used, ASCII chars will be used instead of UTF-8 box-drawing characters.
+    :type encoding: Optional[str]
+
+    :return: A formatted string representation of the directory tree with visual tree structure.
+    :rtype: str
+
+    :raises ValueError: If a focus item path is not within the root path or its subdirectories.
+
+    Example::
+        >>> print(get_python_project_tree_text('/path/to/project'))
+        project
+        ├── src
+        │   ├── main.py
+        │   └── utils.py
+        └── tests
+            └── test_main.py
+
+        >>> print(get_python_project_tree_text('/path/to/project', focus_items={'entry': 'src/main.py'}))
+        project
+        ├── src
+        │   ├── main.py <-- (entry)
+        │   └── utils.py
+        └── tests
+            └── test_main.py
+    """
     return format_tree(
         node=build_python_project_tree(
             root_path=root_path,
