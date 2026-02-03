@@ -203,6 +203,33 @@ class ParsableLLMTask(LLMTask):
         """
         raise NotImplementedError  # pragma: no cover
 
+    def _preprocess_input_content(self, input_content: Optional[str]) -> Optional[str]:
+        """
+        Preprocess the input content before sending to the model.
+
+        This method can be overridden by subclasses to modify or transform the input
+        content before it is sent to the model. The default implementation returns
+        the input unchanged.
+
+        :param input_content: The original input content.
+        :type input_content: Optional[str]
+        :return: The preprocessed input content.
+        :rtype: Optional[str]
+
+        Example::
+            >>> class CustomTask(ParsableLLMTask):
+            ...     def _preprocess_input_content(self, input_content: Optional[str]) -> Optional[str]:
+            ...         if input_content:
+            ...             return input_content.strip().lower()
+            ...         return input_content
+            >>> 
+            >>> task = CustomTask(model)
+            >>> result = task._preprocess_input_content("  HELLO  ")
+            >>> print(result)
+            hello
+        """
+        return input_content
+
     def ask_then_parse(self, input_content: Optional[str] = None, max_retries: Optional[int] = None, **params):
         """
         Ask the model a question and parse the response with automatic retry on parse failure.
@@ -250,6 +277,7 @@ class ParsableLLMTask(LLMTask):
         """
         if max_retries is None:
             max_retries = self.default_max_retries
+        input_content = self._preprocess_input_content(input_content)
 
         tries = 0
         err_tries = []
