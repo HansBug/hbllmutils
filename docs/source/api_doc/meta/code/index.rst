@@ -13,6 +13,8 @@ hbllmutils.meta.code
     module
     object
     prompt
+    pydoc_generation
     source
+    task
     tree
 

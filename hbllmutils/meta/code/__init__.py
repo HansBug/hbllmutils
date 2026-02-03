@@ -68,5 +68,7 @@ from .imp import ImportStatement, analyze_imports
 from .module import get_package_name, get_pythonpath_of_source_file, get_package_from_import
 from .object import get_object_info, ObjectInspect
 from .prompt import get_prompt_for_source_file
+from .pydoc_generation import create_pydoc_generation_task
 from .source import ImportSource, SourceInfo, get_source_info
+from .task import PythonCodeGenerationLLMTask, PythonDetailedCodeGenerationLLMTask
 from .tree import is_file_should_ignore, build_python_project_tree, get_python_project_tree_text
