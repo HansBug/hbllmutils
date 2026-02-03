@@ -7,9 +7,10 @@ The module includes:
 - Functions to check if files should be ignored based on these patterns
 - Support for custom additional ignore patterns
 """
-
+import os
+import pathlib
 from functools import lru_cache
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 from natsort import natsorted
 from pathspec import patterns, PathSpec
@@ -207,7 +208,7 @@ def _get_ignore_matcher(extra_patterns: Tuple[str, ...]) -> PathSpec:
     )
 
 
-def is_file_should_ignore(path: str, extra_patterns: Optional[List[str]] = None) -> bool:
+def is_file_should_ignore(path: Union[str, pathlib.Path], extra_patterns: Optional[List[str]] = None) -> bool:
     """
     Determine whether a file should be ignored based on Python gitignore patterns.
     
@@ -231,5 +232,37 @@ def is_file_should_ignore(path: str, extra_patterns: Optional[List[str]] = None)
         >>> is_file_should_ignore('test.txt', extra_patterns=['*.txt'])
         True
     """
+    if isinstance(path, pathlib.Path):
+        path = path.as_posix()
     extra_patterns = tuple(natsorted(extra_patterns or []))
     return bool(_get_ignore_matcher(extra_patterns).match_file(path))
+
+
+def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]] = None) -> Tuple[str, List]:
+    root_path = pathlib.Path(root_path)
+
+    def build_node(path: pathlib.Path):
+        rel_path = path.relative_to(root_path)
+        if path.is_file() and not is_file_should_ignore(rel_path, extra_patterns=extra_patterns):
+            return path.name, []
+        elif path.is_dir():
+            children = []
+            try:
+                # Get all items in the directory
+                for item in sorted(path.iterdir()):
+                    if is_file_should_ignore(item.relative_to(root_path), extra_patterns=extra_patterns):
+                        continue
+                    if item.is_file():
+                        children.append((item.name, []))
+                    elif item.is_dir():
+                        # Recursively check if subdirectory contains .py files
+                        sub_node = build_node(item)
+                        if sub_node[1]:  # If subdirectory has content
+                            children.append(sub_node)
+                return path.name, children
+            except PermissionError:
+                return f"{path.name} (Permission Denied)", []
+        return None
+
+    nx = build_node(root_path)
+    return os.path.relpath(os.path.normpath(str(root_path)), os.path.abspath('.')), nx[1]
