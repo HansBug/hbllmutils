@@ -62,9 +62,14 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         console_handler.setFormatter(ColoredFormatter())
         logger.addHandler(console_handler)
 
+        get_global_logger().debug(f'Starting pydoc generation for input path: {input_path!r}')
+        get_global_logger().debug(f'Model name: {model_name or "default"}')
+        get_global_logger().debug(f'Timeout: {timeout}s')
+
         extra_params = {}
         for param in params:
             if '=' not in param:
+                get_global_logger().error(f'Invalid parameter format: {param!r}. Expected format: key=value')
                 raise ValueError(f'Invalid parameter format: {param!r}. Expected format: key=value')
             key, value = param.split('=', 1)
             try:
@@ -76,13 +81,22 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                     pass
             extra_params[key] = value
 
+        if extra_params:
+            get_global_logger().debug(f'Extra parameters: {extra_params}')
+
         llm_model = (model_name or os.environ.get('OPENAI_MODEL_NAME')
                      or os.environ.get('LLM_MODEL_NAME') or os.environ.get('MODEL_NAME'))
+        get_global_logger().info(f'Using LLM model: {llm_model or "default"}')
+
         if not os.path.exists(input_path):
+            get_global_logger().error(f'File not found - {input_path!r}.')
             raise FileNotFoundError(f'File not found - {input_path!r}.')
         elif os.path.isfile(input_path):
+            get_global_logger().info(f'Processing single file: {input_path!r}')
             generate_pydoc_for_file(input_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+            get_global_logger().info(f'Successfully generated documentation for {input_path!r}')
         elif os.path.isdir(input_path):
+            get_global_logger().info(f'Processing directory: {input_path!r}')
             py_files = []
             for root, dirs, files in os.walk(input_path):
                 for file in files:
@@ -91,9 +105,16 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                         file_path = os.path.join(root, file)
                         py_files.append(file_path)
 
+            get_global_logger().info(f'Found {len(py_files)} Python files in {input_path!r}')
             for file_path in tqdm(py_files, desc=f'Generate Docs in {input_path!r}', total=len(py_files)):
-                generate_pydoc_for_file(file_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+                try:
+                    generate_pydoc_for_file(file_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+                except Exception as e:
+                    get_global_logger().exception(f'Failed to generate documentation for {file_path!r}: {e}')
+                    raise
+            get_global_logger().info(f'Completed documentation generation for directory {input_path!r}')
         else:
+            get_global_logger().error(f'Unknown input - {input_path!r}.')
             raise RuntimeError(f'Unknown input - {input_path!r}.')
 
     return cli
