@@ -66,10 +66,10 @@ from .tree import get_python_project_tree_text
 
 
 def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
-                               description_text: Optional[str] = None, show_module_directory_tree: bool = False,
-                               skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
-                               ignore_modules: Optional[Iterable[str]] = None,
-                               no_ignore_modules: Optional[Iterable[str]] = None) -> str:
+                                description_text: Optional[str] = None, show_module_directory_tree: bool = True,
+                                skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
+                                no_imports: bool = False, ignore_modules: Optional[Iterable[str]] = None,
+                                no_ignore_modules: Optional[Iterable[str]] = None) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -78,12 +78,16 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
     The prompt includes:
     
     - Primary source code analysis section with file location, package namespace, and complete source
+    - Optional module directory tree visualization showing the file's location in the project structure
     - Dependency analysis section with all imported dependencies and their implementations
     - For each import, includes the import statement, source file location, full package path,
       and either the implementation source code or object representation
     
     The generated prompt is formatted in Markdown with code blocks and hierarchical headers,
     making it easy for LLMs to parse and understand the code structure and dependencies.
+    
+    Dependencies can be filtered based on popularity (download count) and explicit inclusion/exclusion
+    lists to control the size and relevance of the generated prompt.
 
     :param source_file: The path to the Python source file to generate a prompt for.
     :type source_file: str
@@ -98,7 +102,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                             instructions for the LLM.
     :type description_text: Optional[str]
     :param show_module_directory_tree: If True, include a directory tree visualization of the module
-                                      structure with the current file highlighted. Defaults to False.
+                                      structure with the current file highlighted. Defaults to True.
     :type show_module_directory_tree: bool
     :param skip_when_error: If True, skip imports that fail to load and issue warnings
                            instead of raising exceptions. Defaults to True.
@@ -107,6 +111,9 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                                     in the prompt. Dependencies with higher downloads may be ignored
                                     to reduce prompt size. Defaults to 1000000.
     :type min_last_month_downloads: int
+    :param no_imports: If True, skip the dependency analysis section entirely and only include
+                      the primary source code. Defaults to False.
+    :type no_imports: bool
     :param ignore_modules: Optional iterable of module names that should be explicitly ignored
                           regardless of download count or other criteria.
     :type ignore_modules: Optional[Iterable[str]]
@@ -123,7 +130,8 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
 
     .. warning::
        Large dependency trees can generate very large prompts. Consider using
-       min_last_month_downloads to filter out less common dependencies.
+       min_last_month_downloads to filter out common dependencies or set no_imports=True
+       to exclude all dependencies.
 
     Example::
 
@@ -173,6 +181,10 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         ...     ignore_modules=['deprecated_module', 'legacy_code']
         ... )
         >>> # The specified modules will be excluded from the dependency analysis
+        
+        >>> # Generate prompt without any dependencies
+        >>> prompt = get_prompt_for_source_file('mymodule.py', no_imports=True)
+        >>> # Only the primary source code will be included, no dependency analysis
 
     """
     if not isinstance(no_ignore_modules, set):
@@ -223,14 +235,17 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         print(f'', file=sf)
 
         # Import dependencies section
-        imports_to_show = [
-            imp for imp in source_info.imports
-            if not imp.statement.check_ignore_or_not(
-                min_last_month_downloads=min_last_month_downloads,
-                ignore_modules=ignore_modules,
-                no_ignore_modules=no_ignore_modules,
-            )
-        ]
+        if no_imports:
+            imports_to_show = []
+        else:
+            imports_to_show = [
+                imp for imp in source_info.imports
+                if not imp.statement.check_ignore_or_not(
+                    min_last_month_downloads=min_last_month_downloads,
+                    ignore_modules=ignore_modules,
+                    no_ignore_modules=no_ignore_modules,
+                )
+            ]
 
         if imports_to_show:
             print(f'{"#" * (level + 1)} Dependency Analysis - Import Statements and Their Implementations', file=sf)
