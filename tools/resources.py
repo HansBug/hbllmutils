@@ -53,6 +53,7 @@ def get_resources_from_mine():
 
 
 def get_resource_files():
+    yield from get_resources_from_package('click')
     yield from get_resources_from_package('jieba')
     yield from get_resources_from_package('markdown_it')
     yield from get_resources_from_mine()

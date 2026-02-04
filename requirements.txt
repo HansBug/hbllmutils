@@ -10,3 +10,4 @@ pydantic
 jinja2
 natsort
 pathspec
+click
