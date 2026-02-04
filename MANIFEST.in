@@ -2,4 +2,4 @@ include README.md
 include MANIFEST.in
 include requirements.txt
 include requirements-*.txt
-recursive-include hbllmutils *.json *.yml *.yaml *.txt *.j2
+recursive-include hbllmutils *.json *.yml *.yaml *.txt *.j2 *.md

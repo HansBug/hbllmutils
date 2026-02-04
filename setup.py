@@ -37,7 +37,7 @@ setup(
         include=(_package_name, "%s.*" % _package_name)
     ),
     package_data={
-        package_name: ['*.yaml', '*.yml', '*.json', '*.txt', '*.j2']
+        package_name: ['*.yaml', '*.yml', '*.json', '*.txt', '*.j2', '*.md']
         for package_name in find_packages(include=('*'))
     },
     description=meta['__DESCRIPTION__'],
@@ -118,4 +118,9 @@ setup(
         # Typing
         'Typing :: Typed',
     ],
+    entry_points={
+        'console_scripts': [
+            'hbllmutils=hbllmutils.entry:hbllmutilscli'
+        ]
+    },
 )

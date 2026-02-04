@@ -28,6 +28,11 @@ COV_TYPES ?= xml term-missing
 
 package:
 	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
+build:
+	pyinstaller -D -F $(shell python -m tools.resources) -n pyfcstm -c pyfcstm_cli.py
+clean:
+	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info
+	rm -rf build dist hbllmutils.spec
 
 test: unittest
 
@@ -58,9 +63,6 @@ ${RST_DOC_DIR}/%/index.rst: ${PYTHON_CODE_DIR}/%/__init__.py auto_rst.py Makefil
 ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
 	@mkdir -p $(dir $@)
 	python auto_rst.py -i $< -o $@
-
-clean:
-	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info hbllmutils.spec
 
 info:
 	echo ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
