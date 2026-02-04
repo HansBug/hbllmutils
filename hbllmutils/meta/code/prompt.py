@@ -22,6 +22,10 @@ The generated prompts include:
 * Full implementation source code for each dependency
 * Proper Markdown formatting with hierarchical headers and code blocks
 
+The module contains the following main components:
+
+* :func:`get_prompt_for_source_file` - Generate comprehensive code prompts for LLM analysis
+
 .. note::
    This module requires the source file to be part of a valid Python package
    structure with proper __init__.py files for accurate package name resolution.
@@ -64,6 +68,7 @@ from .tree import get_python_project_tree_text
 def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
                                description_text: Optional[str] = None, show_module_directory_tree: bool = False,
                                skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
+                               ignore_modules: Optional[Iterable[str]] = None,
                                no_ignore_modules: Optional[Iterable[str]] = None) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
@@ -99,9 +104,12 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                            instead of raising exceptions. Defaults to True.
     :type skip_when_error: bool
     :param min_last_month_downloads: Minimum monthly downloads threshold for including a dependency
-                                    in the prompt. Dependencies with fewer downloads may be ignored
+                                    in the prompt. Dependencies with higher downloads may be ignored
                                     to reduce prompt size. Defaults to 1000000.
     :type min_last_month_downloads: int
+    :param ignore_modules: Optional iterable of module names that should be explicitly ignored
+                          regardless of download count or other criteria.
+    :type ignore_modules: Optional[Iterable[str]]
     :param no_ignore_modules: Optional iterable of module names that should never be ignored
                              regardless of download count or other filtering criteria.
     :type no_ignore_modules: Optional[Iterable[str]]
@@ -158,11 +166,19 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         ...     no_ignore_modules=['mypackage.utils', 'mypackage.config']
         ... )
         >>> # Only includes popular dependencies (>5M downloads) plus the specified modules
+        
+        >>> # Explicitly ignore certain modules
+        >>> prompt = get_prompt_for_source_file(
+        ...     'mymodule.py',
+        ...     ignore_modules=['deprecated_module', 'legacy_code']
+        ... )
+        >>> # The specified modules will be excluded from the dependency analysis
 
     """
-    no_ignore_modules = no_ignore_modules or set()
     if not isinstance(no_ignore_modules, set):
         no_ignore_modules = set(no_ignore_modules or [])
+    if not isinstance(ignore_modules, set):
+        ignore_modules = set(ignore_modules or [])
     source_info = get_source_info(source_file, skip_when_error=skip_when_error)
 
     with io.StringIO() as sf:
@@ -211,6 +227,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
             imp for imp in source_info.imports
             if not imp.statement.check_ignore_or_not(
                 min_last_month_downloads=min_last_month_downloads,
+                ignore_modules=ignore_modules,
                 no_ignore_modules=no_ignore_modules,
             )
         ]

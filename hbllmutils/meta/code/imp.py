@@ -58,7 +58,7 @@ Example::
 import ast
 import inspect
 from dataclasses import dataclass
-from typing import Optional, List, Union, Set
+from typing import Optional, List, Union, Iterable
 
 from hbutils.reflection import quick_import_object
 
@@ -193,7 +193,8 @@ class ImportStatement:
         return inspect.getsourcefile(obj)
 
     def check_ignore_or_not(self, min_last_month_downloads: int = 1000000,
-                            no_ignore_modules: Optional[Set[str]] = None) -> bool:
+                            ignore_modules: Optional[Iterable[str]] = None,
+                            no_ignore_modules: Optional[Iterable[str]] = None) -> bool:
         """
         Determine whether this import should be ignored in analysis or documentation.
 
@@ -208,15 +209,18 @@ class ImportStatement:
                                          considering a package as "hot" and ignorable,
                                          defaults to 1000000
         :type min_last_month_downloads: int, optional
-        :param no_ignore_modules: Set of module names that should never be ignored
+        :param ignore_modules: Iterable of module names that should always be ignored
+        :type ignore_modules: Optional[Iterable[str]], optional
+        :param no_ignore_modules: Iterable of module names that should never be ignored
                                   regardless of other criteria
-        :type no_ignore_modules: Optional[Set[str]], optional
+        :type no_ignore_modules: Optional[Iterable[str]], optional
         :return: True if the import should be ignored, False if it should be included
         :rtype: bool
 
         .. note::
            The logic for ignoring imports:
            
+           * Modules in ``ignore_modules`` are always ignored
            * Modules in ``no_ignore_modules`` are never ignored
            * Unknown/unimportable modules are ignored
            * Standard library modules are ignored
@@ -240,8 +244,14 @@ class ImportStatement:
             True
 
         """
-        no_ignore_modules = no_ignore_modules or set()
-        if self.root_module in no_ignore_modules:
+        if not isinstance(ignore_modules, set):
+            ignore_modules = set(ignore_modules or [])
+        if not isinstance(no_ignore_modules, set):
+            no_ignore_modules = set(no_ignore_modules or [])
+        root_module = self.root_module
+        if root_module in ignore_modules:
+            return True
+        if root_module in no_ignore_modules:
             return False
 
         module_info = get_module_info(self.root_module)
@@ -436,7 +446,8 @@ class FromImportStatement:
         return self.name == '*'
 
     def check_ignore_or_not(self, min_last_month_downloads: int = 1000000,
-                            no_ignore_modules: Optional[Set[str]] = None) -> bool:
+                            ignore_modules: Optional[Iterable[str]] = None,
+                            no_ignore_modules: Optional[Iterable[str]] = None) -> bool:
         """
         Determine whether this from-import should be ignored in analysis or documentation.
 
@@ -448,9 +459,11 @@ class FromImportStatement:
                                          considering a package as "hot" and ignorable,
                                          defaults to 1000000
         :type min_last_month_downloads: int, optional
-        :param no_ignore_modules: Set of module names that should never be ignored
+        :param ignore_modules: Iterable of module names that should always be ignored
+        :type ignore_modules: Optional[Iterable[str]], optional
+        :param no_ignore_modules: Iterable of module names that should never be ignored
                                   regardless of other criteria
-        :type no_ignore_modules: Optional[Set[str]], optional
+        :type no_ignore_modules: Optional[Iterable[str]], optional
         :return: True if the import should be ignored, False if it should be included
         :rtype: bool
 
@@ -458,6 +471,7 @@ class FromImportStatement:
            The logic for ignoring from-imports:
            
            * Relative imports are never ignored (they're project-internal)
+           * Modules in ``ignore_modules`` are always ignored
            * Modules in ``no_ignore_modules`` are never ignored
            * Unknown/unimportable modules are ignored
            * Standard library modules are ignored
@@ -490,8 +504,13 @@ class FromImportStatement:
             # for relative modules, must not ignore
             return False
 
-        no_ignore_modules = no_ignore_modules or set()
+        if not isinstance(ignore_modules, set):
+            ignore_modules = set(ignore_modules or [])
+        if not isinstance(no_ignore_modules, set):
+            no_ignore_modules = set(no_ignore_modules or [])
         root_module = self.module.split('.')[0]
+        if root_module in ignore_modules:
+            return True
         if root_module in no_ignore_modules:
             return False
 
