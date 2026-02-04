@@ -69,6 +69,7 @@ from .module import get_package_name, get_pythonpath_of_source_file, get_package
 from .object import get_object_info, ObjectInspect
 from .prompt import get_prompt_for_source_file
 from .pydoc_generation import create_pydoc_generation_task
+from .pypi import get_module_info, get_pypi_info, is_standard_library
 from .source import ImportSource, SourceInfo, get_source_info
 from .task import PythonCodeGenerationLLMTask, PythonDetailedCodeGenerationLLMTask
 from .todo_completion import create_todo_completion_task
