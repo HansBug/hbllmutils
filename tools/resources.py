@@ -53,22 +53,8 @@ def get_resources_from_mine():
 
 
 def get_resource_files():
-    # hbutils>=0.14.2
-    # openai
-    # tqdm
-    # pillow
-    # pyyaml
-    # jieba
-    # markdown-it-py
-    # json-repair
-    # pydantic
-    # jinja2
-    # natsort
-    # pathspec
-    # TODO: take a look at these requirements above used in this project, you should find out which of them has extra
-    #       resource files, when we build executable file with pyinstaller we need to add those for them
-    #       via get_resources_from_package('xxx'), so you should find out them and add get_resources_from_package('xxxx')-s above
-    yield from get_resources_from_package('z3')
+    yield from get_resources_from_package('jieba')
+    yield from get_resources_from_package('markdown_it')
     yield from get_resources_from_mine()
     # for pack_name in list_installed_packages():
     #     yield from get_resource_files_from_package(pack_name)

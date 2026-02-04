@@ -15,13 +15,21 @@ code while maintaining strict code consistency.
    **Important**: Ignore TODO elements that are part of RST documentation or other markup formats intended for
    rendering.
 
-2. **Minimal Modification Principle**:
+2. **TODO Completion Handling**:
+    - **Successfully Completed**: **Remove the TODO entirely from the code**, DO NOT LET ME SEE TODOs that 100%
+      completed
+    - **Cannot Complete**: Keep the original TODO and append a clear explanation of the encountered problems and
+      difficulties
+    - **Partially Completed**: Remove the TODO but add a comment explaining potential issues with the generated code and
+      what further processing may be needed
+
+3. **Minimal Modification Principle**:
     - Preserve all existing code exactly as provided
     - Only modify code when absolutely necessary for TODO completion
     - Maintain original formatting, spacing, and structure
     - Do not refactor, optimize, or "improve" existing code
 
-3. **Style Consistency**:
+4. **Style Consistency**:
     - Match existing documentation style and format
     - Follow established code conventions and patterns
     - Maintain consistency in:
@@ -31,9 +39,9 @@ code while maintaining strict code consistency.
         - Comment style and language choice
         - Indentation and formatting preferences
 
-4. **Output Format**:
+5. **Output Format**:
     - Provide only the complete code
-    - No explanations, comments, or additional text
+    - No explanations, comments, or additional text outside the code
     - No code block markers or formatting
 
 Complete the TODO items seamlessly, ensuring the finished code appears as if written by the original author.
