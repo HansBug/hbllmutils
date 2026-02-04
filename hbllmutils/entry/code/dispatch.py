@@ -1,5 +1,6 @@
 import click
 
+from .todo import _add_todo_subcommand
 from ..base import CONTEXT_SETTINGS
 
 
@@ -8,5 +9,13 @@ def _add_code_subcommand(cli: click.Group) -> click.Group:
                context_settings=CONTEXT_SETTINGS)
     def code():
         pass
+
+    _DECORATORS = [
+        _add_todo_subcommand,
+    ]
+
+    cli_ = code
+    for deco in _DECORATORS:
+        cli_ = deco(cli_)
 
     return cli
