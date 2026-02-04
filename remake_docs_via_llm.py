@@ -23,9 +23,12 @@ Main Features:
 """
 import argparse
 import glob
+import logging
 import os
 from functools import lru_cache
 from typing import Optional
+
+from hbutils.logging import ColoredFormatter
 
 from hbllmutils.meta.code.pydoc_generation import create_pydoc_generation_task
 from hbllmutils.model import load_llm_model_from_config
@@ -182,6 +185,7 @@ def main():
         >>> # export OPENAI_MODEL_NAME=gpt-4
         >>> # python remake_docs_via_llm.py -i ./src
     """
+
     parser = argparse.ArgumentParser(description='Auto create/update docs for file or directory')
     parser.add_argument('-i', '--input', required=True, help='Input code file or directory')
     parser.add_argument('-m', '--model-name', required=False, help='Model name for LLM', default=None)
@@ -200,4 +204,10 @@ def main():
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(ColoredFormatter())
+    logger.addHandler(console_handler)
+
     main()

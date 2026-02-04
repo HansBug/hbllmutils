@@ -1,33 +1,44 @@
 """
-File path pattern management and directory tree building for Python projects.
+File path pattern management and directory tree building utilities for Python projects.
 
-This module provides comprehensive functionality for managing file path patterns
-and determining which files should be ignored based on Python project conventions
-and custom patterns. It includes tools for building filtered directory trees and
-generating text-based visualizations of project structures.
+This module provides comprehensive functionality for managing file path patterns and
+determining which files should be ignored based on Python project conventions and
+custom patterns. It enables building filtered directory tree structures while
+respecting gitignore-style patterns commonly used in Python projects.
 
 The module contains the following main components:
 
-* :func:`is_file_should_ignore` - Check if a file matches ignore patterns
+* :func:`is_file_should_ignore` - Check if a file should be ignored based on patterns
 * :func:`build_python_project_tree` - Build filtered directory tree structure
-* :func:`get_python_project_tree_text` - Generate formatted text tree visualization
+* :func:`get_python_project_tree_text` - Generate formatted text tree representation
+
+Key features include:
+
+- Pattern matching using gitignore-style patterns via pathspec library
+- Comprehensive default Python gitignore patterns covering common artifacts
+- Support for custom additional ignore patterns
+- Directory tree building with optional focus item highlighting
+- Text-based tree visualization with box-drawing characters
+- LRU caching of pattern matchers for performance optimization
 
 .. note::
-   The module uses gitignore-style pattern matching for file filtering and
-   caches pattern matchers for optimal performance.
+   The module uses pathspec library for gitignore-style pattern matching,
+   which provides robust and standards-compliant pattern evaluation.
 
 .. warning::
-   Large directory structures may consume significant memory during tree building.
-   Consider using extra_patterns to filter out unnecessary directories.
+   Large directory structures may require significant time to traverse.
+   Consider using extra_patterns to filter out unnecessary directories early.
 
 Example::
 
     >>> from hbllmutils.meta.code.tree import build_python_project_tree, get_python_project_tree_text
     >>> 
-    >>> # Build a filtered tree structure
+    >>> # Build a directory tree structure
     >>> root, tree = build_python_project_tree('/path/to/project')
+    >>> print(root)
+    'project'
     >>> 
-    >>> # Generate formatted text output
+    >>> # Generate formatted text representation
     >>> print(get_python_project_tree_text('/path/to/project'))
     project
     ├── src
@@ -36,18 +47,18 @@ Example::
     └── tests
         └── test_main.py
     >>> 
-    >>> # Highlight specific files
-    >>> text = get_python_project_tree_text(
+    >>> # Highlight specific files with focus labels
+    >>> print(get_python_project_tree_text(
     ...     '/path/to/project',
-    ...     focus_items={'entry': 'src/main.py'}
-    ... )
-    >>> print(text)
+    ...     focus_items={'entry': 'src/main.py', 'config': 'config.yaml'}
+    ... ))
     project
     ├── src
     │   ├── main.py <-- (entry)
     │   └── utils.py
-    └── tests
-        └── test_main.py
+    ├── tests
+    │   └── test_main.py
+    └── config.yaml <-- (config)
 
 """
 import pathlib
@@ -233,18 +244,19 @@ def _get_ignore_matcher(extra_patterns: Tuple[str, ...]) -> PathSpec:
     This function combines the default Python gitignore patterns with any additional
     custom patterns provided, and returns a PathSpec object that can be used to match
     file paths against these patterns. The result is cached using LRU cache for
-    performance optimization across multiple calls with the same pattern set.
+    performance optimization, with the cache key being the tuple of extra patterns.
 
     :param extra_patterns: Additional patterns to include beyond the default Python gitignore patterns.
-                          Must be a tuple for hashability (required for caching).
+                          Must be a tuple for hashability in the LRU cache.
     :type extra_patterns: Tuple[str, ...]
 
-    :return: A PathSpec object configured with all ignore patterns for efficient pattern matching.
+    :return: A PathSpec object configured with all ignore patterns (default + extra).
     :rtype: PathSpec
 
     .. note::
-       This function is cached with :func:`functools.lru_cache` to avoid recompiling
-       patterns for repeated calls with the same arguments.
+       This function is cached using :func:`functools.lru_cache` with unlimited cache size.
+       The cache key is the tuple of extra_patterns, so identical pattern sets will reuse
+       the same PathSpec instance.
 
     Example::
 
@@ -253,6 +265,11 @@ def _get_ignore_matcher(extra_patterns: Tuple[str, ...]) -> PathSpec:
         True
         >>> matcher.match_file('main.py')
         False
+        >>> 
+        >>> # Subsequent calls with same patterns use cached result
+        >>> matcher2 = _get_ignore_matcher(('*.txt', 'temp/'))
+        >>> matcher is matcher2
+        True
 
     """
     return PathSpec.from_lines(
@@ -267,31 +284,39 @@ def is_file_should_ignore(path: Union[str, pathlib.Path], extra_patterns: Option
 
     This function checks if the given file path matches any of the default Python
     gitignore patterns or any additional custom patterns provided. It uses a cached
-    PathSpec matcher for efficient pattern matching across multiple file checks.
+    PathSpec matcher for efficient pattern matching. The function handles both string
+    paths and pathlib.Path objects, converting them to POSIX-style paths for consistent
+    pattern matching across platforms.
 
-    :param path: The file path to check against ignore patterns. Can be either a string
-                or a pathlib.Path object. Relative paths are recommended for accurate matching.
+    :param path: The file path to check against ignore patterns. Can be absolute or relative.
     :type path: Union[str, pathlib.Path]
     :param extra_patterns: Optional list of additional patterns to check beyond the default
-                          Python gitignore patterns. Uses gitignore-style pattern syntax.
+                          Python gitignore patterns. Patterns follow gitignore syntax.
     :type extra_patterns: Optional[List[str]]
 
-    :return: True if the file matches any ignore pattern and should be ignored, False otherwise.
+    :return: True if the file should be ignored (matches any pattern), False otherwise.
     :rtype: bool
 
     .. note::
-       Path objects are automatically converted to POSIX-style strings for consistent
-       pattern matching across different operating systems.
+       The extra_patterns list is sorted and converted to a tuple for caching purposes.
+       This ensures consistent cache keys regardless of the original list order.
 
     Example::
 
         >>> is_file_should_ignore('__pycache__/test.pyc')
         True
-        >>> is_file_should_ignore('src/main.py')
+        >>> is_file_should_ignore('main.py')
         False
-        >>> is_file_should_ignore('notes.txt', extra_patterns=['*.txt'])
+        >>> is_file_should_ignore('test.txt', extra_patterns=['*.txt'])
         True
-        >>> is_file_should_ignore('data/temp.log', extra_patterns=['data/'])
+        >>> 
+        >>> # Works with pathlib.Path objects
+        >>> from pathlib import Path
+        >>> is_file_should_ignore(Path('build/output.so'))
+        True
+        >>> 
+        >>> # Custom patterns can be added
+        >>> is_file_should_ignore('data.csv', extra_patterns=['*.csv', '*.json'])
         True
 
     """
@@ -309,35 +334,40 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
     This function recursively traverses the directory structure starting from the root path,
     filtering out files and directories that match the Python gitignore patterns or any
     additional custom patterns provided. It returns a tree structure representation of the
-    project suitable for visualization or further processing. Optionally, specific files
-    or directories can be highlighted with focus labels for emphasis in the output.
+    project suitable for visualization or further processing. Optionally, specific files or
+    directories can be highlighted with focus labels to draw attention to important items.
 
-    :param root_path: The root directory path to start building the tree from. Can be either
-                     absolute or relative path.
+    :param root_path: The root directory path to start building the tree from. Can be absolute
+                     or relative to the current working directory.
     :type root_path: str
     :param extra_patterns: Optional list of additional patterns to ignore beyond the default
-                          Python gitignore patterns. Uses gitignore-style pattern syntax.
+                          Python gitignore patterns. Patterns follow gitignore syntax.
     :type extra_patterns: Optional[List[str]]
     :param focus_items: Optional dictionary mapping focus labels to file/directory paths that
                        should be highlighted. The paths must be within the root_path or its
                        subdirectories. Paths can be either absolute or relative to root_path.
-                       Format: {'label': 'path/to/file'}.
+                       Focus items are marked with " <-- (label)" suffix in their names.
     :type focus_items: Optional[dict]
 
-    :return: A tuple containing the root directory name and a list of tree nodes.
-             Each tree node is a tuple of (name, children) where children is a list of child nodes.
-             Focus items are marked with " <-- (label)" suffix in their names.
+    :return: A tuple containing:
+             - The name of the root directory (str)
+             - A list of tree nodes representing the directory structure
+             Each tree node is a tuple of (name, children) where:
+             - name (str) is the file/directory name, optionally with focus suffix
+             - children (list) is a list of child nodes (empty for files)
     :rtype: Tuple[str, List]
 
     :raises ValueError: If a focus item path is not within the root path or its subdirectories.
-    :raises PermissionError: If access to a directory is denied (handled gracefully with a marker).
+    :raises PermissionError: If a directory cannot be accessed due to permissions (caught and
+                            marked in tree as "(Permission Denied)").
 
     .. note::
-       Empty directories (after filtering) are automatically excluded from the tree.
+       Empty directories (after filtering) are excluded from the tree structure.
+       Only directories containing at least one non-ignored file are included.
 
     .. warning::
-       Symbolic links are followed during traversal, which may lead to infinite loops
-       if circular references exist in the directory structure.
+       Large directory structures may take significant time to traverse. Consider
+       using extra_patterns to filter out large directories early in the traversal.
 
     Example::
 
@@ -346,16 +376,18 @@ def build_python_project_tree(root_path: str, extra_patterns: Optional[List[str]
         'project'
         >>> print(tree)
         [('src', [('main.py', []), ('utils.py', [])]), ('tests', [('test_main.py', [])])]
-
+        >>> 
+        >>> # With focus items to highlight specific files
         >>> root, tree = build_python_project_tree(
         ...     '/path/to/project',
-        ...     focus_items={'entry': 'src/main.py', 'config': 'setup.py'}
+        ...     focus_items={'entry': 'src/main.py', 'config': 'config.yaml'}
         ... )
         >>> print(tree)
         [('src', [('main.py <-- (entry)', []), ('utils.py', [])]),
-         ('setup.py <-- (config)', []),
-         ('tests', [('test_main.py', [])])]
-
+         ('tests', [('test_main.py', [])]),
+         ('config.yaml <-- (config)', [])]
+        >>> 
+        >>> # With extra ignore patterns
         >>> root, tree = build_python_project_tree(
         ...     '/path/to/project',
         ...     extra_patterns=['*.md', 'docs/']
@@ -448,35 +480,35 @@ def get_python_project_tree_text(root_path: str, extra_patterns: Optional[List[s
     Generate a formatted text representation of a Python project's directory tree.
 
     This function builds a directory tree structure for a Python project and formats it
-    as a text string with tree-like visual formatting using box-drawing characters
-    (or ASCII characters for ASCII encoding). It respects Python gitignore patterns and
-    can optionally highlight specific files or directories with focus labels.
+    as a text string with tree-like visual formatting using box-drawing characters (UTF-8)
+    or ASCII characters depending on the encoding. It respects Python gitignore patterns
+    and can optionally highlight specific files or directories with focus labels.
 
-    :param root_path: The root directory path to start building the tree from. Can be either
-                     absolute or relative path.
+    :param root_path: The root directory path to start building the tree from. Can be absolute
+                     or relative to the current working directory.
     :type root_path: str
     :param extra_patterns: Optional list of additional patterns to ignore beyond the default
-                          Python gitignore patterns. Uses gitignore-style pattern syntax.
+                          Python gitignore patterns. Patterns follow gitignore syntax.
     :type extra_patterns: Optional[List[str]]
     :param focus_items: Optional dictionary mapping focus labels to file/directory paths that
                        should be highlighted. The paths must be within the root_path or its
-                       subdirectories. Format: {'label': 'path/to/file'}.
+                       subdirectories. Focus items are marked with " <-- (label)" suffix.
     :type focus_items: Optional[dict]
-    :param encoding: Encoding to be used for tree formatting. Default is None which uses system
-                    encoding. When ASCII encoding is used, ASCII characters will be used instead
-                    of UTF-8 box-drawing characters for better compatibility.
+    :param encoding: Encoding to be used for tree formatting. Default is None which means
+                    system encoding. When ASCII encoding is used, ASCII characters will be
+                    used instead of UTF-8 box-drawing characters for wider compatibility.
     :type encoding: Optional[str]
 
     :return: A formatted string representation of the directory tree with visual tree structure
-            using box-drawing characters (├──, │, └──) or ASCII equivalents.
+            using box-drawing characters (├──, └──, │) or ASCII equivalents.
     :rtype: str
 
     :raises ValueError: If a focus item path is not within the root path or its subdirectories.
 
     .. note::
-       The output format automatically adjusts based on the specified encoding. UTF-8 encoding
-       produces prettier output with box-drawing characters, while ASCII encoding uses simpler
-       characters for better compatibility with legacy systems.
+       The function automatically selects appropriate characters based on encoding:
+       - UTF-8 encoding uses Unicode box-drawing characters for better visual appearance
+       - ASCII encoding uses simple ASCII characters (+, |, -) for maximum compatibility
 
     Example::
 
@@ -487,29 +519,33 @@ def get_python_project_tree_text(root_path: str, extra_patterns: Optional[List[s
         │   └── utils.py
         └── tests
             └── test_main.py
-
+        >>> 
+        >>> # With focus items to highlight specific files
         >>> print(get_python_project_tree_text(
         ...     '/path/to/project',
-        ...     focus_items={'entry': 'src/main.py', 'tests': 'tests/'}
+        ...     focus_items={'entry': 'src/main.py', 'test': 'tests/test_main.py'}
         ... ))
         project
         ├── src
         │   ├── main.py <-- (entry)
         │   └── utils.py
-        └── tests <-- (tests)
-            └── test_main.py
-
-        >>> print(get_python_project_tree_text(
-        ...     '/path/to/project',
-        ...     extra_patterns=['*.md', 'docs/'],
-        ...     encoding='ASCII'
-        ... ))
+        └── tests
+            └── test_main.py <-- (test)
+        >>> 
+        >>> # With ASCII encoding for compatibility
+        >>> print(get_python_project_tree_text('/path/to/project', encoding='ASCII'))
         project
         +-- src
         |   +-- main.py
         |   +-- utils.py
         +-- tests
             +-- test_main.py
+        >>> 
+        >>> # With extra ignore patterns
+        >>> print(get_python_project_tree_text(
+        ...     '/path/to/project',
+        ...     extra_patterns=['*.md', 'docs/', 'examples/']
+        ... ))
 
     """
     return format_tree(
