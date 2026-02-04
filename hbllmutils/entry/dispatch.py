@@ -1,3 +1,24 @@
+"""
+Command-line interface dispatch module for hbllmutils.
+
+This module provides the main CLI entry point and version information display
+functionality for the hbllmutils package. It sets up the command-line interface
+using Click framework and handles version display with author information.
+
+The module contains the following main components:
+
+* :func:`print_version` - Callback function to display version information
+* :func:`hbllmutils` - Main CLI group entry point
+
+Example::
+
+    >>> # Command line usage
+    >>> # hbllmutils --version
+    >>> # Hbllmutils, version 0.3.1.
+    >>> # Developed by HansBug (hansbug@buaa.edu.cn).
+
+"""
+
 import click
 from click.core import Context, Option
 
@@ -25,10 +46,36 @@ _authors = [
 # noinspection PyUnusedLocal
 def print_version(ctx: Context, param: Option, value: bool) -> None:
     """
-    Print version information of cli
-    :param ctx: click context
-    :param param: current parameter's metadata
-    :param value: value of current parameter
+    Display version information and exit the CLI application.
+
+    This callback function is triggered when the version flag is provided on the
+    command line. It prints the application title, version number, and developer
+    information, then exits the application gracefully.
+
+    :param ctx: Click context object containing execution state and configuration
+    :type ctx: Context
+    :param param: Metadata for the current parameter being processed (version option)
+    :type param: Option
+    :param value: Boolean value indicating whether the version flag was provided
+    :type value: bool
+    :return: None - function exits the application after printing version info
+    :rtype: None
+
+    .. note::
+       This function is designed to be used as a Click callback and should not
+       be called directly in normal code flow.
+
+    .. note::
+       The function respects Click's resilient parsing mode and will not execute
+       during completion or validation phases.
+
+    Example::
+
+        >>> # This function is automatically called when using CLI
+        >>> # $ hbllmutils --version
+        >>> # Hbllmutils, version 0.3.1.
+        >>> # Developed by HansBug (hansbug@buaa.edu.cn).
+
     """
     if not value or ctx.resilient_parsing:
         return  # pragma: no cover
@@ -43,4 +90,41 @@ def print_version(ctx: Context, param: Option, value: bool) -> None:
               callback=print_version, expose_value=False, is_eager=True,
               help="Show hbllmutils's version information.")
 def hbllmutils():
+    """
+    Main CLI group entry point for hbllmutils command-line interface.
+
+    This function serves as the primary command group for the hbllmutils CLI
+    application. It provides the foundation for all subcommands and handles
+    global options such as version display and help information.
+
+    The function is decorated with Click's group decorator to enable command
+    grouping functionality, allowing subcommands to be registered and executed
+    under the main hbllmutils command.
+
+    :return: None - serves as a command group container
+    :rtype: None
+
+    .. note::
+       This function acts as a command group container and does not perform
+       any operations directly. Actual functionality is provided by subcommands
+       registered to this group.
+
+    .. note::
+       Global options like ``--version`` and ``--help`` are available at this
+       level and apply to the entire CLI application.
+
+    Example::
+
+        >>> # Display help information
+        >>> # $ hbllmutils --help
+        >>> # Usage: hbllmutils [OPTIONS] COMMAND [ARGS]...
+        >>> #
+        >>> # A Python utility library for streamlined Large Language Model
+        >>> # interactions with unified API and conversation management.
+        >>> #
+        >>> # Options:
+        >>> #   -v, --version  Show hbllmutils's version information.
+        >>> #   -h, --help     Show this message and exit.
+
+    """
     pass  # pragma: no cover

@@ -23,7 +23,7 @@ FromImportStatement
 -----------------------------------------------------
 
 .. autoclass:: FromImportStatement
-    :members: __str__,is_relative,module,name,alias,level,line,col_offset
+    :members: __str__,is_relative,is_wildcard,module,name,alias,level,line,col_offset
 
 
 ImportVisitor

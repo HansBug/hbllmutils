@@ -45,3 +45,9 @@ command\_wrap
 .. autofunction:: command_wrap
 
 
+parse\_key\_value\_params
+-----------------------------------------------------
+
+.. autofunction:: parse_key_value_params
+
+

@@ -10,5 +10,6 @@ hbllmutils.entry.code
     :maxdepth: 3
 
     dispatch
+    pydoc
     todo
 

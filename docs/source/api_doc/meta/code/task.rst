@@ -10,6 +10,7 @@ PythonCodeGenerationLLMTask
 -----------------------------------------------------
 
 .. autoclass:: PythonCodeGenerationLLMTask
+    :members: __init__,__exceptions__
 
 
 PythonDetailedCodeGenerationLLMTask

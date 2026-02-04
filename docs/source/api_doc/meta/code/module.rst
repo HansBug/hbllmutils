@@ -18,3 +18,9 @@ get\_pythonpath\_of\_source\_file
 .. autofunction:: get_pythonpath_of_source_file
 
 
+get\_package\_from\_import
+-----------------------------------------------------
+
+.. autofunction:: get_package_from_import
+
+
