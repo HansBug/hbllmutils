@@ -156,20 +156,20 @@ class TestIsStandardLibrary:
     def test_standard_library_path(self, mock_stdlib_path):
         test_path = mock_stdlib_path / "json" / "__init__.py"
         with patch.object(Path, 'exists', return_value=True):
-            with patch.object(Path, 'is_relative_to', return_value=True):
+            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
                 result = is_standard_library(test_path)
                 assert result is True
 
     def test_site_packages_path(self, mock_stdlib_path):
         test_path = mock_stdlib_path / "site-packages" / "test_module"
         with patch.object(Path, 'exists', return_value=True):
-            with patch.object(Path, 'is_relative_to', return_value=True):
+            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
                 result = is_standard_library(test_path)
                 assert result is False
 
     def test_non_stdlib_path(self, mock_third_party_path):
         with patch.object(Path, 'exists', return_value=True):
-            with patch.object(Path, 'is_relative_to', return_value=False):
+            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=False):
                 result = is_standard_library(mock_third_party_path)
                 assert result is False
 
@@ -183,21 +183,21 @@ class TestIsStandardLibrary:
         test_path = Path(sys.prefix) / "Lib" / "json"
         with patch('sys.platform', 'win32'):
             with patch.object(Path, 'exists', return_value=True):
-                with patch.object(Path, 'is_relative_to', return_value=True):
+                with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
                     result = is_standard_library(test_path)
                     assert result is True
 
     def test_value_error_exception(self, mock_stdlib_path):
         test_path = mock_stdlib_path / "test"
         with patch.object(Path, 'exists', return_value=True):
-            with patch.object(Path, 'is_relative_to', side_effect=ValueError("Test error")):
+            with patch('hbllmutils.meta.code.pypi._is_relative_to', side_effect=ValueError("Test error")):
                 result = is_standard_library(test_path)
                 assert result is False
 
     def test_os_error_exception(self, mock_stdlib_path):
         test_path = mock_stdlib_path / "test"
         with patch.object(Path, 'exists', return_value=True):
-            with patch.object(Path, 'is_relative_to', side_effect=OSError("Test error")):
+            with patch('hbllmutils.meta.code.pypi._is_relative_to', side_effect=OSError("Test error")):
                 result = is_standard_library(test_path)
                 assert result is False
 
