@@ -16,14 +16,14 @@ ImportStatement
 -----------------------------------------------------
 
 .. autoclass:: ImportStatement
-    :members: __str__,root_module,module_file,module,alias,line,col_offset
+    :members: __str__,root_module,module_file,check_ignore_or_not,module,alias,line,col_offset
 
 
 FromImportStatement
 -----------------------------------------------------
 
 .. autoclass:: FromImportStatement
-    :members: __str__,is_relative,is_wildcard,module,name,alias,level,line,col_offset
+    :members: __str__,is_relative,is_wildcard,check_ignore_or_not,module,name,alias,level,line,col_offset
 
 
 ImportVisitor

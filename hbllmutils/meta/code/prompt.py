@@ -1,16 +1,58 @@
 """
-This module provides functionality for generating comprehensive code prompts for LLM analysis.
+Code prompt generation for LLM analysis and documentation tasks.
 
-It creates structured prompts containing source code and its dependencies, suitable for various
-LLM tasks such as documentation generation, unit testing, code analysis, and code understanding.
-The generated prompts include the primary source code, package information, and detailed
-dependency analysis with import statements and their implementations.
+This module provides functionality for generating comprehensive code prompts suitable
+for Large Language Model (LLM) analysis. It creates structured prompts containing
+source code and its dependencies, formatted in Markdown with clear sections for
+primary source code and dependency analysis.
+
+The module is designed to support various LLM tasks including:
+
+* Automated documentation generation
+* Unit test creation
+* Code analysis and review
+* Code understanding and explanation
+* Refactoring suggestions
+
+The generated prompts include:
+
+* Primary source code with file location and package namespace information
+* Optional module directory tree visualization
+* Comprehensive dependency analysis with import statements
+* Full implementation source code for each dependency
+* Proper Markdown formatting with hierarchical headers and code blocks
+
+.. note::
+   This module requires the source file to be part of a valid Python package
+   structure with proper __init__.py files for accurate package name resolution.
+
+.. warning::
+   Large projects with many dependencies may generate very large prompts that
+   could exceed token limits of some LLM models. Consider filtering dependencies
+   or processing files individually.
+
+Example::
+
+    >>> from hbllmutils.meta.code.prompt import get_prompt_for_source_file
+    >>> 
+    >>> # Generate a basic prompt for documentation
+    >>> prompt = get_prompt_for_source_file('mymodule.py')
+    >>> print(prompt[:200])
+    '## Primary Source Code Analysis\\n\\n**Source File Location:** `mymodule.py`...'
+    >>> 
+    >>> # Generate with custom description and directory tree
+    >>> prompt = get_prompt_for_source_file(
+    ...     'mymodule.py',
+    ...     description_text='Generate comprehensive pydoc for this module.',
+    ...     show_module_directory_tree=True
+    ... )
+
 """
 
 import io
 import os.path
 import re
-from typing import Optional
+from typing import Optional, Iterable
 
 from hbutils.string import titleize
 
@@ -21,7 +63,8 @@ from .tree import get_python_project_tree_text
 
 def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
                                description_text: Optional[str] = None, show_module_directory_tree: bool = False,
-                               skip_when_error: bool = True) -> str:
+                               skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
+                               no_ignore_modules: Optional[Iterable[str]] = None) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -55,11 +98,27 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
     :param skip_when_error: If True, skip imports that fail to load and issue warnings
                            instead of raising exceptions. Defaults to True.
     :type skip_when_error: bool
+    :param min_last_month_downloads: Minimum monthly downloads threshold for including a dependency
+                                    in the prompt. Dependencies with fewer downloads may be ignored
+                                    to reduce prompt size. Defaults to 1000000.
+    :type min_last_month_downloads: int
+    :param no_ignore_modules: Optional iterable of module names that should never be ignored
+                             regardless of download count or other filtering criteria.
+    :type no_ignore_modules: Optional[Iterable[str]]
 
     :return: A formatted Markdown string containing the comprehensive code prompt.
     :rtype: str
 
+    .. note::
+       The function uses :func:`get_source_info` to analyze the source file and extract
+       import information. Import failures can be handled gracefully with skip_when_error.
+
+    .. warning::
+       Large dependency trees can generate very large prompts. Consider using
+       min_last_month_downloads to filter out less common dependencies.
+
     Example::
+
         >>> # Generate a prompt for a Python module
         >>> prompt = get_prompt_for_source_file('mypackage/mymodule.py')
         >>> print(prompt[:100])
@@ -91,7 +150,19 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         >>> # Include module directory tree visualization
         >>> prompt = get_prompt_for_source_file('mymodule.py', show_module_directory_tree=True)
         >>> # The prompt will include a tree view showing the module's location in the project structure
+        
+        >>> # Filter dependencies and preserve specific modules
+        >>> prompt = get_prompt_for_source_file(
+        ...     'mymodule.py',
+        ...     min_last_month_downloads=5000000,
+        ...     no_ignore_modules=['mypackage.utils', 'mypackage.config']
+        ... )
+        >>> # Only includes popular dependencies (>5M downloads) plus the specified modules
+
     """
+    no_ignore_modules = no_ignore_modules or set()
+    if not isinstance(no_ignore_modules, set):
+        no_ignore_modules = set(no_ignore_modules or [])
     source_info = get_source_info(source_file, skip_when_error=skip_when_error)
 
     with io.StringIO() as sf:
@@ -136,7 +207,15 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         print(f'', file=sf)
 
         # Import dependencies section
-        if source_info.imports:
+        imports_to_show = [
+            imp for imp in source_info.imports
+            if not imp.statement.check_ignore_or_not(
+                min_last_month_downloads=min_last_month_downloads,
+                no_ignore_modules=no_ignore_modules,
+            )
+        ]
+
+        if imports_to_show:
             print(f'{"#" * (level + 1)} Dependency Analysis - Import Statements and Their Implementations', file=sf)
             print(f'', file=sf)
             print(f'The following section contains all imported dependencies for package `{source_info.package_name}` '
@@ -144,7 +223,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                   f'for understanding the main code\'s functionality and dependencies.', file=sf)
             print(f'', file=sf)
 
-            for imp in source_info.imports:
+            for imp in imports_to_show:
                 print(f'{"#" * (level + 2)} Import: `{imp.statement}`', file=sf)
                 print(f'', file=sf)
 

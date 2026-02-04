@@ -37,7 +37,7 @@ setup(
         include=(_package_name, "%s.*" % _package_name)
     ),
     package_data={
-        package_name: ['*.yaml', '*.yml', '*.json', '*.txt', '*.j2', '*.md']
+        package_name: ['*.yaml', '*.yml', '*.json', '*.txt', '*.j2', '*.md', '*.csv']
         for package_name in find_packages(include=('*'))
     },
     description=meta['__DESCRIPTION__'],

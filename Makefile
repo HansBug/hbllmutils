@@ -66,3 +66,6 @@ ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
 
 info:
 	echo ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
+
+update_pypi_downloads:
+	python -m tools.pypi_downloads --dst-csv-file "${RANGE_SRC_DIR}/meta/code/pypi_downloads.csv"

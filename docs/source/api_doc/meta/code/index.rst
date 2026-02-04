@@ -14,6 +14,8 @@ hbllmutils.meta.code
     object
     prompt
     pydoc_generation
+    pypi
+    pypi_downloads
     source
     task
     todo_completion
