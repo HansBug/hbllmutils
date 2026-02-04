@@ -16,5 +16,6 @@ hbllmutils.meta.code
     pydoc_generation
     source
     task
+    todo_completion
     tree
 

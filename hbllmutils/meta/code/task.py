@@ -76,7 +76,7 @@ class PythonCodeGenerationLLMTask(ParsableLLMTask):
         """
         code = extract_code(content)
         ast.parse(code)
-        return code
+        return code.rstrip()
 
 
 class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
@@ -209,4 +209,3 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
             )
         else:
             raise ValueError('Empty content is not supported.')
-

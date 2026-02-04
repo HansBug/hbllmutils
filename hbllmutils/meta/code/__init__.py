@@ -71,4 +71,5 @@ from .prompt import get_prompt_for_source_file
 from .pydoc_generation import create_pydoc_generation_task
 from .source import ImportSource, SourceInfo, get_source_info
 from .task import PythonCodeGenerationLLMTask, PythonDetailedCodeGenerationLLMTask
+from .todo_completion import create_todo_completion_task
 from .tree import is_file_should_ignore, build_python_project_tree, get_python_project_tree_text
