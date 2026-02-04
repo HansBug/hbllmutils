@@ -129,6 +129,24 @@ class PyPIModuleInfo:
         return self.type == 'third_party'
 
 
+def _is_relative_to(path: Path, base: Path) -> bool:
+    """
+    Check if path is relative to base (compatibility function for Python < 3.9).
+
+    :param path: The path to check
+    :type path: Path
+    :param base: The base path to check against
+    :type base: Path
+    :return: True if path is relative to base, False otherwise
+    :rtype: bool
+    """
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
 def get_module_info(module_name: str) -> Optional[PyPIModuleInfo]:
     """
     Get detailed information about a module including its type and PyPI package name.
@@ -275,7 +293,7 @@ def is_standard_library(module_path: Union[str, Path]) -> bool:
 
     for stdlib_path in stdlib_paths:
         try:
-            if stdlib_path.exists() and module_path.is_relative_to(stdlib_path):
+            if stdlib_path.exists() and _is_relative_to(module_path, stdlib_path):
                 if "site-packages" not in str(module_path):
                     return True
         except (ValueError, OSError):
