@@ -44,7 +44,8 @@ docs:
 pdocs:
 	$(MAKE) -C "${DOC_DIR}" prod
 docs_auto:
-	python remake_docs_via_llm.py -i "${RANGE_SRC_DIR}"
+	#python remake_docs_via_llm.py -i "${RANGE_SRC_DIR}"
+	python -m hbllmutils code pydoc -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
 rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES} auto_rst_top_index.py
 	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
 ${RST_DOC_DIR}/%.rst: ${PYTHON_CODE_DIR}/%.py auto_rst.py Makefile

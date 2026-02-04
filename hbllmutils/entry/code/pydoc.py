@@ -37,7 +37,7 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
                             extra_params: Optional[Dict[str, Union[str, int, float]]] = None) -> None:
     get_global_logger().info(f'Make docs for {file!r} ...')
     extra_params = obj_hashable(extra_params or {})
-    new_docs = _get_llm_task(model_name, timeout, extra_params).ask_then_parse(file)
+    new_docs = _get_llm_task(model_name, timeout, extra_params).ask_then_parse(file, max_retries=0)
     new_docs = new_docs.rstrip()
     with open(file, 'w') as f:
         print(new_docs, file=f)
@@ -82,7 +82,7 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
             extra_params[key] = value
 
         if extra_params:
-            get_global_logger().debug(f'Extra parameters: {extra_params}')
+            get_global_logger().info(f'Extra parameters: {extra_params}')
 
         llm_model = (model_name or os.environ.get('OPENAI_MODEL_NAME')
                      or os.environ.get('LLM_MODEL_NAME') or os.environ.get('MODEL_NAME'))

@@ -628,13 +628,13 @@ class ParsableLLMTask(LLMTask):
 
         tries = 0
         err_tries = []
-        while tries < max_retries:
+        while tries < max_retries + 1:
             content = self.ask(input_content=input_content, **params)
             try:
                 parsed_output = self._parse_and_validate(content)
             except self.__exceptions__ as err:
                 tries += 1
-                self._logger.warning(f'Error when parsing output of model ({tries}/{max_retries}) - {err!r}')
+                self._logger.warning(f'Error when parsing output of model ({tries}/{max_retries + 1}) - {err!r}')
                 err_tries.append((content, err))
             else:
                 return parsed_output
