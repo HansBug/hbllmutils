@@ -52,24 +52,107 @@ Example::
     ... )
 
 """
-
+import ast
 import io
 import os.path
+import pathlib
 import re
+import warnings
 from typing import Optional, Iterable
 
 from hbutils.string import titleize
+from hbutils.system import is_binary_file
 
 from .module import get_package_name, get_pythonpath_of_source_file
 from .source import get_source_info
 from .tree import get_python_project_tree_text
 
 
+def is_python_code(code_text: str) -> bool:
+    """
+    Check if the given text is valid Python code.
+
+    This function attempts to parse the provided text using Python's AST parser
+    to determine if it represents syntactically valid Python code. It does not
+    execute the code or check for semantic correctness, only syntax validity.
+
+    :param code_text: The text string to check for Python code validity.
+    :type code_text: str
+
+    :return: True if the text is valid Python code, False otherwise.
+    :rtype: bool
+
+    .. note::
+       This function only validates syntax, not semantics. Code that parses
+       successfully may still have runtime errors or logical issues.
+
+    Example::
+
+        >>> is_python_code("print('hello')")
+        True
+        >>> is_python_code("def foo(): return 42")
+        True
+        >>> is_python_code("invalid python code {{{")
+        False
+        >>> is_python_code("x = 1 + 2")
+        True
+        >>> is_python_code("")
+        True
+
+    """
+    try:
+        ast.parse(code_text)
+        return True
+    except:
+        return False
+
+
+def is_python_file(code_file: str) -> bool:
+    """
+    Check if a file contains valid Python code.
+
+    This function first checks if the file is binary, then reads its content
+    and validates whether it contains syntactically valid Python code using
+    AST parsing. It combines binary file detection with Python syntax validation.
+
+    :param code_file: The path to the file to check.
+    :type code_file: str
+
+    :return: True if the file is a text file containing valid Python code,
+             False if it's binary or contains invalid Python syntax.
+    :rtype: bool
+
+    :raises FileNotFoundError: If the specified file does not exist.
+    :raises PermissionError: If the file cannot be read due to permissions.
+
+    .. note::
+       This function reads the entire file content into memory, which may be
+       inefficient for very large files.
+
+    Example::
+
+        >>> is_python_file('module.py')
+        True
+        >>> is_python_file('data.json')
+        False
+        >>> is_python_file('script.sh')
+        False
+        >>> is_python_file('image.png')
+        False
+
+    """
+    if is_binary_file(code_file):
+        return False
+
+    return is_python_code(pathlib.Path(code_file).read_text())
+
+
 def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
-                                description_text: Optional[str] = None, show_module_directory_tree: bool = True,
-                                skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
-                                no_imports: bool = False, ignore_modules: Optional[Iterable[str]] = None,
-                                no_ignore_modules: Optional[Iterable[str]] = None) -> str:
+                               description_text: Optional[str] = None, show_module_directory_tree: bool = True,
+                               skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
+                               no_imports: bool = False, ignore_modules: Optional[Iterable[str]] = None,
+                               no_ignore_modules: Optional[Iterable[str]] = None,
+                               warning_when_not_python: bool = True) -> str:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -103,23 +186,33 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
     :type description_text: Optional[str]
     :param show_module_directory_tree: If True, include a directory tree visualization of the module
                                       structure with the current file highlighted. Defaults to True.
+                                      For non-Python files, this parameter is ignored.
     :type show_module_directory_tree: bool
     :param skip_when_error: If True, skip imports that fail to load and issue warnings
                            instead of raising exceptions. Defaults to True.
+                           For non-Python files, this parameter is ignored.
     :type skip_when_error: bool
     :param min_last_month_downloads: Minimum monthly downloads threshold for including a dependency
                                     in the prompt. Dependencies with higher downloads may be ignored
                                     to reduce prompt size. Defaults to 1000000.
+                                    For non-Python files, this parameter is ignored.
     :type min_last_month_downloads: int
     :param no_imports: If True, skip the dependency analysis section entirely and only include
                       the primary source code. Defaults to False.
+                      For non-Python files, this parameter is ignored.
     :type no_imports: bool
     :param ignore_modules: Optional iterable of module names that should be explicitly ignored
                           regardless of download count or other criteria.
+                          For non-Python files, this parameter is ignored.
     :type ignore_modules: Optional[Iterable[str]]
     :param no_ignore_modules: Optional iterable of module names that should never be ignored
                              regardless of download count or other filtering criteria.
+                             For non-Python files, this parameter is ignored.
     :type no_ignore_modules: Optional[Iterable[str]]
+    :param warning_when_not_python: If True, issue warnings when Python-specific parameters
+                                   are set to non-default values for non-Python files.
+                                   Defaults to True.
+    :type warning_when_not_python: bool
 
     :return: A formatted Markdown string containing the comprehensive code prompt.
     :rtype: str
@@ -185,16 +278,44 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         >>> # Generate prompt without any dependencies
         >>> prompt = get_prompt_for_source_file('mymodule.py', no_imports=True)
         >>> # Only the primary source code will be included, no dependency analysis
+        
+        >>> # Generate prompt for a non-Python file
+        >>> prompt = get_prompt_for_source_file('config.yaml')
+        >>> # Will generate a simplified prompt without Python-specific analysis
 
     """
     if not isinstance(no_ignore_modules, set):
         no_ignore_modules = set(no_ignore_modules or [])
     if not isinstance(ignore_modules, set):
         ignore_modules = set(ignore_modules or [])
-    source_info = get_source_info(source_file, skip_when_error=skip_when_error)
+
+    is_python = is_python_file(source_file)
+
+    if not is_python and warning_when_not_python:
+        python_specific_params = []
+        if show_module_directory_tree:
+            python_specific_params.append('show_module_directory_tree=True')
+        if not skip_when_error:
+            python_specific_params.append(f'skip_when_error={skip_when_error}')
+        if min_last_month_downloads != 1000000:
+            python_specific_params.append(f'min_last_month_downloads={min_last_month_downloads}')
+        if no_imports:
+            python_specific_params.append(f'no_imports={no_imports}')
+        if ignore_modules:
+            python_specific_params.append(f'ignore_modules={ignore_modules}')
+        if no_ignore_modules:
+            python_specific_params.append(f'no_ignore_modules={no_ignore_modules}')
+
+        if python_specific_params:
+            warnings.warn(
+                f"The file {source_file!r} is not a Python file, but Python-specific parameters "
+                f"were set to non-default values: {', '.join(python_specific_params)}. "
+                f"These parameters will be ignored for non-Python files.",
+                UserWarning,
+                stacklevel=2
+            )
 
     with io.StringIO() as sf:
-        # Main source code section
         if code_name:
             title = f'{code_name} Source Code Analysis'
         else:
@@ -204,85 +325,99 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         if description_text:
             print(description_text, file=sf)
             print(f'', file=sf)
-        print(f'**Source File Location:** `{source_info.source_file}`', file=sf)
-        print(f'', file=sf)
-        print(f'**Package Namespace:** `{source_info.package_name}`', file=sf)
-        print(f'', file=sf)
 
-        pythonpath, _ = get_pythonpath_of_source_file(source_info.source_file)
-        rel_source_file = os.path.relpath(source_info.source_file, pythonpath)
-        print(f'**Relative Source File Location:** `{rel_source_file}`', file=sf)
-        print(f'', file=sf)
+        if is_python:
+            source_info = get_source_info(source_file, skip_when_error=skip_when_error)
 
-        if show_module_directory_tree:
-            root_path = os.path.join(pythonpath, re.split(r'[\\/]+', rel_source_file)[0])
-            print('Module directory tree:', file=sf)
-            print(f'```', file=sf)
-            print(get_python_project_tree_text(
-                root_path=root_path,
-                focus_items={
-                    'My Location': source_info.source_file
-                }
-            ), file=sf)
-            print(f'```', file=sf)
+            print(f'**Source File Location:** `{source_info.source_file}`', file=sf)
+            print(f'', file=sf)
+            print(f'**Package Namespace:** `{source_info.package_name}`', file=sf)
             print(f'', file=sf)
 
-        print(f'**Complete Source Code:**', file=sf)
-        print(f'', file=sf)
-        print(f'```python', file=sf)
-        print(source_info.source_code, file=sf)
-        print(f'```', file=sf)
-        print(f'', file=sf)
-
-        # Import dependencies section
-        if no_imports:
-            imports_to_show = []
-        else:
-            imports_to_show = [
-                imp for imp in source_info.imports
-                if not imp.statement.check_ignore_or_not(
-                    min_last_month_downloads=min_last_month_downloads,
-                    ignore_modules=ignore_modules,
-                    no_ignore_modules=no_ignore_modules,
-                )
-            ]
-
-        if imports_to_show:
-            print(f'{"#" * (level + 1)} Dependency Analysis - Import Statements and Their Implementations', file=sf)
-            print(f'', file=sf)
-            print(f'The following section contains all imported dependencies for package `{source_info.package_name}` '
-                  f'along with their source code implementations. This information can be used as reference context '
-                  f'for understanding the main code\'s functionality and dependencies.', file=sf)
+            pythonpath, _ = get_pythonpath_of_source_file(source_info.source_file)
+            rel_source_file = os.path.relpath(source_info.source_file, pythonpath)
+            print(f'**Relative Source File Location:** `{rel_source_file}`', file=sf)
             print(f'', file=sf)
 
-            for imp in imports_to_show:
-                print(f'{"#" * (level + 2)} Import: `{imp.statement}`', file=sf)
+            if show_module_directory_tree:
+                root_path = os.path.join(pythonpath, re.split(r'[\\/]+', rel_source_file)[0])
+                print('Module directory tree:', file=sf)
+                print(f'```', file=sf)
+                print(get_python_project_tree_text(
+                    root_path=root_path,
+                    focus_items={
+                        'My Location': source_info.source_file
+                    }
+                ), file=sf)
+                print(f'```', file=sf)
                 print(f'', file=sf)
 
-                # Source file information
-                if imp.inspect.source_file:
-                    print(f'**Source File:** `{imp.inspect.source_file}`', file=sf)
-                    print(f'', file=sf)
-                    print(f'**Full Package Path:** `{get_package_name(imp.inspect.source_file)}.{imp.statement.name}`',
-                          file=sf)
+            print(f'**Complete Source Code:**', file=sf)
+            print(f'', file=sf)
+            print(f'```python', file=sf)
+            print(source_info.source_code, file=sf)
+            print(f'```', file=sf)
+            print(f'', file=sf)
+
+            if no_imports:
+                imports_to_show = []
+            else:
+                imports_to_show = [
+                    imp for imp in source_info.imports
+                    if not imp.statement.check_ignore_or_not(
+                        min_last_month_downloads=min_last_month_downloads,
+                        ignore_modules=ignore_modules,
+                        no_ignore_modules=no_ignore_modules,
+                    )
+                ]
+
+            if imports_to_show:
+                print(f'{"#" * (level + 1)} Dependency Analysis - Import Statements and Their Implementations', file=sf)
+                print(f'', file=sf)
+                print(
+                    f'The following section contains all imported dependencies for package `{source_info.package_name}` '
+                    f'along with their source code implementations. This information can be used as reference context '
+                    f'for understanding the main code\'s functionality and dependencies.', file=sf)
+                print(f'', file=sf)
+
+                for imp in imports_to_show:
+                    print(f'{"#" * (level + 2)} Import: `{imp.statement}`', file=sf)
                     print(f'', file=sf)
 
-                # Source code or object representation
-                if imp.inspect.has_source:
-                    print(f'**Implementation Source Code:**', file=sf)
-                    print(f'', file=sf)
-                    print(f'```python', file=sf)
-                    print(imp.inspect.source_code, file=sf)
-                    print(f'```', file=sf)
-                    print(f'', file=sf)
-                else:
-                    print(
-                        f'**Note:** Source code is not available through Python\'s inspection mechanism. Below is the object representation:',
-                        file=sf)
-                    print(f'', file=sf)
-                    print(f'```', file=sf)
-                    print(imp.inspect.object, file=sf)
-                    print(f'```', file=sf)
-                    print(f'', file=sf)
+                    if imp.inspect.source_file:
+                        print(f'**Source File:** `{imp.inspect.source_file}`', file=sf)
+                        print(f'', file=sf)
+                        print(
+                            f'**Full Package Path:** `{get_package_name(imp.inspect.source_file)}.{imp.statement.name}`',
+                            file=sf)
+                        print(f'', file=sf)
+
+                    if imp.inspect.has_source:
+                        print(f'**Implementation Source Code:**', file=sf)
+                        print(f'', file=sf)
+                        print(f'```python', file=sf)
+                        print(imp.inspect.source_code, file=sf)
+                        print(f'```', file=sf)
+                        print(f'', file=sf)
+                    else:
+                        print(
+                            f'**Note:** Source code is not available through Python\'s inspection mechanism. Below is the object representation:',
+                            file=sf)
+                        print(f'', file=sf)
+                        print(f'```', file=sf)
+                        print(imp.inspect.object, file=sf)
+                        print(f'```', file=sf)
+                        print(f'', file=sf)
+
+        else:
+            print(f'**Source File Location:** `{source_file}`', file=sf)
+            print(f'', file=sf)
+            source_code = pathlib.Path(source_file).read_text()
+            print(f'**Complete Source Code:**', file=sf)
+            print(f'', file=sf)
+            print(f'```', file=sf)
+            print(source_code, file=sf)
+            print(f'```', file=sf)
+            print(f'', file=sf)
 
         return sf.getvalue()
