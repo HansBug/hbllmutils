@@ -71,7 +71,7 @@ def create_pydoc_generation_task(model: LLMModelTyping, show_module_directory_tr
     - Exception documentation with descriptions
     - Usage examples demonstrating typical use cases
 
-    The task uses a predefined system prompt template (rst-doc-req.md) that instructs the LLM
+    The task uses a predefined system prompt template (pydoc_generation.md) that instructs the LLM
     on documentation requirements and formatting conventions. The prompt template provides
     detailed guidelines for:
 
@@ -115,7 +115,7 @@ def create_pydoc_generation_task(model: LLMModelTyping, show_module_directory_tr
             and return documented code.
     :rtype: PythonCodeGenerationLLMTask
 
-    :raises FileNotFoundError: If the system prompt template file (rst-doc-req.md) is not found
+    :raises FileNotFoundError: If the system prompt template file (pydoc_generation.md) is not found
                               in the module directory.
     :raises ValueError: If the model specification is invalid or cannot be loaded.
     :raises TypeError: If model parameter is not of type LLMModelTyping.
@@ -171,7 +171,7 @@ def create_pydoc_generation_task(model: LLMModelTyping, show_module_directory_tr
         ... )
         >>> documented = task.ask_then_parse(input_content='utils.py')
     """
-    system_prompt_file = os.path.join(os.path.dirname(__file__), 'rst-doc-req.md')
+    system_prompt_file = os.path.join(os.path.dirname(__file__), 'pydoc_generation.md')
     system_prompt_template = PromptTemplate.from_file(system_prompt_file)
     system_prompt = system_prompt_template.render()
 
