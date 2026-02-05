@@ -67,7 +67,7 @@ This module is particularly useful for:
 from .imp import ImportStatement, analyze_imports
 from .module import get_package_name, get_pythonpath_of_source_file, get_package_from_import
 from .object import get_object_info, ObjectInspect
-from .prompt import get_prompt_for_source_file, is_python_code
+from .prompt import get_prompt_for_source_file, is_python_code, is_python_file
 from .pydoc_generation import create_pydoc_generation_task
 from .pypi import get_module_info, get_pypi_info, is_standard_library
 from .pypi_downloads import get_pypi_downloads, is_hot_pypi_project

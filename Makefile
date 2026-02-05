@@ -3,10 +3,11 @@
 PYTHON ?= $(shell which python)
 
 PROJ_DIR := ${CURDIR}
+PROJ_NAME := hbllmutils
 
 DOC_DIR    := ${PROJ_DIR}/docs
 TEST_DIR   := ${PROJ_DIR}/test
-SRC_DIR    := ${PROJ_DIR}/hbllmutils
+SRC_DIR    := ${PROJ_DIR}/${PROJ_NAME}
 DIST_DIR   := ${PROJ_DIR}/dist
 TBUILD_DIR := ${PROJ_DIR}/tbuild
 BUILD_DIR  := ${PROJ_DIR}/build
@@ -29,10 +30,10 @@ COV_TYPES ?= xml term-missing
 package:
 	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
 build:
-	pyinstaller -D -F $(shell python -m tools.resources) -n hbllmutils -c hbllmutils_cli.py
+	pyinstaller -D -F $(shell python -m tools.resources) -n ${PROJ_NAME} -c ${PROJ_NAME}_cli.py
 clean:
 	rm -rf ${DIST_DIR} ${BUILD_DIR} *.egg-info
-	rm -rf build dist hbllmutils.spec
+	rm -rf build dist ${PROJ_NAME}.spec
 
 test: unittest
 
@@ -49,9 +50,9 @@ docs:
 pdocs:
 	$(MAKE) -C "${DOC_DIR}" prod
 docs_auto:
-	python -m hbllmutils code pydoc -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
+	python -m ${PROJ_NAME} code pydoc -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
 todos_auto:
-	python -m hbllmutils code todo -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
+	python -m ${PROJ_NAME} code todo -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
 rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES} auto_rst_top_index.py
 	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
 ${RST_DOC_DIR}/%.rst: ${PYTHON_CODE_DIR}/%.py auto_rst.py Makefile

@@ -55,13 +55,14 @@ import click
 from hbutils.logging import ColoredFormatter, tqdm
 
 from ..base import CONTEXT_SETTINGS, parse_key_value_params
-from ...meta.code import create_todo_completion_task
+from ...meta.code import create_todo_completion_task, is_python_file
 from ...model import load_llm_model_from_config
 from ...utils import obj_hashable, get_global_logger
 
 
 @lru_cache()
 def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
+                  is_python_code: bool = True,
                   extra_params: Tuple[Tuple[str, Union[str, int, float]], ...] = ()):
     """
     Create and cache an LLM task instance for TODO completion.
@@ -131,7 +132,8 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
             model_name=model_name,
             timeout=timeout,
             **params
-        )
+        ),
+        is_python_code=is_python_code,
     )
 
 
@@ -209,7 +211,15 @@ def complete_todo_for_file(file: str, model_name: Optional[str] = None, timeout:
     """
     get_global_logger().info(f'Complete TODOs for {file!r} ...')
     extra_params = obj_hashable(extra_params or {})
-    new_docs = _get_llm_task(model_name, timeout, extra_params).ask_then_parse(file, max_retries=0)
+
+    print(file, is_python_file(file))
+
+    new_docs = _get_llm_task(
+        model_name=model_name,
+        timeout=timeout,
+        is_python_code=is_python_file(file),
+        extra_params=extra_params,
+    ).ask_then_parse(file, max_retries=0)
     new_docs = new_docs.rstrip()
     with open(file, 'w') as f:
         print(new_docs, file=f)

@@ -11,7 +11,7 @@ The module contains the following main components:
 
 .. note::
    This module requires a valid LLM model configuration to function properly.
-   The TODO completion prompt template is loaded from 'todo-completion-req.md'.
+   The TODO completion prompt template is loaded from 'todo-completion-req.j2'.
 
 Example::
 
@@ -32,7 +32,9 @@ Example::
 
 """
 
+import logging
 import os
+from typing import Optional
 
 from .task import PythonDetailedCodeGenerationLLMTask, PythonCodeGenerationLLMTask
 from ...history import LLMHistory
@@ -41,8 +43,8 @@ from ...template import PromptTemplate
 
 
 def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tree: bool = False,
-                                skip_when_error: bool = True,
-                                force_ast_check: bool = True) -> PythonCodeGenerationLLMTask:
+                                skip_when_error: bool = True, is_python_code: bool = True,
+                                force_ast_check: Optional[bool] = None) -> PythonCodeGenerationLLMTask:
     """
     Create a configured LLM task for completing TODO comments in Python code.
 
@@ -60,7 +62,7 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
     - Optionally display the module directory tree for context
     - Handle import errors gracefully based on skip_when_error setting
 
-    The task uses a pre-defined system prompt from 'todo-completion-req.md' that
+    The task uses a pre-defined system prompt from 'todo-completion-req.j2' that
     instructs the LLM on how to properly complete TODO comments while maintaining
     code quality, consistency, and adherence to existing patterns in the codebase.
 
@@ -78,10 +80,15 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
         analysis and issue warnings instead of raising exceptions. This allows the
         task to proceed even when some dependencies are unavailable. Defaults to True.
     :type skip_when_error: bool
+    :param is_python_code: If True, treat the input as Python code and perform Python-specific
+        analysis and validation. If False, treat as generic code without Python-specific
+        processing. Defaults to True.
+    :type is_python_code: bool
     :param force_ast_check: If True, enforce Python AST validation on the generated
-        code to ensure syntactic correctness. This helps catch syntax errors before
-        the code is returned. Defaults to True.
-    :type force_ast_check: bool
+        code to ensure syntactic correctness. If None, defaults to True when is_python_code
+        is True, and False otherwise. When is_python_code is False and force_ast_check is
+        explicitly set to True, it will be ignored with a warning. Defaults to None.
+    :type force_ast_check: Optional[bool]
 
     :return: A configured task instance ready to process Python source files and
         complete TODO comments. The task can be used by calling its ask_then_parse()
@@ -89,14 +96,19 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
     :rtype: PythonCodeGenerationLLMTask
 
     :raises FileNotFoundError: If the TODO completion prompt template file
-        'todo-completion-req.md' is not found in the module directory.
+        'todo-completion-req.j2' is not found in the module directory.
     :raises ValueError: If the model parameter is invalid or cannot be loaded.
     :raises TypeError: If model is not a string, LLMModel instance, or None.
 
     .. note::
-       The TODO completion prompt template is loaded from 'todo-completion-req.md'
+       The TODO completion prompt template is loaded from 'todo-completion-req.j2'
        located in the same directory as this module. Ensure this file exists and
        contains valid prompt instructions for the LLM.
+
+    .. note::
+       When is_python_code is False, the task operates in generic code mode without
+       Python-specific analysis or AST validation, making it suitable for other
+       programming languages or text files with TODO comments.
 
     .. warning::
        When skip_when_error is False, the task will fail if any import dependencies
@@ -107,6 +119,11 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
        The quality of TODO completions depends heavily on the LLM model used.
        More capable models (e.g., GPT-4, Claude-3) typically produce better results
        than smaller models.
+
+    .. warning::
+       When is_python_code is False and force_ast_check is explicitly set to True,
+       the AST check will be disabled and a warning will be logged, since AST
+       validation is only applicable to Python code.
 
     Example::
 
@@ -158,11 +175,34 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
         ...         print(f"Completed TODOs in {source_file}")
         ...     except Exception as e:
         ...         print(f"Failed to process {source_file}: {e}")
+        >>> 
+        >>> # Process non-Python code files
+        >>> task = create_todo_completion_task(
+        ...     model='gpt-4',
+        ...     is_python_code=False
+        ... )
+        >>> completed_js = task.ask_then_parse(input_content='src/app.js')
 
     """
-    system_prompt_file = os.path.join(os.path.dirname(__file__), 'todo-completion-req.md')
+
+    system_prompt_file = os.path.join(os.path.dirname(__file__), 'todo-completion-req.j2')
     system_prompt_template = PromptTemplate.from_file(system_prompt_file)
-    system_prompt = system_prompt_template.render()
+    system_prompt = system_prompt_template.render(is_python_code=is_python_code)
+
+    if is_python_code:
+        if force_ast_check is None:
+            force_ast_check = True
+    else:
+        if force_ast_check is None:
+            force_ast_check = False
+        elif force_ast_check:
+            logging.warning(
+                'force_ast_check is set to True but is_python_code is False. '
+                'AST validation is only applicable to Python code. '
+                'Ignoring force_ast_check and setting it to False.',
+                stacklevel=2,
+            )
+            force_ast_check = False
 
     return PythonDetailedCodeGenerationLLMTask(
         model=load_llm_model(model),
