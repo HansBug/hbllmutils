@@ -11,7 +11,7 @@ The module contains the following main components:
 
 .. note::
    This module requires a valid LLM model configuration to function properly.
-   The TODO completion prompt template is loaded from 'todo-completion-req.j2'.
+   The TODO completion prompt template is loaded from 'todo_completion.j2'.
 
 Example::
 
@@ -62,7 +62,7 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
     - Optionally display the module directory tree for context
     - Handle import errors gracefully based on skip_when_error setting
 
-    The task uses a pre-defined system prompt from 'todo-completion-req.j2' that
+    The task uses a pre-defined system prompt from 'todo_completion.j2' that
     instructs the LLM on how to properly complete TODO comments while maintaining
     code quality, consistency, and adherence to existing patterns in the codebase.
 
@@ -96,12 +96,12 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
     :rtype: PythonCodeGenerationLLMTask
 
     :raises FileNotFoundError: If the TODO completion prompt template file
-        'todo-completion-req.j2' is not found in the module directory.
+        'todo_completion.j2' is not found in the module directory.
     :raises ValueError: If the model parameter is invalid or cannot be loaded.
     :raises TypeError: If model is not a string, LLMModel instance, or None.
 
     .. note::
-       The TODO completion prompt template is loaded from 'todo-completion-req.j2'
+       The TODO completion prompt template is loaded from 'todo_completion.j2'
        located in the same directory as this module. Ensure this file exists and
        contains valid prompt instructions for the LLM.
 
@@ -185,7 +185,7 @@ def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tre
 
     """
 
-    system_prompt_file = os.path.join(os.path.dirname(__file__), 'todo-completion-req.j2')
+    system_prompt_file = os.path.join(os.path.dirname(__file__), 'todo_completion.j2')
     system_prompt_template = PromptTemplate.from_file(system_prompt_file)
     system_prompt = system_prompt_template.render(is_python_code=is_python_code)
 

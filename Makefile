@@ -1,4 +1,4 @@
-.PHONY: docs test unittest tbuild
+.PHONY: docs test unittest tbuild build
 
 PYTHON ?= $(shell which python)
 
