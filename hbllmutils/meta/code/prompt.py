@@ -24,6 +24,8 @@ The generated prompts include:
 
 The module contains the following main components:
 
+* :func:`is_python_code` - Validate if text is syntactically correct Python code
+* :func:`is_python_file` - Check if a file contains valid Python code
 * :func:`get_prompt_for_source_file` - Generate comprehensive code prompts for LLM analysis
 
 .. note::
@@ -58,7 +60,7 @@ import os.path
 import pathlib
 import re
 import warnings
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Union, Tuple, List
 
 from hbutils.string import titleize
 from hbutils.system import is_binary_file
@@ -147,12 +149,20 @@ def is_python_file(code_file: str) -> bool:
     return is_python_code(pathlib.Path(code_file).read_text())
 
 
-def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Optional[str] = 'primary',
-                               description_text: Optional[str] = None, show_module_directory_tree: bool = True,
-                               skip_when_error: bool = True, min_last_month_downloads: int = 1000000,
-                               no_imports: bool = False, ignore_modules: Optional[Iterable[str]] = None,
-                               no_ignore_modules: Optional[Iterable[str]] = None,
-                               warning_when_not_python: bool = True) -> str:
+def get_prompt_for_source_file(
+        source_file: str,
+        level: int = 2,
+        code_name: Optional[str] = 'primary',
+        description_text: Optional[str] = None,
+        show_module_directory_tree: bool = True,
+        skip_when_error: bool = True,
+        min_last_month_downloads: int = 1000000,
+        no_imports: bool = False,
+        ignore_modules: Optional[Iterable[str]] = None,
+        no_ignore_modules: Optional[Iterable[str]] = None,
+        warning_when_not_python: bool = True,
+        return_imported_items: bool = False,
+) -> Union[str, Tuple[str, List[str]]]:
     """
     Generate a comprehensive code prompt for LLM analysis.
 
@@ -213,9 +223,18 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                                    are set to non-default values for non-Python files.
                                    Defaults to True.
     :type warning_when_not_python: bool
+    :param return_imported_items: If True, return a tuple of (prompt_text, imported_items_list)
+                                 instead of just the prompt text. The imported_items_list contains
+                                 the full package paths of all imported dependencies that were included
+                                 in the prompt. Defaults to False.
+    :type return_imported_items: bool
 
     :return: A formatted Markdown string containing the comprehensive code prompt.
-    :rtype: str
+             If return_imported_items is True, returns a tuple of (prompt_text, imported_items_list).
+    :rtype: str or tuple[str, list[str]]
+
+    :warns UserWarning: When Python-specific parameters are set for non-Python files and
+                       warning_when_not_python is True.
 
     .. note::
        The function uses :func:`get_source_info` to analyze the source file and extract
@@ -282,6 +301,15 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
         >>> # Generate prompt for a non-Python file
         >>> prompt = get_prompt_for_source_file('config.yaml')
         >>> # Will generate a simplified prompt without Python-specific analysis
+        
+        >>> # Get both prompt and list of imported items
+        >>> prompt, imports = get_prompt_for_source_file(
+        ...     'mymodule.py',
+        ...     return_imported_items=True
+        ... )
+        >>> print(f"Generated prompt with {len(imports)} dependencies")
+        >>> print(imports)
+        ['mypackage.utils.helper', 'mypackage.config.settings']
 
     """
     if not isinstance(no_ignore_modules, set):
@@ -315,6 +343,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                 stacklevel=2
             )
 
+    imported_items = []
     with io.StringIO() as sf:
         if code_name:
             title = f'{code_name} Source Code Analysis'
@@ -333,6 +362,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
             print(f'', file=sf)
             print(f'**Package Namespace:** `{source_info.package_name}`', file=sf)
             print(f'', file=sf)
+            imported_items.append(source_info.package_name)
 
             pythonpath, _ = get_pythonpath_of_source_file(source_info.source_file)
             rel_source_file = os.path.relpath(source_info.source_file, pythonpath)
@@ -387,9 +417,9 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
                     if imp.inspect.source_file:
                         print(f'**Source File:** `{imp.inspect.source_file}`', file=sf)
                         print(f'', file=sf)
-                        print(
-                            f'**Full Package Path:** `{get_package_name(imp.inspect.source_file)}.{imp.statement.name}`',
-                            file=sf)
+                        imported_item_name = f'{get_package_name(imp.inspect.source_file)}.{imp.statement.name}'
+                        imported_items.append(imported_item_name)
+                        print(f'**Full Package Path:** `{imported_item_name}`', file=sf)
                         print(f'', file=sf)
 
                     if imp.inspect.has_source:
@@ -420,4 +450,7 @@ def get_prompt_for_source_file(source_file: str, level: int = 2, code_name: Opti
             print(f'```', file=sf)
             print(f'', file=sf)
 
-        return sf.getvalue()
+        if return_imported_items:
+            return sf.getvalue(), imported_items
+        else:
+            return sf.getvalue()

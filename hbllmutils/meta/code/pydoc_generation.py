@@ -55,9 +55,12 @@ from ...model import LLMModelTyping, load_llm_model
 from ...template import PromptTemplate
 
 
-def create_pydoc_generation_task(model: LLMModelTyping, show_module_directory_tree: bool = False,
-                                 skip_when_error: bool = True,
-                                 force_ast_check: bool = True) -> PythonCodeGenerationLLMTask:
+def create_pydoc_generation_task(
+        model: LLMModelTyping,
+        show_module_directory_tree: bool = False,
+        skip_when_error: bool = True,
+        force_ast_check: bool = True
+) -> PythonCodeGenerationLLMTask:
     """
     Create an LLM task for generating Python documentation (pydoc) in reStructuredText format.
 

@@ -42,9 +42,13 @@ from ...model import LLMModelTyping, load_llm_model
 from ...template import PromptTemplate
 
 
-def create_todo_completion_task(model: LLMModelTyping, show_module_directory_tree: bool = False,
-                                skip_when_error: bool = True, is_python_code: bool = True,
-                                force_ast_check: Optional[bool] = None) -> PythonCodeGenerationLLMTask:
+def create_todo_completion_task(
+        model: LLMModelTyping,
+        show_module_directory_tree: bool = False,
+        skip_when_error: bool = True,
+        is_python_code: bool = True,
+        force_ast_check: Optional[bool] = None
+) -> PythonCodeGenerationLLMTask:
     """
     Create a configured LLM task for completing TODO comments in Python code.
 

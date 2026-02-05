@@ -248,13 +248,20 @@ class ImportStatement:
             ignore_modules = set(ignore_modules or [])
         if not isinstance(no_ignore_modules, set):
             no_ignore_modules = set(no_ignore_modules or [])
-        root_module = self.root_module
-        if root_module in ignore_modules:
-            return True
-        if root_module in no_ignore_modules:
-            return False
 
-        module_info = get_module_info(self.root_module)
+        # Check module path prefix matching
+        module_parts = self.module.split('.')
+        for i in range(len(module_parts)):
+            prefix = '.'.join(module_parts[:i + 1])
+            if prefix in ignore_modules:
+                return True
+        for i in range(len(module_parts)):
+            prefix = '.'.join(module_parts[:i + 1])
+            if prefix in no_ignore_modules:
+                return False
+
+        root_module = self.root_module
+        module_info = get_module_info(root_module)
         if not module_info:
             # unknown module, cannot import, so ignore
             return True
@@ -508,12 +515,19 @@ class FromImportStatement:
             ignore_modules = set(ignore_modules or [])
         if not isinstance(no_ignore_modules, set):
             no_ignore_modules = set(no_ignore_modules or [])
-        root_module = self.module.split('.')[0]
-        if root_module in ignore_modules:
-            return True
-        if root_module in no_ignore_modules:
-            return False
 
+        # Check module path prefix matching
+        module_parts = self.module.split('.')
+        for i in range(len(module_parts)):
+            prefix = '.'.join(module_parts[:i + 1])
+            if prefix in ignore_modules:
+                return True
+        for i in range(len(module_parts)):
+            prefix = '.'.join(module_parts[:i + 1])
+            if prefix in no_ignore_modules:
+                return False
+
+        root_module = self.module.split('.')[0]
         module_info = get_module_info(root_module)
         if not module_info:
             # unknown module, cannot import, so ignore
