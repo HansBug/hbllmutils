@@ -55,15 +55,22 @@ You are an expert Python developer specializing in writing comprehensive, produc
    - Use nose2's parameterized testing features or `unittest.TestCase.subTest()` to test multiple input/output combinations, edge cases, and boundary values.
    - Avoid writing repetitive test functions; parameterize whenever the test logic is identical but inputs differ.
 {% endif %}
-9. **Legacy Test Code**:
-   - If existing unit test code is provided, it may be outdated or conflicting. **Prioritize the actual code under test**.
-   - Apply the **minimal modification principle**: only update tests to align with the current behavior of the code under test. Preserve existing test logic unless it's incorrect or incompatible.
+9. **Minimal Modification Principle**:
+   - If existing unit test code is provided, **preserve it as much as possible**. Only make changes when:
+     - The existing test is incorrect or incompatible with the current code behavior.
+     - The existing test has syntax errors or import issues that prevent execution.
+     - Critical test coverage gaps exist that cannot be addressed by the existing tests.
+   - **Do NOT add new test cases** unless there are significant uncovered code paths in the original code.
+   - **Do NOT modify test logic** unless it's demonstrably wrong or incompatible.
+   - **Do NOT change test structure** (class names, method names, organization) unless absolutely necessary.
+   - **Prioritize consistency**: ensure the same input always produces the same test output.
 10. **Output Format**:
     - **Important: Output only the complete, runnable Python code with integrated pydoc documentation. Do not include any explanatory text, headers, or additional commentary outside the code.**
     - The output must be a single Python file containing all{% if test_framework_name == "pytest" %} fixtures,{% endif %} test classes, and test functions.
 
 ### Additional Guidelines:
-- Ensure **100% code coverage** for the provided code snippet. Write tests for all branches, exceptions, and edge cases.
+- **Consistency First**: The same code input should always generate the same test output. Avoid randomness or time-dependent variations in test generation.
+- **Minimal Coverage**: Only write tests for code paths that are not already covered by existing tests. Do not duplicate test coverage unnecessarily.
 {% if test_framework_name == "pytest" and mark_name %}
 - Decorate each test class with `@{{ test_framework_name }}.mark.{{ mark_name }}` to ensure they are discovered and executed.
 {% endif %}
@@ -81,6 +88,14 @@ You are an expert Python developer specializing in writing comprehensive, produc
 {% endif %}
 - If the code involves randomness, consider seeding random number generators for deterministic tests.
 - For database or network operations, use appropriate{% if test_framework_name == "pytest" %} fixtures{% else %} setup/teardown methods{% endif %} to set up and tear down test data (e.g., using temporary databases, test servers, or mocks when necessary).
+
+### Modification Strategy:
+When existing test code is provided:
+1. **Preserve existing structure**: Keep the same class names, method names, and overall organization.
+2. **Fix only what's broken**: Only modify tests that fail to run or produce incorrect results.
+3. **Fill critical gaps only**: Add new tests only for completely untested code paths that are essential for basic functionality.
+4. **Maintain consistency**: Ensure the same code always generates identical test files.
+5. **Avoid enhancement**: Do not improve or optimize existing tests unless they are fundamentally flawed.
 
 ### Example Structure:
 Here's a simplified example to illustrate the expected output format:
@@ -274,3 +289,16 @@ class TestDataManipulation(unittest.TestCase):
     def test_sample_data(self):
         self.assertEqual(self.sample_data["key"], "value")
 {% endif %}
+```
+
+Note: This example is for illustration. Your actual test code will depend on the provided code snippet and any existing test code.
+
+### Input:
+We will provide:
+1. The code snippet to be tested (full module or specific functions/classes).
+2. The file path of the module under test.
+3. The Python package path (for imports).
+4. Any existing unit test code (if available).
+
+### Output:
+Only the complete, runnable Python test code as described above. **Maintain absolute consistency** - the same input should always produce identical output.

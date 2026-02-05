@@ -49,7 +49,7 @@ class UnittestCodeGenerationLLmTask(PythonCodeGenerationLLMTask):
                 print(test_prompt, file=sf)
                 print(f'', file=sf)
 
-            prompt = sf.getvalue()
+            prompt = sf.getvalue().rstrip()
 
         return self.ask_then_parse(
             input_content=prompt,
