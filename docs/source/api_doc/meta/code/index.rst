@@ -20,4 +20,5 @@ hbllmutils.meta.code
     task
     todo_completion
     tree
+    unittest_generation
 
