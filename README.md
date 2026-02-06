@@ -427,6 +427,291 @@ print(f"Multi Ping Tests Passed Ratio: {multi_ping_results.passed_ratio}")
 # Multi Ping Tests Passed Ratio: 1.0
 ```
 
+## LLM-Assisted Python Code Generation (`hbllmutils.meta.code`)
+
+`hbllmutils` provides a powerful set of utilities under `hbllmutils.meta.code` for LLM-assisted Python code analysis and
+generation. These tools are designed to streamline common development tasks by leveraging LLMs to generate
+documentation, complete TODOs, and create unit tests, all while ensuring Pythonic correctness and adherence to best
+practices.
+
+### Key Features:
+
+- **Comprehensive Source Code Analysis**: Detailed analysis of Python source files, including package namespace,
+  dependencies, and module directory structure.
+- **AST-based Validation**: Automatically validates generated code for syntactic correctness using Python's Abstract
+  Syntax Tree (AST).
+- **Configurable LLM Tasks**: Flexible task creation with options for model selection, retry mechanisms, and context
+  provision.
+
+### 1. Pydoc Generation
+
+The `create_pydoc_generation_task` function enables the automatic generation of comprehensive Python documentation (
+pydoc) in reStructuredText format. This includes module-level docstrings, class and function documentation, parameter
+descriptions with type annotations, return values, exceptions, and usage examples.
+
+**Pythonic Example:**
+
+```python
+import os
+from hbllmutils.model import load_llm_model
+from hbllmutils.meta.code.pydoc_generation import create_pydoc_generation_task
+
+# Create a dummy Python file for demonstration
+with open('my_module.py', 'w') as f:
+    f.write("""
+\"\"\"A simple module for arithmetic operations.\"\"\"
+
+def add(a: int, b: int) -> int:
+    # TODO: Implement addition
+    return a + b
+
+class Calculator:
+    \"\"\"A simple calculator class.\"\"\"
+    def multiply(self, x: int, y: int) -> int:
+        \"\"\"Multiplies two integers.\"\"\"
+        return x * y
+"""
+            )
+
+# Load your LLM model (e.g., 'gpt-4')
+# Ensure you have your .llmconfig.yaml configured or OPENAI_API_KEY set
+model = load_llm_model('gpt-4')
+
+# Create a pydoc generation task
+task = create_pydoc_generation_task(model, show_module_directory_tree=True)
+
+# Generate documentation for the Python file
+documented_code = task.ask_then_parse(input_content='my_module.py')
+
+print("\n--- Documented Code ---\n")
+print(documented_code)
+
+# Optionally, save the documented code back to the file
+with open('my_module.py', 'w') as f:
+    f.write(documented_code)
+
+# Clean up dummy file
+os.remove('my_module.py')
+```
+
+### 2. TODO Completion
+
+The `create_todo_completion_task` function facilitates the automatic completion of TODO comments within Python source
+code. It analyzes the code context around TODOs and uses an LLM to generate appropriate code snippets, ensuring
+consistency and adherence to existing code patterns.
+
+**Pythonic Example:**
+
+```python
+import os
+from hbllmutils.model import load_llm_model
+from hbllmutils.meta.code.todo_completion import create_todo_completion_task
+
+# Create a dummy Python file with TODOs
+with open('tasks.py', 'w') as f:
+    f.write("""
+def greet(name: str):
+    # TODO: Add a personalized greeting message
+    pass
+
+def calculate_area(length: float, width: float) -> float:
+    # TODO: Calculate the area of a rectangle
+    # The formula is length * width
+    pass
+"""
+            )
+
+# Load your LLM model
+model = load_llm_model('gpt-4')
+
+# Create a TODO completion task
+task = create_todo_completion_task(model, show_module_directory_tree=False)
+
+# Complete TODOs in the file
+completed_code = task.ask_then_parse(input_content='tasks.py')
+
+print("\n--- Completed Code ---\n")
+print(completed_code)
+
+# Optionally, save the completed code back to the file
+with open('tasks.py', 'w') as f:
+    f.write(completed_code)
+
+# Clean up dummy file
+os.remove('tasks.py')
+```
+
+### 3. Unit Test Generation
+
+The `create_unittest_generation_task` function enables the automatic generation of unit tests for Python source files.
+It supports various test frameworks (e.g., `pytest`, `unittest`) and can use existing test files as a reference to
+maintain style and patterns. The generated tests cover the functionality of the source code, including edge cases.
+
+**Pythonic Example:**
+
+```python
+import os
+from hbllmutils.model import load_llm_model
+from hbllmutils.meta.code.unittest_generation import create_unittest_generation_task
+
+# Create a dummy Python file for which to generate tests
+with open('math_operations.py', 'w') as f:
+    f.write("""
+def factorial(n: int) -> int:
+    \"\"\"Calculate the factorial of a non-negative integer.\"\"\"
+    if n < 0:
+        raise ValueError("Factorial is not defined for negative numbers")
+    if n == 0:
+        return 1
+    res = 1
+    for i in range(1, n + 1):
+        res *= i
+    return res
+
+def is_prime(num: int) -> bool:
+    \"\"\"Check if a number is prime.\"\"\"
+    if num < 2:
+        return False
+    for i in range(2, int(num**0.5) + 1):
+        if num % i == 0:
+            return False
+    return True
+"""
+            )
+
+# Load your LLM model
+model = load_llm_model('gpt-4')
+
+# Create a unit test generation task for pytest
+task = create_unittest_generation_task(
+    model=model,
+    test_framework_name='pytest',
+    mark_name='unittest'
+)
+
+# Generate tests for the math_operations.py file
+generated_tests = task.generate(source_file='math_operations.py')
+
+print("\n--- Generated Unit Tests ---\n")
+print(generated_tests)
+
+# Optionally, save the generated tests to a test file
+with open('test_math_operations.py', 'w') as f:
+    f.write(generated_tests)
+
+# Clean up dummy files
+os.remove('math_operations.py')
+os.remove('test_math_operations.py')
+```
+
+## Command-Line Interface (CLI) (`hbllmutils`)
+
+The `hbllmutils` package provides a convenient command-line interface (CLI) to access its powerful LLM-assisted code
+generation and analysis features directly from your terminal. This allows for quick integration into development
+workflows, scripting, and automation.
+
+### Installation for CLI Usage
+
+To use the `hbllmutils` CLI, ensure the package is installed:
+
+```bash
+pip install hbllmutils
+```
+
+### General Usage
+
+The main entry point for the CLI is `hbllmutils`. The code generation functionalities are grouped under the `code`
+subcommand.
+
+```bash
+hbllmutils --help
+hbllmutils code --help
+```
+
+### 1. Pydoc Generation CLI
+
+Generate Python documentation for a single file or an entire directory using the `hbllmutils code pydoc` command. This
+command leverages the same underlying LLM tasks as the Pythonic API to produce high-quality reStructuredText docstrings.
+
+**CLI Examples:**
+
+- **Generate documentation for a single file:**
+
+  ```bash
+  hbllmutils code pydoc -i my_module.py -m gpt-4
+  ```
+
+- **Generate documentation for all Python files in a directory:**
+
+  ```bash
+  hbllmutils code pydoc -i my_package/ -m gpt-4 --timeout 300
+  ```
+
+- **Specify additional model parameters (e.g., `max_tokens`, `temperature`):**
+
+  ```bash
+  hbllmutils code pydoc -i my_file.py -m gpt-4 --param max_tokens=128000 --param temperature=0.7
+  ```
+
+- **Ignore specific modules during dependency analysis:**
+
+  ```bash
+  hbllmutils code pydoc -i my_file.py -m gpt-4 --ignore-modules numpy pandas
+  ```
+
+### 2. TODO Completion CLI
+
+Automatically complete TODO comments in Python source files using the `hbllmutils code todo` command. This command
+intelligently fills in missing code based on the context of the TODO comment and surrounding code.
+
+**CLI Examples:**
+
+- **Complete TODOs in a single file:**
+
+  ```bash
+  hbllmutils code todo -i tasks.py -m gpt-4
+  ```
+
+- **Complete TODOs in all Python files within a directory:**
+
+  ```bash
+  hbllmutils code todo -i my_project/src/ -m gpt-4 --timeout 300
+  ```
+
+- **Process non-Python code files (e.g., JavaScript) with TODOs:**
+
+  ```bash
+  hbllmutils code todo -i app.js -m gpt-4 --no-python-code
+  ```
+
+### 3. Unit Test Generation CLI
+
+Generate unit tests for your Python code using the `hbllmutils code unittest` command. You can specify the test
+framework and even provide an existing test file as a reference for style.
+
+**CLI Examples:**
+
+- **Generate pytest unit tests for a source file:**
+
+  ```bash
+  hbllmutils code unittest -s math_operations.py -o test_math_operations.py -m gpt-4 --framework pytest --mark unittest
+  ```
+
+- **Generate unittest-style tests and use an existing test file as reference:**
+
+  ```bash
+  hbllmutils code unittest -s my_service.py -o test_my_service.py -t existing_tests/test_service_base.py -m gpt-4 --framework unittest
+  ```
+
+- **Generate tests for all Python files in a directory:**
+
+  ```bash
+  hbllmutils code unittest -s my_app/logic/ -o tests/logic/ -m gpt-4 --framework pytest
+  ```
+
+These CLI tools provide a flexible and efficient way to integrate LLM-powered code generation into your development
+workflow, enhancing productivity and code quality.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to open issues or submit pull requests on
