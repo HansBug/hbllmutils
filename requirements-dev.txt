@@ -5,3 +5,4 @@ natsort
 pandas
 hfutils
 pyarrow
+importlib-metadata
