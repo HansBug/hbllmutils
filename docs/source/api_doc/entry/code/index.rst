@@ -12,4 +12,5 @@ hbllmutils.entry.code
     dispatch
     pydoc
     todo
+    unittest
 
