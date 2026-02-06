@@ -10,8 +10,10 @@ import os
 import tempfile
 import warnings
 from typing import List
+from unittest import skipUnless
 
 import pytest
+from hbutils.testing import OS
 
 from hbllmutils.meta.code.imp import FromImportStatement, ImportStatement
 from hbllmutils.meta.code.object import ObjectInspect
@@ -226,6 +228,7 @@ class TestSourceInfo:
         assert info.source_lines == source_lines
         assert info.imports == imports
 
+    @skipUnless(not OS.windows, 'Non-windows only')
     def test_source_info_path_normalization(self):
         """Test that source file path is normalized."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
@@ -389,6 +392,7 @@ class TestGetSourceInfo:
         with pytest.raises(FileNotFoundError):
             get_source_info('/nonexistent/path/file.py', skip_when_error=True)
 
+    @skipUnless(not OS.windows, 'Non-windows only')
     def test_get_source_info_absolute_path_conversion(self):
         """Test that relative paths are converted to absolute."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
@@ -425,6 +429,7 @@ class TestGetSourceInfo:
         finally:
             os.unlink(temp_path)
 
+    @skipUnless(not OS.windows, 'Non-windows only')
     def test_get_source_info_warning_message_format(self, python_file_with_import_errors):
         """Test that warning messages contain expected information."""
         with warnings.catch_warnings(record=True) as w:

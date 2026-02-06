@@ -5,13 +5,10 @@ This module contains comprehensive tests for code prompt generation functionalit
 including validation of Python code, file checking, and prompt generation for LLM analysis.
 """
 
-import ast
-import io
 import os
 import pathlib
 import tempfile
 import warnings
-from typing import List, Tuple
 from unittest.mock import patch, MagicMock
 
 import pytest
