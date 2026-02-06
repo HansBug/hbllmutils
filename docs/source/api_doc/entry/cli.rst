@@ -1,20 +1,20 @@
-hbllmutils.testing.basic
+hbllmutils.entry.cli
 ========================================================
 
-.. currentmodule:: hbllmutils.testing.basic
+.. currentmodule:: hbllmutils.entry.cli
 
-.. automodule:: hbllmutils.testing.basic
+.. automodule:: hbllmutils.entry.cli
 
 
-hello
+cli
 -----------------------------------------------------
 
-.. autofunction:: hello
+.. autodata:: cli
 
 
-ping
+cli
 -----------------------------------------------------
 
-.. autofunction:: ping
+.. autodata:: cli
 
 

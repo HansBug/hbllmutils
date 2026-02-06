@@ -196,8 +196,8 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test", max_retries=3)
 
         exception = exc_info.value
-        assert "Output parse failed after 3 tries" in str(exception)
-        assert len(exception.tries) == 3
+        assert "Output parse failed after 4 tries" in str(exception)
+        assert len(exception.tries) == 4
 
         for attempt in exception.tries:
             assert attempt.output == "invalid_response"
@@ -211,7 +211,7 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test", max_retries=2)
 
         exception = exc_info.value
-        assert len(exception.tries) == 2
+        assert len(exception.tries) == 3
 
     def test_ask_then_parse_uses_default_max_retries(self, model_always_invalid):
         """Test that ask_then_parse uses default_max_retries when max_retries is None."""
@@ -221,7 +221,7 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test")
 
         exception = exc_info.value
-        assert len(exception.tries) == 4
+        assert len(exception.tries) == 5
 
     def test_ask_then_parse_without_input_content(self, model_always_valid):
         """Test ask_then_parse without input_content parameter."""
@@ -276,7 +276,7 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test", max_retries=2)
 
         exception = exc_info.value
-        assert len(exception.tries) == 2
+        assert len(exception.tries) == 3
 
     def test_output_parse_failed_message_singular(self, model_always_invalid):
         """Test OutputParseFailed message with singular 'try'."""
@@ -286,7 +286,7 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test", max_retries=1)
 
         exception = exc_info.value
-        assert "Output parse failed after 1 try." in str(exception)
+        assert "Output parse failed after 2 tries." in str(exception)
 
     def test_output_parse_failed_message_plural(self, model_always_invalid):
         """Test OutputParseFailed message with plural 'tries'."""
@@ -296,7 +296,7 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test", max_retries=3)
 
         exception = exc_info.value
-        assert "Output parse failed after 3 tries." in str(exception)
+        assert "Output parse failed after 4 tries." in str(exception)
 
     def test_inheritance_from_llm_task(self, fake_model):
         """Test that ParsableLLMTask inherits from LLMTask."""
@@ -337,8 +337,8 @@ class TestParsableLLMTask:
             task.ask_then_parse(input_content="test", max_retries=0)
 
         exception = exc_info.value
-        assert len(exception.tries) == 0
-        assert "Output parse failed after 0 tries." in str(exception)
+        assert len(exception.tries) == 1
+        assert "Output parse failed after 1 try." in str(exception)
 
     def test_inheritance_methods_available(self, fake_model):
         """Test that inherited methods from LLMTask are available."""

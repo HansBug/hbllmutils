@@ -2,3 +2,7 @@ openai
 ruff
 sphinx>=3.2.0
 natsort
+pandas
+hfutils
+pyarrow
+importlib-metadata
