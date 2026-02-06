@@ -53,6 +53,10 @@ docs_auto:
 	python -m ${PROJ_NAME} code pydoc -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
 todos_auto:
 	python -m ${PROJ_NAME} code todo -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
+tests_auto:
+	python -m ${PROJ_NAME} code unittest -i "${RANGE_SRC_DIR}" \
+		-o $(shell python -m tools.make_test_file -i "${RANGE_SRC_DIR}" -s "${SRC_DIR}" -t "${TEST_DIR}") \
+		--param max_tokens=128000 --param temperature=0.5
 rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES} auto_rst_top_index.py
 	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
 ${RST_DOC_DIR}/%.rst: ${PYTHON_CODE_DIR}/%.py auto_rst.py Makefile
@@ -66,7 +70,8 @@ ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
 	python auto_rst.py -i $< -o $@
 
 info:
-	echo ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
+	echo ${RANGE_SRC_DIR}
+	echo ${RANGE_SRC_DIR_TEST}
 
 update_pypi_downloads:
 	python -m tools.pypi_downloads --dst-csv-file "${RANGE_SRC_DIR}/meta/code/pypi_downloads.csv"
