@@ -83,10 +83,19 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
     :type model_name: Optional[str]
     :param timeout: Timeout in seconds for LLM API requests. Defaults to 240 seconds.
     :type timeout: int
+    :param is_python_code: Whether to treat the input as Python code with Python-specific
+                          analysis and validation. Defaults to True.
+    :type is_python_code: bool
     :param extra_params: Additional model parameters as a tuple of (key, value) pairs.
                         Must be a tuple for hashability and caching. Common parameters
                         include max_tokens, temperature, top_p, etc.
     :type extra_params: Tuple[Tuple[str, Union[str, int, float]], ...]
+    :param ignore_modules: Tuple of module names to explicitly ignore during dependency
+                          analysis. Empty tuple by default.
+    :type ignore_modules: Tuple[str, ...]
+    :param no_ignore_modules: Tuple of module names to never ignore during dependency
+                             analysis. Empty tuple by default.
+    :type no_ignore_modules: Tuple[str, ...]
 
     :return: Configured TODO completion task instance ready for processing files
     :rtype: PythonCodeGenerationLLMTask
@@ -126,6 +135,13 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
         >>> # Subsequent calls with same parameters return cached instance
         >>> task2 = _get_llm_task('gpt-4', timeout=240, extra_params=extra)
         >>> assert task is task2  # Same object instance
+        >>> 
+        >>> # With module filtering
+        >>> task = _get_llm_task(
+        ...     'gpt-4',
+        ...     ignore_modules=('numpy', 'pandas'),
+        ...     no_ignore_modules=('myproject.core',)
+        ... )
 
     """
     params = dict(extra_params)
@@ -173,6 +189,12 @@ def complete_todo_for_file(file: str, model_name: Optional[str] = None, timeout:
                         Common parameters include max_tokens, temperature, top_p, etc.
                         If None, uses default model parameters.
     :type extra_params: Optional[Dict[str, Union[str, int, float]]]
+    :param ignore_modules: Optional tuple of module names to explicitly ignore during
+                          dependency analysis. If None, uses default ignore list.
+    :type ignore_modules: Optional[Tuple[str, ...]]
+    :param no_ignore_modules: Optional tuple of module names to never ignore during
+                             dependency analysis. If None, no modules are forced to include.
+    :type no_ignore_modules: Optional[Tuple[str, ...]]
 
     :return: None. The function modifies the input file in place.
     :rtype: None
@@ -213,6 +235,14 @@ def complete_todo_for_file(file: str, model_name: Optional[str] = None, timeout:
         >>> import os
         >>> os.environ['OPENAI_MODEL_NAME'] = 'gpt-4'
         >>> complete_todo_for_file('myproject/views.py')
+        >>> 
+        >>> # With module filtering
+        >>> complete_todo_for_file(
+        ...     'myproject/data.py',
+        ...     model_name='gpt-4',
+        ...     ignore_modules=('numpy', 'pandas'),
+        ...     no_ignore_modules=('myproject.core',)
+        ... )
 
     """
     get_global_logger().info(f'Complete TODOs for {file!r} ...')
@@ -247,6 +277,7 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
     * LLM model selection
     * API timeout configuration
     * Additional model parameters
+    * Module filtering for dependency analysis
 
     :param cli: Click command group to which the 'todo' subcommand will be added.
                 This is typically the main CLI application group.

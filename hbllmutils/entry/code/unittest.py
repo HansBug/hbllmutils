@@ -67,7 +67,9 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
                   skip_when_error: bool = True,
                   force_ast_check: bool = True,
                   test_framework_name: Literal['pytest', 'unittest', 'nose2'] = "pytest",
-                  mark_name: Optional[str] = 'unittest'):
+                  mark_name: Optional[str] = 'unittest',
+                  ignore_modules: Tuple[str, ...] = (),
+                  no_ignore_modules: Tuple[str, ...] = ()):
     """
     Create and cache an LLM task instance for Python unit test generation.
 
@@ -105,6 +107,13 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
                      no mark decorators will be added. Only applies to pytest framework.
                      Defaults to 'unittest'.
     :type mark_name: Optional[str]
+    :param ignore_modules: Tuple of module names to explicitly ignore during dependency
+                          analysis regardless of download count or other criteria.
+    :type ignore_modules: Tuple[str, ...]
+    :param no_ignore_modules: Tuple of module names that should never be ignored during
+                             dependency analysis regardless of download count or other
+                             filtering criteria.
+    :type no_ignore_modules: Tuple[str, ...]
 
     :return: Configured LLM task ready to generate Python unit tests
     :rtype: UnittestCodeGenerationLLMTask
@@ -161,17 +170,23 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
         force_ast_check=force_ast_check,
         test_framework_name=test_framework_name,
         mark_name=mark_name,
+        ignore_modules=ignore_modules or None,
+        no_ignore_modules=no_ignore_modules or None
     )
 
 
-def generate_unittest_for_file(source_file: str, test_file: Optional[str] = None,
-                               model_name: Optional[str] = None, timeout: int = 240,
-                               extra_params: Optional[Dict[str, Union[str, int, float]]] = None,
-                               show_module_directory_tree: bool = False,
-                               skip_when_error: bool = True,
-                               force_ast_check: bool = True,
-                               test_framework_name: Literal['pytest', 'unittest', 'nose2'] = "pytest",
-                               mark_name: Optional[str] = 'unittest') -> str:
+def generate_unittest_for_file(
+        source_file: str, test_file: Optional[str] = None,
+        model_name: Optional[str] = None, timeout: int = 240,
+        extra_params: Optional[Dict[str, Union[str, int, float]]] = None,
+        show_module_directory_tree: bool = False,
+        skip_when_error: bool = True,
+        force_ast_check: bool = True,
+        test_framework_name: Literal['pytest', 'unittest', 'nose2'] = "pytest",
+        mark_name: Optional[str] = 'unittest',
+        ignore_modules: Optional[Tuple[str, ...]] = None,
+        no_ignore_modules: Optional[Tuple[str, ...]] = None,
+) -> str:
     """
     Generate unit test code for a single Python file using LLM.
 
@@ -219,6 +234,13 @@ def generate_unittest_for_file(source_file: str, test_file: Optional[str] = None
                      will generate @pytest.mark.unittest decorators). If None or empty,
                      no mark decorators will be added. Only applies to pytest framework.
     :type mark_name: Optional[str]
+    :param ignore_modules: Optional tuple of module names to explicitly ignore during
+                          dependency analysis regardless of download count or other criteria.
+    :type ignore_modules: Optional[Tuple[str, ...]]
+    :param no_ignore_modules: Optional tuple of module names that should never be ignored
+                             during dependency analysis regardless of download count or other
+                             filtering criteria.
+    :type no_ignore_modules: Optional[Tuple[str, ...]]
 
     :return: The generated unit test code as a string, with trailing whitespace removed
     :rtype: str
@@ -278,10 +300,20 @@ def generate_unittest_for_file(source_file: str, test_file: Optional[str] = None
         ...     model_name='gpt-4',
         ...     show_module_directory_tree=True
         ... )
+        
+        >>> # With module filtering
+        >>> test_code = generate_unittest_for_file(
+        ...     source_file='mypackage/calculator.py',
+        ...     model_name='gpt-4',
+        ...     ignore_modules=('deprecated_module',),
+        ...     no_ignore_modules=('mypackage.core',)
+        ... )
 
     """
     get_global_logger().info(f'Generate unittest for {source_file!r} ...')
-
+    extra_params = obj_hashable(extra_params or {})
+    ignore_modules_hashable = tuple(ignore_modules) if ignore_modules else ()
+    no_ignore_modules_hashable = tuple(no_ignore_modules) if no_ignore_modules else ()
     task = _get_llm_task(
         model_name=model_name,
         show_module_directory_tree=show_module_directory_tree,
@@ -289,7 +321,9 @@ def generate_unittest_for_file(source_file: str, test_file: Optional[str] = None
         force_ast_check=force_ast_check,
         test_framework_name=test_framework_name,
         mark_name=mark_name,
-        extra_params=obj_hashable(extra_params or {}),
+        extra_params=extra_params,
+        ignore_modules=ignore_modules_hashable,
+        no_ignore_modules=no_ignore_modules_hashable,
         timeout=timeout,
     )
 
@@ -319,6 +353,7 @@ def _add_unittest_subcommand(cli: click.Group) -> click.Group:
     * Optional use of existing test files as style references
     * Extensive model configuration through command-line parameters
     * Logging configuration for debugging and monitoring
+    * Module filtering with ignore and no-ignore lists
 
     :param cli: Click command group to which the unittest subcommand will be added.
                This should be the main CLI group for the application.
@@ -381,8 +416,12 @@ def _add_unittest_subcommand(cli: click.Group) -> click.Group:
                   help='Additional parameters in key=value format (e.g., --param max_tokens=128000). '
                        'Can be used multiple times.',
                   callback=lambda ctx, param, value: dict(parse_key_value_params(v) for v in value) if value else {})
+    @click.option('--ignore-module', 'ignore_modules', type=str, multiple=True,
+                  help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
+    @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
+                  help='Module names to never ignore during dependency analysis. Can be used multiple times.')
     def unittest(input_path, output_path, model_name, timeout, show_tree,
-                 no_skip_error, no_ast_check, test_framework, mark_name, params):
+                 no_skip_error, no_ast_check, test_framework, mark_name, params, ignore_modules, no_ignore_modules):
         """
         Generate unit test code for a Python source file using LLM.
 
@@ -401,17 +440,6 @@ def _add_unittest_subcommand(cli: click.Group) -> click.Group:
         :raises FileNotFoundError: If the input source file does not exist
         :raises RuntimeError: If the input path is not a file or test generation fails
         """
-        # TODO: add 2 option in CLI follow the
-        # ignore_modules: Optional[Iterable[str]] = None,
-        #         no_ignore_modules: Optional[Iterable[str]] = None
-        # from create_pydoc_generation_task(
-        # allow use multiple
-        # @click.option('--ignore-module', 'ignore_modules', type=str, multiple=True,
-        #                   help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
-        #     @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
-        #                   help='Module names to never ignore during dependency analysis. Can be used multiple times.')
-        # follow this pattern
-
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         console_handler = logging.StreamHandler()
@@ -426,6 +454,11 @@ def _add_unittest_subcommand(cli: click.Group) -> click.Group:
         extra_params = params
         if extra_params:
             get_global_logger().info(f'Extra parameters: {extra_params}')
+
+        if ignore_modules:
+            get_global_logger().info(f'Ignoring modules: {list(ignore_modules)}')
+        if no_ignore_modules:
+            get_global_logger().info(f'Not ignoring modules: {list(no_ignore_modules)}')
 
         llm_model = (model_name or os.environ.get('OPENAI_MODEL_NAME')
                      or os.environ.get('LLM_MODEL_NAME') or os.environ.get('MODEL_NAME'))
@@ -460,6 +493,8 @@ def _add_unittest_subcommand(cli: click.Group) -> click.Group:
                 force_ast_check=not no_ast_check,
                 test_framework_name=test_framework,
                 mark_name=mark_name_value,
+                ignore_modules=tuple(ignore_modules) if ignore_modules else None,
+                no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
             )
 
             os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)

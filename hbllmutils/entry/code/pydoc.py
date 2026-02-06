@@ -322,7 +322,7 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         :param timeout: Timeout in seconds for API requests
         :type timeout: int
         :param params: Dictionary of additional model parameters
-        :type params: Dict[str, Union[str, int, float]]
+        :type params: dict
         :param ignore_modules: Tuple of module names to explicitly ignore
         :type ignore_modules: Tuple[str, ...]
         :param no_ignore_modules: Tuple of module names to never ignore
