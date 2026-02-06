@@ -32,8 +32,8 @@ Example::
 
 """
 
-import logging
 import os
+import warnings
 from typing import Optional, Iterable
 
 from .task import PythonDetailedCodeGenerationLLMTask, PythonCodeGenerationLLMTask
@@ -214,11 +214,12 @@ def create_todo_completion_task(
         if force_ast_check is None:
             force_ast_check = False
         elif force_ast_check:
-            logging.warning(
+            warnings.warn(
                 'force_ast_check is set to True but is_python_code is False. '
                 'AST validation is only applicable to Python code. '
                 'Ignoring force_ast_check and setting it to False.',
-                stacklevel=2,
+                UserWarning,
+                stacklevel=2
             )
             force_ast_check = False
 

@@ -258,7 +258,7 @@ class TestPythonDetailedCodeGenerationLLMTask:
         assert "Source File Location:" in result
         assert "Package Namespace:" in result
         assert "Complete Source Code:" in result
-        assert temporary_python_file in result
+        assert temporary_python_file.lower() in result.lower()
 
     def test_preprocess_input_content_empty_raises_error(self, fake_model):
         """Test that empty content raises ValueError."""

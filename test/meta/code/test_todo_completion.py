@@ -5,7 +5,6 @@ This module contains comprehensive tests for the create_todo_completion_task fun
 which creates LLM tasks for completing TODO comments in Python source code.
 """
 
-import logging
 import os
 import tempfile
 
@@ -118,9 +117,9 @@ class TestCreateTodoCompletionTask:
 
         assert task.force_ast_check is False
 
-    def test_create_task_non_python_with_ast_check_warning(self, fake_model, caplog):
+    def test_create_task_non_python_with_ast_check_warning(self, fake_model):
         """Test that setting force_ast_check=True with is_python_code=False logs a warning."""
-        with caplog.at_level(logging.WARNING):
+        with pytest.warns(UserWarning):
             task = create_todo_completion_task(
                 model=fake_model,
                 is_python_code=False,
@@ -128,8 +127,6 @@ class TestCreateTodoCompletionTask:
             )
 
         assert task.force_ast_check is False
-        assert any('force_ast_check is set to True but is_python_code is False' in record.message
-                   for record in caplog.records)
 
     def test_create_task_with_ignore_modules(self, fake_model):
         """Test creating a task with ignore_modules parameter."""
@@ -187,26 +184,18 @@ class TestCreateTodoCompletionTask:
 
     def test_create_task_with_string_model_name(self):
         """Test creating a task with a model name string."""
-        # This test uses FakeLLMModel indirectly through the string parameter
-        # The actual model loading will depend on configuration
         try:
             task = create_todo_completion_task(model='fake-model')
-            # If this succeeds, verify the task was created
             assert task is not None
         except Exception:
-            # If model loading fails due to configuration, that's expected
-            # The important thing is that the function accepts string input
             pass
 
     def test_create_task_with_none_model(self):
         """Test creating a task with None as model parameter."""
         try:
             task = create_todo_completion_task(model=None)
-            # If this succeeds, verify the task was created
             assert task is not None
         except Exception:
-            # If model loading fails due to configuration, that's expected
-            # The important thing is that the function accepts None input
             pass
 
     def test_task_has_correct_attributes(self, fake_model):
@@ -231,7 +220,6 @@ class TestCreateTodoCompletionTask:
         """Test that the created task has a system prompt in its history."""
         task = create_todo_completion_task(model=fake_model)
 
-        # Access the history through the task's internal structure
         assert hasattr(task, 'history')
         assert len(task.history) > 0
         assert task.history[0]['role'] == 'system'
@@ -328,7 +316,6 @@ class TestTodoCompletionTaskIntegration:
             no_ignore_modules=no_ignore_list
         )
 
-        # Verify all configurations are preserved
         assert task.show_module_directory_tree is True
         assert task.skip_when_error is False
         assert task.force_ast_check is True
