@@ -80,7 +80,7 @@ class TestGetPypiDownloads:
     def test_name_column_is_string(self, clear_cache):
         """Test that the 'name' column contains string values."""
         df = get_pypi_downloads()
-        assert df['name'].dtype == object
+        assert df['name'].dtype == 'object' or pd.api.types.is_string_dtype(df['name'])
 
     def test_last_month_column_is_numeric(self, clear_cache):
         """Test that the 'last_month' column contains numeric values."""
