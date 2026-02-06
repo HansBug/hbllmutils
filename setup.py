@@ -38,7 +38,7 @@ setup(
     ),
     package_data={
         package_name: ['*.yaml', '*.yml', '*.json', '*.txt', '*.j2', '*.md', '*.csv']
-        for package_name in find_packages(include=('*'))
+        for package_name in find_packages(include=('*',))
     },
     description=meta['__DESCRIPTION__'],
     long_description=readme,
@@ -46,7 +46,7 @@ setup(
     author=meta['__AUTHOR__'],
     author_email=meta['__AUTHOR_EMAIL__'],
     license='Apache License, Version 2.0',
-    keywords='llm, large language models, openai, api, chatbot, ai, machine learning, nlp, natural language processing, conversation, streaming, async, configuration management, deepseek, gpt, claude, gemini',
+    keywords='llm, large language models, openai, api, chatbot, ai, machine learning, nlp, natural language processing, conversation, streaming, async, configuration management, deepseek, gpt, claude, gemini, pydantic, dataclass, structured output, code generation, documentation, unittest, todo completion, yaml config, fake model, testing, prompt engineering',
     url='https://github.com/HansBug/hbllmutils',
     project_urls={
         'Homepage': 'https://github.com/HansBug/hbllmutils',
@@ -54,6 +54,9 @@ setup(
         'Repository': 'https://github.com/HansBug/hbllmutils',
         'Bug Reports': 'https://github.com/HansBug/hbllmutils/issues',
         'Source': 'https://github.com/HansBug/hbllmutils',
+        'Changelog': 'https://github.com/HansBug/hbllmutils/releases',
+        'CI/CD': 'https://github.com/HansBug/hbllmutils/actions',
+        'Coverage': 'https://codecov.io/gh/hansbug/hbllmutils',
     },
 
     # environment
@@ -70,6 +73,8 @@ setup(
         'Intended Audience :: Information Technology',
         'Intended Audience :: Science/Research',
         'Intended Audience :: Education',
+        'Intended Audience :: System Administrators',
+        'Intended Audience :: End Users/Desktop',
 
         # License
         'License :: OSI Approved :: Apache Software License',
@@ -80,6 +85,7 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: MacOS',
+        'Operating System :: Unix',
 
         # Programming Language
         'Programming Language :: Python',
@@ -96,17 +102,28 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
 
-        # Topic - LLM-related
+        # Topic - LLM and AI related
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
+        'Topic :: Software Development :: Code Generators',
+        'Topic :: Software Development :: Documentation',
+        'Topic :: Software Development :: Testing',
+        'Topic :: Software Development :: Testing :: Unit',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Topic :: Text Processing',
         'Topic :: Text Processing :: Linguistic',
         'Topic :: Communications :: Chat',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+        'Topic :: System :: Systems Administration',
         'Topic :: Utilities',
+        'Topic :: Database',
+        'Topic :: Office/Business',
+
+        # Framework
+        'Framework :: AsyncIO',
+        'Framework :: Pydantic',
 
         # Natural Language
         'Natural Language :: English',
@@ -114,6 +131,7 @@ setup(
         # Environment
         'Environment :: Console',
         'Environment :: Web Environment',
+        'Environment :: No Input/Output (Daemon)',
 
         # Typing
         'Typing :: Typed',
@@ -123,4 +141,6 @@ setup(
             'hbllmutils=hbllmutils.entry:hbllmutilscli'
         ]
     },
+    zip_safe=False,
+    include_package_data=True,
 )
