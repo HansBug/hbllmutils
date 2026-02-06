@@ -63,7 +63,9 @@ from ...utils import obj_hashable, get_global_logger
 @lru_cache()
 def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
                   is_python_code: bool = True,
-                  extra_params: Tuple[Tuple[str, Union[str, int, float]], ...] = ()):
+                  extra_params: Tuple[Tuple[str, Union[str, int, float]], ...] = (),
+                  ignore_modules: Tuple[str, ...] = (),
+                  no_ignore_modules: Tuple[str, ...] = ()):
     """
     Create and cache an LLM task instance for TODO completion.
 
@@ -134,11 +136,15 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
             **params
         ),
         is_python_code=is_python_code,
+        ignore_modules=ignore_modules or None,
+        no_ignore_modules=no_ignore_modules or None
     )
 
 
 def complete_todo_for_file(file: str, model_name: Optional[str] = None, timeout: int = 240,
-                           extra_params: Optional[Dict[str, Union[str, int, float]]] = None) -> None:
+                           extra_params: Optional[Dict[str, Union[str, int, float]]] = None,
+                           ignore_modules: Optional[Tuple[str, ...]] = None,
+                           no_ignore_modules: Optional[Tuple[str, ...]] = None) -> None:
     """
     Complete TODO comments in a single Python source file using LLM.
 
@@ -211,14 +217,15 @@ def complete_todo_for_file(file: str, model_name: Optional[str] = None, timeout:
     """
     get_global_logger().info(f'Complete TODOs for {file!r} ...')
     extra_params = obj_hashable(extra_params or {})
-
-    print(file, is_python_file(file))
-
+    ignore_modules_hashable = tuple(ignore_modules) if ignore_modules else ()
+    no_ignore_modules_hashable = tuple(no_ignore_modules) if no_ignore_modules else ()
     new_docs = _get_llm_task(
         model_name=model_name,
         timeout=timeout,
         is_python_code=is_python_file(file),
         extra_params=extra_params,
+        ignore_modules=ignore_modules_hashable,
+        no_ignore_modules=no_ignore_modules_hashable,
     ).ask_then_parse(file, max_retries=0)
     new_docs = new_docs.rstrip()
     with open(file, 'w') as f:
@@ -286,7 +293,11 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
                   help='Additional parameters in key=value format (e.g., --param max_tokens=128000). '
                        'Can be used multiple times.',
                   callback=lambda ctx, param, value: dict(parse_key_value_params(v) for v in value) if value else {})
-    def todo(input_path, model_name, timeout, params):
+    @click.option('--ignore-module', 'ignore_modules', type=str, multiple=True,
+                  help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
+    @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
+                  help='Module names to never ignore during dependency analysis. Can be used multiple times.')
+    def todo(input_path, model_name, timeout, params, ignore_modules, no_ignore_modules):
         """
         Complete TODO comments in Python source files using LLM.
 
@@ -315,6 +326,10 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
         :param params: Dictionary of additional parameters parsed from --param options.
                       Supports parameters like max_tokens, temperature, top_p, etc.
         :type params: dict
+        :param ignore_modules: Tuple of module names to explicitly ignore during dependency analysis.
+        :type ignore_modules: tuple
+        :param no_ignore_modules: Tuple of module names to never ignore during dependency analysis.
+        :type no_ignore_modules: tuple
 
         :raises FileNotFoundError: If the input path does not exist
         :raises RuntimeError: If the input path is neither a file nor a directory
@@ -350,6 +365,10 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
             # Process with model from environment variable
             $ export OPENAI_MODEL_NAME=gpt-4
             $ hbllmutils code todo -i myproject/
+            
+            # Process with module filtering
+            $ hbllmutils code todo -i src/ -m gpt-4 --ignore-module numpy --ignore-module pandas
+            $ hbllmutils code todo -i src/ -m gpt-4 --no-ignore-module myproject.core
 
         """
         logger = logging.getLogger()
@@ -365,6 +384,11 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
         if extra_params:
             get_global_logger().info(f'Extra parameters: {extra_params}')
 
+        if ignore_modules:
+            get_global_logger().info(f'Ignoring modules: {list(ignore_modules)}')
+        if no_ignore_modules:
+            get_global_logger().info(f'Not ignoring modules: {list(no_ignore_modules)}')
+
         llm_model = (model_name or os.environ.get('OPENAI_MODEL_NAME')
                      or os.environ.get('LLM_MODEL_NAME') or os.environ.get('MODEL_NAME'))
         get_global_logger().info(f'Using LLM model: {llm_model!r}')
@@ -374,7 +398,14 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
             raise FileNotFoundError(f'File not found - {input_path!r}.')
         elif os.path.isfile(input_path):
             get_global_logger().info(f'Processing single file: {input_path!r}')
-            complete_todo_for_file(input_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+            complete_todo_for_file(
+                input_path,
+                model_name=llm_model,
+                timeout=timeout,
+                extra_params=extra_params,
+                ignore_modules=tuple(ignore_modules) if ignore_modules else None,
+                no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
+            )
             get_global_logger().info(f'Successfully completed TODOs in {input_path!r}')
         elif os.path.isdir(input_path):
             get_global_logger().info(f'Processing directory: {input_path!r}')
@@ -389,7 +420,14 @@ def _add_todo_subcommand(cli: click.Group) -> click.Group:
             get_global_logger().info(f'Found {len(py_files)} Python files to process')
             for file_path in tqdm(py_files, desc=f'Complete Codes in {input_path!r}', total=len(py_files)):
                 try:
-                    complete_todo_for_file(file_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+                    complete_todo_for_file(
+                        file_path,
+                        model_name=llm_model,
+                        timeout=timeout,
+                        extra_params=extra_params,
+                        ignore_modules=tuple(ignore_modules) if ignore_modules else None,
+                        no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
+                    )
                 except Exception as e:
                     get_global_logger().exception(f'Failed to complete TODOs in {file_path!r}: {e}')
                     raise

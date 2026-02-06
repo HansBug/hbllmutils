@@ -12,9 +12,10 @@ DIST_DIR   := ${PROJ_DIR}/dist
 TBUILD_DIR := ${PROJ_DIR}/tbuild
 BUILD_DIR  := ${PROJ_DIR}/build
 
-RANGE_DIR      ?= .
-RANGE_TEST_DIR := ${TEST_DIR}/${RANGE_DIR}
-RANGE_SRC_DIR  := ${SRC_DIR}/${RANGE_DIR}
+RANGE_DIR          ?= .
+RANGE_TEST_DIR     := ${TEST_DIR}/${RANGE_DIR}
+RANGE_SRC_DIR      := ${SRC_DIR}/${RANGE_DIR}
+RANGE_SRC_DIR_TEST ?= $(shell python -m tools.make_test_file -i "${RANGE_SRC_DIR}" -s "${SRC_DIR}" -t "${TEST_DIR}")
 
 #PYTHON_CODE_DIR   := ${SRC_DIR}/${RANGE_DIR}
 #RST_DOC_DIR       := ${DOC_DIR}/source/api_doc/${RANGE_DIR}
@@ -54,8 +55,7 @@ docs_auto:
 todos_auto:
 	python -m ${PROJ_NAME} code todo -i "${RANGE_SRC_DIR}" --param max_tokens=128000 --param temperature=0.5
 tests_auto:
-	python -m ${PROJ_NAME} code unittest -i "${RANGE_SRC_DIR}" \
-		-o $(shell python -m tools.make_test_file -i "${RANGE_SRC_DIR}" -s "${SRC_DIR}" -t "${TEST_DIR}") \
+	python -m ${PROJ_NAME} code unittest -i "${RANGE_SRC_DIR}" -o "${RANGE_SRC_DIR_TEST}" \
 		--param max_tokens=128000 --param temperature=0.5
 rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES} auto_rst_top_index.py
 	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
@@ -68,10 +68,6 @@ ${RST_DOC_DIR}/%/index.rst: ${PYTHON_CODE_DIR}/%/__init__.py auto_rst.py Makefil
 ${RST_DOC_DIR}/index.rst: ${PYTHON_CODE_DIR}/__init__.py auto_rst.py Makefile
 	@mkdir -p $(dir $@)
 	python auto_rst.py -i $< -o $@
-
-info:
-	echo ${RANGE_SRC_DIR}
-	echo ${RANGE_SRC_DIR_TEST}
 
 update_pypi_downloads:
 	python -m tools.pypi_downloads --dst-csv-file "${RANGE_SRC_DIR}/meta/code/pypi_downloads.csv"

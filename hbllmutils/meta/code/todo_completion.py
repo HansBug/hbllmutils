@@ -34,7 +34,7 @@ Example::
 
 import logging
 import os
-from typing import Optional
+from typing import Optional, Iterable
 
 from .task import PythonDetailedCodeGenerationLLMTask, PythonCodeGenerationLLMTask
 from ...history import LLMHistory
@@ -47,7 +47,9 @@ def create_todo_completion_task(
         show_module_directory_tree: bool = False,
         skip_when_error: bool = True,
         is_python_code: bool = True,
-        force_ast_check: Optional[bool] = None
+        force_ast_check: Optional[bool] = None,
+        ignore_modules: Optional[Iterable[str]] = None,
+        no_ignore_modules: Optional[Iterable[str]] = None
 ) -> PythonCodeGenerationLLMTask:
     """
     Create a configured LLM task for completing TODO comments in Python code.
@@ -93,6 +95,12 @@ def create_todo_completion_task(
         is True, and False otherwise. When is_python_code is False and force_ast_check is
         explicitly set to True, it will be ignored with a warning. Defaults to None.
     :type force_ast_check: Optional[bool]
+    :param ignore_modules: Optional iterable of module names that should be explicitly ignored
+        during dependency analysis regardless of download count or other criteria.
+    :type ignore_modules: Optional[Iterable[str]]
+    :param no_ignore_modules: Optional iterable of module names that should never be ignored
+        during dependency analysis regardless of download count or other filtering criteria.
+    :type no_ignore_modules: Optional[Iterable[str]]
 
     :return: A configured task instance ready to process Python source files and
         complete TODO comments. The task can be used by calling its ask_then_parse()
@@ -186,9 +194,15 @@ def create_todo_completion_task(
         ...     is_python_code=False
         ... )
         >>> completed_js = task.ask_then_parse(input_content='src/app.js')
+        >>> 
+        >>> # Use ignore_modules and no_ignore_modules parameters
+        >>> task = create_todo_completion_task(
+        ...     model='gpt-4',
+        ...     ignore_modules=['numpy', 'pandas'],
+        ...     no_ignore_modules=['myproject.core']
+        ... )
 
     """
-
     system_prompt_file = os.path.join(os.path.dirname(__file__), 'todo_completion.j2')
     system_prompt_template = PromptTemplate.from_file(system_prompt_file)
     system_prompt = system_prompt_template.render(is_python_code=is_python_code)
@@ -216,4 +230,6 @@ def create_todo_completion_task(
         show_module_directory_tree=show_module_directory_tree,
         skip_when_error=skip_when_error,
         force_ast_check=force_ast_check,
+        ignore_modules=ignore_modules,
+        no_ignore_modules=no_ignore_modules,
     )

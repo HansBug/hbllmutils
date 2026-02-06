@@ -401,6 +401,17 @@ def _add_unittest_subcommand(cli: click.Group) -> click.Group:
         :raises FileNotFoundError: If the input source file does not exist
         :raises RuntimeError: If the input path is not a file or test generation fails
         """
+        # TODO: add 2 option in CLI follow the
+        # ignore_modules: Optional[Iterable[str]] = None,
+        #         no_ignore_modules: Optional[Iterable[str]] = None
+        # from create_pydoc_generation_task(
+        # allow use multiple
+        # @click.option('--ignore-module', 'ignore_modules', type=str, multiple=True,
+        #                   help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
+        #     @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
+        #                   help='Module names to never ignore during dependency analysis. Can be used multiple times.')
+        # follow this pattern
+
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         console_handler = logging.StreamHandler()

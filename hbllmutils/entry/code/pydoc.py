@@ -50,7 +50,9 @@ from ...utils import obj_hashable, get_global_logger
 
 @lru_cache()
 def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
-                  extra_params: Tuple[Tuple[str, Union[str, int, float]], ...] = ()):
+                  extra_params: Tuple[Tuple[str, Union[str, int, float]], ...] = (),
+                  ignore_modules: Tuple[str, ...] = (),
+                  no_ignore_modules: Tuple[str, ...] = ()):
     """
     Create and cache an LLM task instance for Python documentation generation.
 
@@ -70,6 +72,10 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
     :param extra_params: Additional parameters as tuple of (key, value) pairs to pass
                         to the LLM model. Must be hashable for caching purposes.
     :type extra_params: Tuple[Tuple[str, Union[str, int, float]], ...]
+    :param ignore_modules: Tuple of module names to explicitly ignore during dependency analysis.
+    :type ignore_modules: Tuple[str, ...]
+    :param no_ignore_modules: Tuple of module names to never ignore during dependency analysis.
+    :type no_ignore_modules: Tuple[str, ...]
 
     :return: Configured LLM task ready to generate Python documentation
     :rtype: PythonCodeGenerationLLMTask
@@ -83,8 +89,8 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
        a new task instance.
 
     .. note::
-       The extra_params parameter must be a tuple of tuples (not a dict) to maintain
-       hashability for the LRU cache.
+       The extra_params, ignore_modules, and no_ignore_modules parameters must be tuples
+       (not lists or dicts) to maintain hashability for the LRU cache.
 
     Example::
 
@@ -97,6 +103,13 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
         >>> extra = (('max_tokens', 128000), ('temperature', 0.7))
         >>> task = _get_llm_task(model_name='gpt-4', timeout=300, extra_params=extra)
         >>> 
+        >>> # Create a task with module filtering
+        >>> task = _get_llm_task(
+        ...     model_name='gpt-4',
+        ...     ignore_modules=('numpy', 'pandas'),
+        ...     no_ignore_modules=('mypackage',)
+        ... )
+        >>> 
         >>> # Subsequent calls with same parameters return cached instance
         >>> task2 = _get_llm_task(model_name='gpt-4', timeout=300, extra_params=extra)
         >>> assert task is task2  # Same object from cache
@@ -108,12 +121,16 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
             model_name=model_name,
             timeout=timeout,
             **params
-        )
+        ),
+        ignore_modules=ignore_modules or None,
+        no_ignore_modules=no_ignore_modules or None
     )
 
 
 def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout: int = 240,
-                            extra_params: Optional[Dict[str, Union[str, int, float]]] = None) -> None:
+                            extra_params: Optional[Dict[str, Union[str, int, float]]] = None,
+                            ignore_modules: Optional[Tuple[str, ...]] = None,
+                            no_ignore_modules: Optional[Tuple[str, ...]] = None) -> None:
     """
     Generate Python documentation for a single file using LLM.
 
@@ -135,6 +152,10 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
     :param extra_params: Additional parameters to pass to the LLM model as a dictionary.
                         Common parameters include 'max_tokens', 'temperature', etc.
     :type extra_params: Optional[Dict[str, Union[str, int, float]]]
+    :param ignore_modules: Tuple of module names to explicitly ignore during dependency analysis.
+    :type ignore_modules: Optional[Tuple[str, ...]]
+    :param no_ignore_modules: Tuple of module names to never ignore during dependency analysis.
+    :type no_ignore_modules: Optional[Tuple[str, ...]]
 
     :raises FileNotFoundError: If the specified file does not exist
     :raises PermissionError: If the file cannot be read or written
@@ -164,11 +185,27 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
         ...     timeout=300,
         ...     extra_params=params
         ... )
+        >>> 
+        >>> # With module filtering
+        >>> generate_pydoc_for_file(
+        ...     'mymodule.py',
+        ...     model_name='gpt-4',
+        ...     ignore_modules=('numpy', 'pandas'),
+        ...     no_ignore_modules=('mypackage',)
+        ... )
 
     """
     get_global_logger().info(f'Make docs for {file!r} ...')
-    extra_params = obj_hashable(extra_params or {})
-    new_docs = _get_llm_task(model_name, timeout, extra_params).ask_then_parse(file, max_retries=0)
+    extra_params_hashable = obj_hashable(extra_params or {})
+    ignore_modules_hashable = tuple(ignore_modules) if ignore_modules else ()
+    no_ignore_modules_hashable = tuple(no_ignore_modules) if no_ignore_modules else ()
+    new_docs = _get_llm_task(
+        model_name=model_name,
+        timeout=timeout,
+        extra_params=extra_params_hashable,
+        ignore_modules=ignore_modules_hashable,
+        no_ignore_modules=no_ignore_modules_hashable
+    ).ask_then_parse(file, max_retries=0)
     new_docs = new_docs.rstrip()
     with open(file, 'w') as f:
         print(new_docs, file=f)
@@ -189,6 +226,7 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
     * Configurable LLM model selection
     * Adjustable API timeout settings
     * Additional model parameters via key=value pairs
+    * Module filtering options for dependency analysis
     * Progress tracking for directory processing
     * Comprehensive logging with colored output
     * Error handling and recovery for batch operations
@@ -234,11 +272,15 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         # With additional parameters
         $ hbllmutils code pydoc -i myfile.py -m gpt-4 -p max_tokens=128000 -p temperature=0.7
 
+        # With module filtering
+        $ hbllmutils code pydoc -i myfile.py -m gpt-4 --ignore-module numpy --ignore-module pandas --no-ignore-module mypackage
+
         # Using environment variable for model
         $ export OPENAI_MODEL_NAME=gpt-4
         $ hbllmutils code pydoc -i myfile.py
 
     """
+
     @cli.command('pydoc', help='Generate Python documentation for code files using LLM.',
                  context_settings=CONTEXT_SETTINGS)
     @click.option('-i', '--input', 'input_path', type=str, required=True,
@@ -251,7 +293,11 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                   help='Additional parameters in key=value format (e.g., --param max_tokens=128000). '
                        'Can be used multiple times.',
                   callback=lambda ctx, param, value: dict(parse_key_value_params(v) for v in value) if value else {})
-    def pydoc(input_path, model_name, timeout, params):
+    @click.option('--ignore-module', 'ignore_modules', type=str, multiple=True,
+                  help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
+    @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
+                  help='Module names to never ignore during dependency analysis. Can be used multiple times.')
+    def pydoc(input_path, model_name, timeout, params, ignore_modules, no_ignore_modules):
         """
         Generate Python documentation for files or directories using LLM.
 
@@ -277,6 +323,10 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         :type timeout: int
         :param params: Dictionary of additional model parameters
         :type params: Dict[str, Union[str, int, float]]
+        :param ignore_modules: Tuple of module names to explicitly ignore
+        :type ignore_modules: Tuple[str, ...]
+        :param no_ignore_modules: Tuple of module names to never ignore
+        :type no_ignore_modules: Tuple[str, ...]
 
         :raises FileNotFoundError: If input_path does not exist
         :raises RuntimeError: If input_path is neither a file nor a directory
@@ -305,6 +355,11 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         if extra_params:
             get_global_logger().info(f'Extra parameters: {extra_params}')
 
+        if ignore_modules:
+            get_global_logger().info(f'Ignoring modules: {list(ignore_modules)}')
+        if no_ignore_modules:
+            get_global_logger().info(f'Not ignoring modules: {list(no_ignore_modules)}')
+
         llm_model = (model_name or os.environ.get('OPENAI_MODEL_NAME')
                      or os.environ.get('LLM_MODEL_NAME') or os.environ.get('MODEL_NAME'))
         get_global_logger().info(f'Using LLM model: {llm_model or "default"}')
@@ -314,7 +369,14 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
             raise FileNotFoundError(f'File not found - {input_path!r}.')
         elif os.path.isfile(input_path):
             get_global_logger().info(f'Processing single file: {input_path!r}')
-            generate_pydoc_for_file(input_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+            generate_pydoc_for_file(
+                input_path,
+                model_name=llm_model,
+                timeout=timeout,
+                extra_params=extra_params,
+                ignore_modules=tuple(ignore_modules) if ignore_modules else None,
+                no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
+            )
             get_global_logger().info(f'Successfully generated documentation for {input_path!r}')
         elif os.path.isdir(input_path):
             get_global_logger().info(f'Processing directory: {input_path!r}')
@@ -329,7 +391,14 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
             get_global_logger().info(f'Found {len(py_files)} Python files in {input_path!r}')
             for file_path in tqdm(py_files, desc=f'Generate Docs in {input_path!r}', total=len(py_files)):
                 try:
-                    generate_pydoc_for_file(file_path, model_name=llm_model, timeout=timeout, extra_params=extra_params)
+                    generate_pydoc_for_file(
+                        file_path,
+                        model_name=llm_model,
+                        timeout=timeout,
+                        extra_params=extra_params,
+                        ignore_modules=tuple(ignore_modules) if ignore_modules else None,
+                        no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
+                    )
                 except Exception as e:
                     get_global_logger().exception(f'Failed to generate documentation for {file_path!r}: {e}')
                     raise

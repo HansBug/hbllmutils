@@ -53,7 +53,7 @@ Example::
 """
 
 import ast
-from typing import Optional
+from typing import Optional, Iterable
 
 from .prompt import get_prompt_for_source_file
 from ...history import LLMHistory
@@ -149,7 +149,7 @@ class PythonCodeGenerationLLMTask(ParsableLLMTask):
         :type history: Optional[LLMHistory]
         :param default_max_retries: Maximum retry attempts for parsing. Defaults to 5.
         :type default_max_retries: int
-        :param force_ast_check: Whether to enforce AST validation. Defaults to False.
+        :param force_ast_check: Whether to enforce AST validation. Defaults to True.
         :type force_ast_check: bool
         """
         super().__init__(model, history, default_max_retries)
@@ -260,6 +260,13 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     :param force_ast_check: If True, always validate generated code with AST parsing.
                            Defaults to True.
     :type force_ast_check: bool
+    :param ignore_modules: Optional iterable of module names that should be explicitly ignored
+                          during dependency analysis regardless of download count or other criteria.
+    :type ignore_modules: Optional[Iterable[str]]
+    :param no_ignore_modules: Optional iterable of module names that should never be ignored
+                             during dependency analysis regardless of download count or other
+                             filtering criteria.
+    :type no_ignore_modules: Optional[Iterable[str]]
 
     :ivar code_name: The name/label for the code section in prompts.
     :vartype code_name: str
@@ -269,6 +276,10 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     :vartype show_module_directory_tree: bool
     :ivar skip_when_error: Whether to skip failed imports during analysis.
     :vartype skip_when_error: bool
+    :ivar ignore_modules: Module names to explicitly ignore during analysis.
+    :vartype ignore_modules: Optional[Iterable[str]]
+    :ivar no_ignore_modules: Module names to never ignore during analysis.
+    :vartype no_ignore_modules: Optional[Iterable[str]]
 
     .. note::
        This task is particularly useful for generating documentation, unit tests,
@@ -318,7 +329,7 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         ...     model=model,
         ...     code_name="module",
         ...     description_text="Analyze this code",
-        ...     skip_when_error=False  # Strict mode - fail on import errors
+        ...     skip_when_error=False
         ... )
         >>> try:
         ...     code = task.ask_then_parse(input_content="problematic_module.py")
@@ -329,7 +340,8 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     def __init__(self, model: LLMModel, code_name: str, description_text: str,
                  history: Optional[LLMHistory] = None, default_max_retries: int = 5,
                  show_module_directory_tree: bool = False, skip_when_error: bool = True,
-                 force_ast_check: bool = True):
+                 force_ast_check: bool = True, ignore_modules: Optional[Iterable[str]] = None,
+                 no_ignore_modules: Optional[Iterable[str]] = None):
         """
         Initialize the PythonDetailedCodeGenerationLLMTask.
 
@@ -350,12 +362,20 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         :type skip_when_error: bool
         :param force_ast_check: Whether to enforce AST validation. Defaults to True.
         :type force_ast_check: bool
+        :param ignore_modules: Optional iterable of module names to explicitly ignore during
+                              dependency analysis.
+        :type ignore_modules: Optional[Iterable[str]]
+        :param no_ignore_modules: Optional iterable of module names to never ignore during
+                                 dependency analysis.
+        :type no_ignore_modules: Optional[Iterable[str]]
         """
         super().__init__(model, history, default_max_retries, force_ast_check)
         self.code_name = code_name
         self.description_text = description_text
         self.show_module_directory_tree = show_module_directory_tree
         self.skip_when_error = skip_when_error
+        self.ignore_modules: Optional[Iterable[str]] = ignore_modules
+        self.no_ignore_modules: Optional[Iterable[str]] = no_ignore_modules
 
     def _preprocess_input_content(self, input_content: Optional[str]) -> Optional[str]:
         """
@@ -419,7 +439,6 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
             ...     show_module_directory_tree=True
             ... )
             >>> prompt = task._preprocess_input_content("mypackage/api.py")
-            >>> # Prompt includes directory tree showing api.py location
             >>> 
             >>> # Error handling for empty input
             >>> try:
@@ -436,6 +455,8 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
                 description_text=self.description_text,
                 show_module_directory_tree=self.show_module_directory_tree,
                 skip_when_error=self.skip_when_error,
+                ignore_modules=self.ignore_modules,
+                no_ignore_modules=self.no_ignore_modules,
             )
         else:
             raise ValueError('Empty content is not supported.')

@@ -48,6 +48,7 @@ Example::
 """
 
 import os
+from typing import Optional, Iterable
 
 from .task import PythonDetailedCodeGenerationLLMTask, PythonCodeGenerationLLMTask
 from ...history import LLMHistory
@@ -59,7 +60,9 @@ def create_pydoc_generation_task(
         model: LLMModelTyping,
         show_module_directory_tree: bool = False,
         skip_when_error: bool = True,
-        force_ast_check: bool = True
+        force_ast_check: bool = True,
+        ignore_modules: Optional[Iterable[str]] = None,
+        no_ignore_modules: Optional[Iterable[str]] = None
 ) -> PythonCodeGenerationLLMTask:
     """
     Create an LLM task for generating Python documentation (pydoc) in reStructuredText format.
@@ -112,6 +115,13 @@ def create_pydoc_generation_task(
                            to ensure syntactic correctness. The task will retry generation
                            if validation fails. Defaults to True.
     :type force_ast_check: bool
+    :param ignore_modules: Optional iterable of module names that should be explicitly ignored
+                          during dependency analysis regardless of download count or other criteria.
+    :type ignore_modules: Optional[Iterable[str]]
+    :param no_ignore_modules: Optional iterable of module names that should never be ignored
+                             during dependency analysis regardless of download count or other
+                             filtering criteria.
+    :type no_ignore_modules: Optional[Iterable[str]]
 
     :return: A configured LLM task ready to generate Python documentation for source files.
             The task can be used with the ask_then_parse() method to process Python files
@@ -186,4 +196,6 @@ def create_pydoc_generation_task(
         show_module_directory_tree=show_module_directory_tree,
         skip_when_error=skip_when_error,
         force_ast_check=force_ast_check,
+        ignore_modules=ignore_modules,
+        no_ignore_modules=no_ignore_modules,
     )

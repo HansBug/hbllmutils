@@ -47,7 +47,7 @@ Example::
 
 import io
 import os
-from typing import Optional
+from typing import Optional, Iterable, Set
 
 try:
     from typing import Literal
@@ -76,6 +76,7 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     - Optional module directory tree visualization for context
     - Configurable error handling during import analysis
     - Automatic AST validation of generated test code
+    - Module filtering with ignore and no-ignore lists
 
     :param model: The LLM model to use for test generation.
     :type model: LLMModel
@@ -93,11 +94,19 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     :param force_ast_check: If True, validate generated code with AST parsing.
                            Defaults to True.
     :type force_ast_check: bool
+    :param ignore_modules: Optional iterable of module names to explicitly ignore during analysis.
+    :type ignore_modules: Optional[Iterable[str]]
+    :param no_ignore_modules: Optional iterable of module names that should never be ignored.
+    :type no_ignore_modules: Optional[Iterable[str]]
 
     :ivar show_module_directory_tree: Whether to include directory tree in prompts.
     :vartype show_module_directory_tree: bool
     :ivar skip_when_error: Whether to skip failed imports during analysis.
     :vartype skip_when_error: bool
+    :ivar ignore_modules: Set of module names to explicitly ignore.
+    :vartype ignore_modules: set
+    :ivar no_ignore_modules: Set of module names that should never be ignored.
+    :vartype no_ignore_modules: set
 
     .. note::
        The generated tests should be reviewed for correctness and completeness.
@@ -119,7 +128,9 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         ...     model=model,
         ...     history=history,
         ...     show_module_directory_tree=True,
-        ...     skip_when_error=True
+        ...     skip_when_error=True,
+        ...     ignore_modules=['deprecated_module'],
+        ...     no_ignore_modules=['mypackage.core']
         ... )
         >>> 
         >>> # Generate tests for a module
@@ -137,7 +148,8 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
 
     def __init__(self, model: LLMModel, history: Optional[LLMHistory] = None, default_max_retries: int = 5,
                  show_module_directory_tree: bool = False, skip_when_error: bool = True,
-                 force_ast_check: bool = True):
+                 force_ast_check: bool = True, ignore_modules: Optional[Iterable[str]] = None,
+                 no_ignore_modules: Optional[Iterable[str]] = None):
         """
         Initialize the UnittestCodeGenerationLLMTask.
 
@@ -153,10 +165,16 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         :type skip_when_error: bool
         :param force_ast_check: Whether to enforce AST validation. Defaults to True.
         :type force_ast_check: bool
+        :param ignore_modules: Optional iterable of module names to explicitly ignore.
+        :type ignore_modules: Optional[Iterable[str]]
+        :param no_ignore_modules: Optional iterable of module names that should never be ignored.
+        :type no_ignore_modules: Optional[Iterable[str]]
         """
         super().__init__(model, history, default_max_retries, force_ast_check)
         self.show_module_directory_tree = show_module_directory_tree
         self.skip_when_error = skip_when_error
+        self.ignore_modules: Set[str] = set(ignore_modules or [])
+        self.no_ignore_modules: Set[str] = set(no_ignore_modules or [])
 
     def generate(self, source_file: str, test_file: Optional[str] = None, max_retries: Optional[int] = None, **params):
         """
@@ -222,7 +240,6 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
             ...     source_file='mypackage/calculator.py',
             ...     test_file='tests/test_calculator_old.py'
             ... )
-            >>> # Generated tests will follow patterns from the existing test file
             
             >>> # Generate with custom retry limit
             >>> test_code = task.generate(
@@ -246,12 +263,15 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
                 description_text='This is the source code for you to generate unittest code',
                 show_module_directory_tree=self.show_module_directory_tree,
                 skip_when_error=self.skip_when_error,
+                ignore_modules=self.ignore_modules,
+                no_ignore_modules=self.no_ignore_modules,
                 return_imported_items=True,
             )
             print(source_prompt, file=sf)
             print(f'', file=sf)
 
             if test_file:
+                combined_ignore_modules = self.ignore_modules | set(imported_items)
                 test_prompt = get_prompt_for_source_file(
                     source_file=test_file,
                     level=1,
@@ -259,7 +279,8 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
                     description_text='This is the source code of existing unittest',
                     show_module_directory_tree=self.show_module_directory_tree,
                     skip_when_error=self.skip_when_error,
-                    ignore_modules=imported_items,
+                    ignore_modules=combined_ignore_modules,
+                    no_ignore_modules=self.no_ignore_modules,
                 )
                 print(test_prompt, file=sf)
                 print(f'', file=sf)
@@ -280,6 +301,8 @@ def create_unittest_generation_task(
         force_ast_check: bool = True,
         test_framework_name: Literal['pytest', 'unittest', 'nose2'] = "pytest",
         mark_name: Optional[str] = 'unittest',
+        ignore_modules: Optional[Iterable[str]] = None,
+        no_ignore_modules: Optional[Iterable[str]] = None,
 ) -> UnittestCodeGenerationLLMTask:
     """
     Create a configured unit test generation task with appropriate system prompt.
@@ -294,6 +317,7 @@ def create_unittest_generation_task(
     - Creating a system prompt from template with framework-specific instructions
     - Configuring test marking strategies (e.g., @pytest.mark.unittest)
     - Setting up error handling and validation options
+    - Configuring module filtering with ignore and no-ignore lists
 
     :param model: The LLM model to use. Can be a model name string, an LLMModel instance,
                  or None to use the default model from configuration.
@@ -316,6 +340,13 @@ def create_unittest_generation_task(
                      no mark decorators will be added. Only applies to pytest framework.
                      Defaults to 'unittest'.
     :type mark_name: Optional[str]
+    :param ignore_modules: Optional iterable of module names that should be explicitly ignored
+                          during dependency analysis regardless of download count or other criteria.
+    :type ignore_modules: Optional[Iterable[str]]
+    :param no_ignore_modules: Optional iterable of module names that should never be ignored
+                             during dependency analysis regardless of download count or other
+                             filtering criteria.
+    :type no_ignore_modules: Optional[Iterable[str]]
 
     :return: A configured UnittestCodeGenerationLLMTask instance ready for test generation.
     :rtype: UnittestCodeGenerationLLMTask
@@ -347,7 +378,7 @@ def create_unittest_generation_task(
         >>> task = create_unittest_generation_task(
         ...     model='gpt-4',
         ...     test_framework_name='unittest',
-        ...     mark_name=None  # No marks for unittest framework
+        ...     mark_name=None
         ... )
         >>> test_code = task.generate('mypackage/calculator.py')
         
@@ -355,7 +386,7 @@ def create_unittest_generation_task(
         >>> task = create_unittest_generation_task(
         ...     model='gpt-4',
         ...     test_framework_name='pytest',
-        ...     mark_name=None  # Will not add @pytest.mark decorators
+        ...     mark_name=None
         ... )
         
         >>> # Create task with directory tree visualization
@@ -368,8 +399,15 @@ def create_unittest_generation_task(
         >>> # Create task with custom error handling
         >>> task = create_unittest_generation_task(
         ...     model='gpt-4',
-        ...     skip_when_error=False,  # Raise on import errors
+        ...     skip_when_error=False,
         ...     force_ast_check=True
+        ... )
+        
+        >>> # Create task with module filtering
+        >>> task = create_unittest_generation_task(
+        ...     model='gpt-4',
+        ...     ignore_modules=['deprecated_module', 'legacy_code'],
+        ...     no_ignore_modules=['mypackage.core', 'mypackage.utils']
         ... )
         
         >>> # Use existing model instance
@@ -382,7 +420,7 @@ def create_unittest_generation_task(
         
         >>> # Use default model from configuration
         >>> task = create_unittest_generation_task(
-        ...     model=None,  # Uses default from config
+        ...     model=None,
         ...     test_framework_name='pytest'
         ... )
 
@@ -400,4 +438,6 @@ def create_unittest_generation_task(
         show_module_directory_tree=show_module_directory_tree,
         skip_when_error=skip_when_error,
         force_ast_check=force_ast_check,
+        ignore_modules=ignore_modules,
+        no_ignore_modules=no_ignore_modules,
     )
