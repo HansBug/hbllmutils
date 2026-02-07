@@ -57,7 +57,7 @@ from typing import Optional, Iterable
 
 from .prompt import get_prompt_for_source_file
 from ...history import LLMHistory
-from ...model import LLMModel
+from ...model import LLMModel, LLMModelTyping
 from ...response import ParsableLLMTask, extract_code
 
 
@@ -81,7 +81,7 @@ class PythonCodeGenerationLLMTask(ParsableLLMTask):
     which trigger automatic retries. Other exceptions will propagate immediately.
 
     :param model: The LLM model to use for code generation.
-    :type model: LLMModel
+    :type model: LLMModelTyping
     :param history: Optional conversation history. If None, a new history will be created.
     :type history: Optional[LLMHistory]
     :param default_max_retries: Maximum number of retry attempts for code generation and parsing.
@@ -138,13 +138,13 @@ class PythonCodeGenerationLLMTask(ParsableLLMTask):
     """
     __exceptions__ = (SyntaxError, ValueError)
 
-    def __init__(self, model: LLMModel, history: Optional[LLMHistory] = None, default_max_retries: int = 5,
+    def __init__(self, model: LLMModelTyping, history: Optional[LLMHistory] = None, default_max_retries: int = 5,
                  force_ast_check: bool = True):
         """
         Initialize the PythonCodeGenerationLLMTask.
 
         :param model: The LLM model to use for code generation.
-        :type model: LLMModel
+        :type model: LLMModelTyping
         :param history: Optional conversation history. If None, creates a new history.
         :type history: Optional[LLMHistory]
         :param default_max_retries: Maximum retry attempts for parsing. Defaults to 5.
@@ -238,7 +238,7 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     - Custom description text for additional context
 
     :param model: The LLM model to use for code generation.
-    :type model: LLMModel
+    :type model: LLMModelTyping
     :param code_name: The name/label for the code section in the generated prompt.
                      Used as a prefix for the title (e.g., "primary" results in
                      "Primary Source Code Analysis"). If None, uses "Source Code Analysis".
@@ -337,7 +337,7 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         ...     print(f"Analysis failed: {e}")
     """
 
-    def __init__(self, model: LLMModel, code_name: str, description_text: str,
+    def __init__(self, model: LLMModelTyping, code_name: str, description_text: str,
                  history: Optional[LLMHistory] = None, default_max_retries: int = 5,
                  show_module_directory_tree: bool = False, skip_when_error: bool = True,
                  force_ast_check: bool = True, ignore_modules: Optional[Iterable[str]] = None,
@@ -346,7 +346,7 @@ class PythonDetailedCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         Initialize the PythonDetailedCodeGenerationLLMTask.
 
         :param model: The LLM model to use for code generation.
-        :type model: LLMModel
+        :type model: LLMModelTyping
         :param code_name: The name/label for the code section in the generated prompt.
         :type code_name: str
         :param description_text: Descriptive text providing context for code generation.
