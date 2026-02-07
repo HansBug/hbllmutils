@@ -13,5 +13,6 @@ hbllmutils.template
     env
     matcher
     matcher_pair
+    quick
     render
 
