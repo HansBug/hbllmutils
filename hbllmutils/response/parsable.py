@@ -11,10 +11,11 @@ formats (such as JSON, XML, structured data), with automatic retry when parsing 
 malformed or unexpected output. This is particularly useful when working with LLMs that may
 occasionally produce outputs that don't conform to the expected format.
 
-Key Components:
-    * :class:`OutputParseWithException` - Data class for storing failed parse attempts
-    * :class:`OutputParseFailed` - Exception raised when all parsing attempts fail
-    * :class:`ParsableLLMTask` - LLM task with automatic output parsing and retry logic
+The module contains the following main components:
+
+* :class:`OutputParseWithException` - Data class for storing failed parse attempts
+* :class:`OutputParseFailed` - Exception raised when all parsing attempts fail
+* :class:`ParsableLLMTask` - LLM task with automatic output parsing and retry logic
 
 Architecture:
     The module uses a template method pattern where subclasses implement the 
@@ -39,8 +40,8 @@ Retry Mechanism:
    max_retries values based on your use case.
 
 .. warning::
-   Ensure that your parsing logic in :meth:`_parse_and_validate` raises exceptions
-   that match the types specified in :attr:`__exceptions__`. Other exception types
+   Ensure that your parsing logic in :meth:`ParsableLLMTask._parse_and_validate` raises exceptions
+   that match the types specified in :attr:`ParsableLLMTask.__exceptions__`. Other exception types
    will propagate immediately without retry.
 
 Example::
@@ -90,7 +91,7 @@ from typing import Optional, Union, Type, Tuple, List
 from hbutils.string import plural_word
 
 from ..history import LLMHistory
-from ..model import LLMTask, LLMModel
+from ..model import LLMTask, LLMModel, LLMModelTyping
 
 
 @dataclass
@@ -317,12 +318,13 @@ class ParsableLLMTask(LLMTask):
     """
     __exceptions__: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception
 
-    def __init__(self, model: LLMModel, history: Optional[LLMHistory] = None, default_max_retries: int = 5):
+    def __init__(self, model: LLMModelTyping, history: Optional[LLMHistory] = None, default_max_retries: int = 5):
         """
         Initialize the ParsableLLMTask.
 
-        :param model: The LLM model to use for generating responses.
-        :type model: LLMModel
+        :param model: The LLM model to use for generating responses. Can be a model name string,
+                     an LLMModel instance, or None to load the default model from configuration.
+        :type model: LLMModelTyping
         :param history: Optional conversation history. If None, a new empty history will be created.
                        The history tracks the conversation context across multiple interactions.
         :type history: Optional[LLMHistory]

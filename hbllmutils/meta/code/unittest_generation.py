@@ -79,7 +79,7 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
     - Module filtering with ignore and no-ignore lists
 
     :param model: The LLM model to use for test generation.
-    :type model: LLMModel
+    :type model: LLMModelTyping
     :param history: Optional conversation history with system prompt. If None, creates new history.
     :type history: Optional[LLMHistory]
     :param default_max_retries: Maximum number of retry attempts for generation and parsing.
@@ -146,7 +146,7 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
 
     """
 
-    def __init__(self, model: LLMModel, history: Optional[LLMHistory] = None, default_max_retries: int = 5,
+    def __init__(self, model: LLMModelTyping, history: Optional[LLMHistory] = None, default_max_retries: int = 5,
                  show_module_directory_tree: bool = False, skip_when_error: bool = True,
                  force_ast_check: bool = True, ignore_modules: Optional[Iterable[str]] = None,
                  no_ignore_modules: Optional[Iterable[str]] = None):
@@ -154,7 +154,7 @@ class UnittestCodeGenerationLLMTask(PythonCodeGenerationLLMTask):
         Initialize the UnittestCodeGenerationLLMTask.
 
         :param model: The LLM model to use for test generation.
-        :type model: LLMModel
+        :type model: LLMModelTyping
         :param history: Optional conversation history. If None, creates new history.
         :type history: Optional[LLMHistory]
         :param default_max_retries: Maximum retry attempts for parsing. Defaults to 5.
