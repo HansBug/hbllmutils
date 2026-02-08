@@ -85,7 +85,7 @@ class _MatcherPairMeta(type):
 
     @classmethod
     def _cls_init(cls, annotations: Dict[str, Any]) -> Tuple[Dict[str, Type[BaseMatcher]], List[str],
-                                                           Dict[str, type], List[str]]:
+    Dict[str, type], List[str]]:
         """
         Initialize class fields from annotations.
 

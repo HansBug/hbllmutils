@@ -40,11 +40,11 @@ from .remote import RemoteLLMModel
 
 
 def load_llm_model_from_config(
-    config_file_or_dir: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_token: Optional[str] = None,
-    model_name: Optional[str] = None,
-    **params: Any,
+        config_file_or_dir: Optional[str] = None,
+        base_url: Optional[str] = None,
+        api_token: Optional[str] = None,
+        model_name: Optional[str] = None,
+        **params: Any,
 ) -> RemoteLLMModel:
     """
     Load a Large Language Model with specified configuration.

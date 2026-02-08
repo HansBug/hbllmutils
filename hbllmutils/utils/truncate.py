@@ -53,11 +53,11 @@ from typing import Any, Optional
 
 
 def truncate_dict(
-    obj: Any,
-    max_string_len: int = 250,
-    max_list_items: int = 4,
-    max_dict_keys: int = 5,
-    current_depth: int = 0,
+        obj: Any,
+        max_string_len: int = 250,
+        max_list_items: int = 4,
+        max_dict_keys: int = 5,
+        current_depth: int = 0,
 ) -> Any:
     """
     Recursively truncate complex data structures for logging purposes.
@@ -179,12 +179,12 @@ def truncate_dict(
 
 
 def log_pformat(
-    obj: Any,
-    max_string_len: int = 250,
-    max_list_items: int = 4,
-    max_dict_keys: int = 5,
-    width: Optional[int] = None,
-    **kwargs: Any,
+        obj: Any,
+        max_string_len: int = 250,
+        max_list_items: int = 4,
+        max_dict_keys: int = 5,
+        width: Optional[int] = None,
+        **kwargs: Any,
 ) -> str:
     """
     Generate a concise formatted string representation for logging purposes.

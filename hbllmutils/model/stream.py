@@ -86,11 +86,11 @@ class ResponseStream:
     """
 
     def __init__(
-        self,
-        session: Any,
-        with_reasoning: bool = False,
-        reasoning_splitter: str = DEFAULT_REASONING_SPLITTER,
-        content_splitter: str = DEFAULT_CONTENT_SPLITTER,
+            self,
+            session: Any,
+            with_reasoning: bool = False,
+            reasoning_splitter: str = DEFAULT_REASONING_SPLITTER,
+            content_splitter: str = DEFAULT_CONTENT_SPLITTER,
     ) -> None:
         """
         Initialize the ResponseStream.

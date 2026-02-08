@@ -32,7 +32,7 @@ import inspect
 import os
 import pathlib
 import textwrap
-from typing import Any, Iterable, Mapping, MutableMapping, Optional, Union
+from typing import Union
 
 import jinja2
 from hbutils.string import plural_word, ordinalize, titleize
@@ -100,7 +100,7 @@ def add_builtins_to_env(env: jinja2.Environment) -> jinja2.Environment:
 
         # Determine if the function is suitable as a tester
         is_test_candidate = (
-            name.startswith("is") or name in ("all", "any", "callable", "hasattr")
+                name.startswith("is") or name in ("all", "any", "callable", "hasattr")
         )
 
         # Mount as a filter (if suitable and no conflict)
@@ -131,7 +131,7 @@ def add_builtins_to_env(env: jinja2.Environment) -> jinja2.Environment:
     return env
 
 
-def _read_file_text(path: Union[str, os.PathLike[str]]) -> str:
+def _read_file_text(path: Union[str, os.PathLike]) -> str:
     """
     Read the entire contents of a file path as text.
 
@@ -139,7 +139,7 @@ def _read_file_text(path: Union[str, os.PathLike[str]]) -> str:
     that can read text content in templates.
 
     :param path: File system path to read.
-    :type path: str or os.PathLike[str]
+    :type path: str or os.PathLike
     :return: File contents as a string.
     :rtype: str
     """

@@ -291,7 +291,8 @@ class FakeLLMModel(LLMModel):
         Hello, I'm a fake LLM!
     """
 
-    def __init__(self, stream_wps: float = 50, rules: Optional[List[Tuple[Callable, FakeResponseTyping]]] = None) -> None:
+    def __init__(self, stream_wps: float = 50,
+                 rules: Optional[List[Tuple[Callable, FakeResponseTyping]]] = None) -> None:
         """
         Initialize the fake LLM model.
 

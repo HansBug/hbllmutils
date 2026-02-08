@@ -42,7 +42,7 @@ Example::
 from __future__ import annotations
 
 import pathlib
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import jinja2
 
@@ -236,9 +236,9 @@ class PromptTemplate:
 
     @classmethod
     def from_file(
-        cls,
-        template_file: Union[str, pathlib.Path],
-        **params: Any,
+            cls,
+            template_file: Union[str, pathlib.Path],
+            **params: Any,
     ) -> "PromptTemplate":
         """
         Create a PromptTemplate instance from a template file.

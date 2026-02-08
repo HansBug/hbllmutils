@@ -172,10 +172,10 @@ class LLMTask(ABC):
         return self.model._logger
 
     def ask(
-        self,
-        input_content: Optional[str] = None,
-        with_reasoning: bool = False,
-        **params: Any,
+            self,
+            input_content: Optional[str] = None,
+            with_reasoning: bool = False,
+            **params: Any,
     ) -> Union[str, Tuple[Optional[str], str]]:
         """
         Ask a question to the LLM model and receive a response.
@@ -248,10 +248,10 @@ class LLMTask(ABC):
         )
 
     def ask_stream(
-        self,
-        input_content: Optional[str] = None,
-        with_reasoning: bool = False,
-        **params: Any,
+            self,
+            input_content: Optional[str] = None,
+            with_reasoning: bool = False,
+            **params: Any,
     ) -> ResponseStream:
         """
         Ask a question to the LLM model and receive a streaming response.

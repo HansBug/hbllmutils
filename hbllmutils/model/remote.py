@@ -115,15 +115,15 @@ class RemoteLLMModel(LLMModel):
     """
 
     def __init__(
-        self,
-        base_url: str,
-        api_token: str,
-        model_name: str,
-        organization_id: Optional[str] = None,
-        timeout: int = 30,
-        max_retries: int = 3,
-        headers: Optional[Dict[str, str]] = None,
-        **default_params: Any,
+            self,
+            base_url: str,
+            api_token: str,
+            model_name: str,
+            organization_id: Optional[str] = None,
+            timeout: int = 30,
+            max_retries: int = 3,
+            headers: Optional[Dict[str, str]] = None,
+            **default_params: Any,
     ):
         """
         Initialize the RemoteLLMModel instance.
