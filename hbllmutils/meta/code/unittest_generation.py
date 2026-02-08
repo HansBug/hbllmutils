@@ -57,7 +57,7 @@ except (ImportError, ModuleNotFoundError):
 from .prompt import get_prompt_for_source_file
 from .task import PythonCodeGenerationLLMTask
 from ...history import LLMHistory
-from ...model import LLMModelTyping, load_llm_model, LLMModel
+from ...model import LLMModelTyping, load_llm_model
 from ...template import PromptTemplate
 
 

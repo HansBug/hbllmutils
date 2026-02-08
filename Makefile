@@ -26,7 +26,7 @@ RST_DOC_FILES     := $(patsubst ${PYTHON_CODE_DIR}/%.py,${RST_DOC_DIR}/%.rst,${P
 PYTHON_NONM_FILES := $(shell find ${PYTHON_CODE_DIR} -name "__init__.py" 2>/dev/null)
 RST_NONM_FILES    := $(foreach file,${PYTHON_NONM_FILES},$(patsubst %/__init__.py,%/index.rst,$(patsubst ${PYTHON_CODE_DIR}/%,${RST_DOC_DIR}/%,$(patsubst ${PYTHON_CODE_DIR}/__init__.py,${RST_DOC_DIR}/index.rst,${file}))))
 
-AUTO_OPTIONS ?= --param max_tokens=128000 --param temperature=0.5 --no-ignore-module hbutils
+AUTO_OPTIONS ?= --param max_tokens=400000 --param temperature=0.5 --no-ignore-module hbutils --model-name gpt-5.2-codex
 
 COV_TYPES ?= xml term-missing
 

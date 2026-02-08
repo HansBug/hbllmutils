@@ -1,27 +1,36 @@
 """
-File pattern matching module for extracting structured information from filenames.
+Template-based file matcher utilities for extracting structured metadata from filenames.
 
-This module provides a metaclass-based pattern matching system that allows defining
-file matchers using template patterns with typed placeholders. It supports automatic
-field extraction, type conversion, and file discovery in directories.
+This module implements a metaclass-driven pattern matching system that turns
+template patterns with typed placeholders into compiled regular expressions.
+It provides a convenient way to scan directories, match file names, and
+automatically convert captured fields into their declared Python types.
 
-The main components are:
-- MatcherMeta: Metaclass that processes pattern templates and generates regex patterns
-- BaseMatcher: Base class for creating custom file matchers with pattern matching capabilities
+The module contains the following public component:
+
+* :class:`BaseMatcher` - Base class for defining file matchers using
+  ``__pattern__`` templates and type annotations.
+
+.. note::
+   The metaclass :class:`_MatcherMeta` is an internal implementation detail.
+   It is intentionally not part of the public API.
 
 Example::
+
     >>> class ImageMatcher(BaseMatcher):
     ...     __pattern__ = "image_<id>_<name>.png"
     ...     id: int
     ...     name: str
     >>> matcher = ImageMatcher.match("/path/to/images")
-    >>> print(matcher.id, matcher.name)
+    >>> if matcher:
+    ...     print(matcher.id, matcher.name)
+
 """
 
 import os
 import re
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union, Iterator, Tuple
+from typing import Optional, List, Dict, Any, Union, Iterator, Tuple, Type
 
 from hbutils.model import IComparable
 from natsort import natsorted
@@ -30,22 +39,21 @@ from natsort import natsorted
 class _MatcherMeta(type):
     """
     Metaclass for creating pattern-based file matchers.
-    
-    This metaclass processes the __pattern__ attribute and type annotations to generate
-    a compiled regular expression pattern and field metadata. It automatically converts
-    template patterns like "file_<id>_<name>.txt" into proper regex patterns with
-    appropriate capture groups based on field types.
+
+    This metaclass processes the :attr:`__pattern__` attribute and type
+    annotations to generate a compiled regular expression pattern and field
+    metadata. It converts template patterns like ``"file_<id>_<name>.txt"``
+    into regex patterns with typed capture groups.
     """
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Type:
         """
         Create a new matcher class with processed pattern and field information.
-        
+
         :param args: Positional arguments for type creation
         :type args: tuple
         :param kwargs: Keyword arguments for type creation
         :type kwargs: dict
-        
         :return: New matcher class instance with processed metadata
         :rtype: type
         """
@@ -59,29 +67,28 @@ class _MatcherMeta(type):
     def _cls_init(cls, pattern: str, annotations: Dict[str, type]) -> Tuple[str, Dict[str, type], List[str]]:
         """
         Initialize class-level pattern and field information.
-        
-        Parses the template pattern to extract placeholders, validates them against
-        type annotations, and generates a compiled regex pattern with appropriate
-        capture groups for each field type.
-        
-        :param pattern: Template pattern with placeholders like "file_<id>_<name>.txt"
+
+        This method parses the template pattern to extract placeholders,
+        validates them against the provided type annotations, and generates
+        a regex pattern with capture groups for each field type.
+
+        :param pattern: Template pattern with placeholders like ``"file_<id>_<name>.txt"``
         :type pattern: str
         :param annotations: Type annotations for fields
         :type annotations: Dict[str, type]
-        
-        :return: Tuple of (regex_pattern, fields_dict, field_names_list)
+        :return: Tuple of ``(regex_pattern, fields_dict, field_names_list)``
         :rtype: Tuple[str, Dict[str, type], List[str]]
-        
-        :raises NameError: If placeholders don't match annotations or vice versa
-        
+        :raises NameError: If placeholders do not match annotated fields
+
         Example::
+
             >>> pattern = "image_<id>_<name>.png"
             >>> annotations = {'id': int, 'name': str}
             >>> regex, fields, names = _MatcherMeta._cls_init(pattern, annotations)
             >>> print(names)
             ['id', 'name']
         """
-        fields = {}
+        fields: Dict[str, type] = {}
         # Find all placeholders <field_name>
         placeholder_pattern = r'<(\w+)>'
         placeholders = re.findall(placeholder_pattern, pattern)
@@ -111,7 +118,7 @@ class _MatcherMeta(type):
 
         # Escape special characters but preserve capture groups
         # Temporarily replace capture groups
-        temp_markers = {}
+        temp_markers: Dict[str, str] = {}
         group_count = 0
         for match in re.finditer(r'\([^)]+\)', regex_pattern):
             marker = f"__TEMP_GROUP_{group_count}__"
@@ -132,17 +139,18 @@ class _MatcherMeta(type):
 class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     """
     Base class for file pattern matchers.
-    
-    This class provides functionality to match files based on template patterns and
-    automatically extract typed fields from filenames. Subclasses should define
-    __pattern__ and type-annotated fields.
-    
-    :cvar __pattern__: Template pattern with placeholders (e.g., "file_<id>_<name>.txt")
+
+    Subclasses define a :attr:`__pattern__` template and annotate fields with
+    their intended types. Instances represent matched files and provide
+    convenient access to field values and file paths.
+
+    :cvar __pattern__: Template pattern with placeholders, such as ``"file_<id>.txt"``
     :vartype __pattern__: str
     :cvar __recursively__: Whether to search directories recursively
     :vartype __recursively__: bool
-    
+
     Example::
+
         >>> class LogMatcher(BaseMatcher):
         ...     __pattern__ = "log_<date>_<level>.txt"
         ...     date: str
@@ -155,18 +163,18 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     __pattern__: str = ""
     __recursively__: bool = False
 
-    def __init__(self, full_path: str, **kwargs):
+    def __init__(self, full_path: str, **kwargs: Any) -> None:
         """
         Initialize matcher instance with extracted field values.
-        
+
         :param full_path: Complete path to the matched file
         :type full_path: str
         :param kwargs: Extracted field values from the filename
         :type kwargs: Any
-        
         :raises ValueError: If unknown fields are provided or required fields are missing
-        
+
         Example::
+
             >>> matcher = ImageMatcher("/path/image_001_test.png", id=1, name="test")
             >>> print(matcher.id, matcher.name)
             1 test
@@ -175,7 +183,7 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
         self.file_name = os.path.basename(full_path)
         self.dir_path = os.path.dirname(full_path)
 
-        unknown_fields = {}
+        unknown_fields: Dict[str, Any] = {}
         excluded_fields = set(self.__field_names_set__)
         for key, value in kwargs.items():
             if key not in self.__field_names_set__:
@@ -196,18 +204,17 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def _convert_value(cls, value: str, target_type: type) -> Any:
         """
         Convert string value to target type.
-        
+
         :param value: String value to convert
         :type value: str
         :param target_type: Target type for conversion
         :type target_type: type
-        
         :return: Converted value
         :rtype: Any
-        
         :raises TypeError: If target type is not supported
-        
+
         Example::
+
             >>> BaseMatcher._convert_value("123", int)
             123
             >>> BaseMatcher._convert_value("3.14", float)
@@ -228,14 +235,14 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def _yield_match(cls, directory: Union[str, Path]) -> Iterator['BaseMatcher']:
         """
         Yield all matching file instances in the specified directory.
-        
+
         :param directory: Directory to search for matching files
         :type directory: Union[str, Path]
-        
         :return: Iterator of matched file instances
         :rtype: Iterator[BaseMatcher]
-        
+
         Example::
+
             >>> for matcher in ImageMatcher._yield_match("/path/to/images"):
             ...     print(matcher.id, matcher.name)
         """
@@ -258,7 +265,7 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
 
                 if match:
                     # Extract field values
-                    field_values = {}
+                    field_values: Dict[str, Any] = {}
                     for i, field_name in enumerate(field_order):
                         raw_value = match.group(i + 1)
                         field_type = fields[field_name]
@@ -278,14 +285,14 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def match(cls, directory: Union[str, Path]) -> Optional['BaseMatcher']:
         """
         Match the first file that conforms to the pattern in the specified directory.
-        
+
         :param directory: Directory to search
         :type directory: Union[str, Path]
-        
-        :return: Matched file instance, or None if not found
+        :return: Matched file instance, or ``None`` if not found
         :rtype: Optional[BaseMatcher]
-        
+
         Example::
+
             >>> matcher = ImageMatcher.match("/path/to/images")
             >>> if matcher:
             ...     print(f"Found: {matcher.full_path}")
@@ -300,14 +307,14 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def match_all(cls, directory: Union[str, Path]) -> List['BaseMatcher']:
         """
         Match all files that conform to the pattern in the specified directory.
-        
+
         :param directory: Directory to search
         :type directory: Union[str, Path]
-        
         :return: List of matched file instances
         :rtype: List[BaseMatcher]
-        
+
         Example::
+
             >>> matchers = ImageMatcher.match_all("/path/to/images")
             >>> print(f"Found {len(matchers)} images")
         """
@@ -317,14 +324,14 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def exists(cls, directory: Union[str, Path]) -> bool:
         """
         Check if any file matching the pattern exists in the specified directory.
-        
+
         :param directory: Directory to search
         :type directory: Union[str, Path]
-        
-        :return: True if matching file exists, False otherwise
+        :return: ``True`` if a matching file exists, ``False`` otherwise
         :rtype: bool
-        
+
         Example::
+
             >>> if ImageMatcher.exists("/path/to/images"):
             ...     print("Images found!")
         """
@@ -333,11 +340,11 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def __str__(self) -> str:
         """
         Get string representation of the matcher instance.
-        
+
         :return: String representation showing field values and full path
         :rtype: str
         """
-        field_info = []
+        field_info: List[str] = []
         annotations = getattr(self.__class__, '__annotations__') or {}
 
         for field_name in annotations:
@@ -352,53 +359,55 @@ class BaseMatcher(IComparable, metaclass=_MatcherMeta):
     def __repr__(self) -> str:
         """
         Get representation string of the matcher instance.
-        
+
         :return: Representation string
         :rtype: str
         """
         return self.__str__()
 
-    def tuple(self):
+    def tuple(self) -> Tuple[Any, ...]:
         """
         Get field values as a tuple.
-        
+
         :return: Tuple of field values in definition order
         :rtype: tuple
-        
+
         Example::
+
             >>> matcher = ImageMatcher("/path/image_001_test.png", id=1, name="test")
             >>> matcher.tuple()
             (1, 'test')
         """
         return tuple(getattr(self, name) for name in self.__field_names__)
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         """
         Get field values as a dictionary.
-        
+
         :return: Dictionary mapping field names to values
         :rtype: dict
-        
+
         Example::
+
             >>> matcher = ImageMatcher("/path/image_001_test.png", id=1, name="test")
             >>> matcher.dict()
             {'id': 1, 'name': 'test'}
         """
         return {name: getattr(self, name) for name in self.__field_names__}
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Get hash value of the matcher instance.
-        
+
         :return: Hash value based on field values
         :rtype: int
         """
         return hash(self.tuple())
 
-    def _cmpkey(self):
+    def _cmpkey(self) -> Tuple[Any, ...]:
         """
         Get comparison key for ordering instances.
-        
+
         :return: Tuple of field values used for comparison
         :rtype: tuple
         """

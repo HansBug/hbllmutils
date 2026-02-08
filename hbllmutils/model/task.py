@@ -1,57 +1,52 @@
 """
-LLM Task Management Module.
+LLM task management utilities.
 
-This module provides an abstract base class for managing Large Language Model (LLM) tasks.
-It serves as a high-level interface that combines LLM models with conversation history,
-enabling convenient interaction patterns for both standard and streaming responses.
+This module defines a high-level wrapper for executing Large Language Model (LLM)
+tasks using a model implementation and an optional conversation history. It
+provides convenience methods to send prompts, retrieve responses, and stream
+content while keeping conversation context available for multi-turn interaction
+patterns.
 
-The module contains the following main components:
+The module contains the following public components:
 
 * :class:`LLMTask` - Abstract base class for LLM task management and execution
 
-The LLMTask class acts as a wrapper around :class:`~hbllmutils.model.base.LLMModel` and
-:class:`~hbllmutils.history.history.LLMHistory`, providing simplified methods for:
+Key features provided by :class:`LLMTask` include:
 
-- Asking questions with automatic history management
-- Streaming responses for real-time output
-- Maintaining conversation context across multiple interactions
-- Supporting optional reasoning output for chain-of-thought models
+- Standard question-and-answer interactions with optional reasoning output
+- Streaming responses for real-time consumption
+- Conversation history management via :class:`~hbllmutils.history.history.LLMHistory`
+- Flexible model initialization via :func:`~hbllmutils.model.load.load_llm_model`
 
 .. note::
-   This is an abstract base class. While it can be instantiated directly,
-   subclasses may provide additional specialized functionality.
+   This module does not mutate history automatically. Returned content should be
+   appended to history by callers that want to persist conversation state.
 
 .. warning::
-   The conversation history is maintained throughout the task lifetime.
-   For long-running tasks, consider periodically clearing or truncating history
-   to manage memory usage.
+   Because history is retained across the lifetime of a task, long-running
+   sessions may grow memory usage. Consider truncating or resetting history
+   periodically.
 
 Example::
 
     >>> from hbllmutils.model.task import LLMTask
-    >>> from hbllmutils.model.load import load_llm_model
     >>> from hbllmutils.history import LLMHistory
-    >>> 
-    >>> # Initialize task with model and optional history
+    >>> from hbllmutils.model.load import load_llm_model
+    >>>
     >>> model = load_llm_model('gpt-4')
     >>> history = LLMHistory().with_system_prompt('You are a helpful assistant.')
     >>> task = LLMTask(model, history)
-    >>> 
-    >>> # Standard question-answer interaction
-    >>> response = task.ask("What is the capital of France?")
-    >>> print(response)
-    'The capital of France is Paris.'
-    >>> 
-    >>> # Streaming response
+    >>>
+    >>> # Ask a standard question
+    >>> answer = task.ask("What is the capital of France?")
+    >>> print(answer)
+    The capital of France is Paris.
+    >>>
+    >>> # Stream a response
     >>> stream = task.ask_stream("Tell me a short story")
     >>> for chunk in stream:
     ...     print(chunk, end='', flush=True)
     Once upon a time...
-    >>> 
-    >>> # With reasoning output
-    >>> reasoning, answer = task.ask("Solve 2+2", with_reasoning=True)
-    >>> print(f"Reasoning: {reasoning}")
-    >>> print(f"Answer: {answer}")
 
 """
 
@@ -75,7 +70,7 @@ class LLMTask(ABC):
     simplifying the process of multi-turn interactions.
 
     The class supports:
-    
+
     - Standard question-answer interactions with automatic history updates
     - Streaming responses for real-time output processing
     - Optional reasoning output for models supporting chain-of-thought
@@ -102,16 +97,16 @@ class LLMTask(ABC):
 
         >>> # Initialize with model name
         >>> task = LLMTask('gpt-4')
-        >>> 
+        >>>
         >>> # Initialize with existing model and history
         >>> model = load_llm_model('gpt-4')
         >>> history = LLMHistory().with_system_prompt('You are helpful.')
         >>> task = LLMTask(model, history)
-        >>> 
+        >>>
         >>> # Basic usage
         >>> response = task.ask("Hello!")
         >>> print(response)
-        'Hello! How can I help you today?'
+        Hello! How can I help you today?
 
     """
 
@@ -120,7 +115,7 @@ class LLMTask(ABC):
         Initialize the LLMTask with a model and optional conversation history.
 
         The model parameter is flexible and can accept various input types:
-        
+
         - A string representing the model name (loaded from configuration)
         - An existing LLMModel instance
         - None to load the default model from configuration
@@ -141,11 +136,11 @@ class LLMTask(ABC):
 
             >>> # With model name
             >>> task = LLMTask('gpt-4')
-            >>> 
+            >>>
             >>> # With existing model
             >>> model = load_llm_model('gpt-4')
             >>> task = LLMTask(model)
-            >>> 
+            >>>
             >>> # With model and history
             >>> history = LLMHistory().with_system_prompt('Be concise.')
             >>> task = LLMTask('gpt-4', history)
@@ -176,8 +171,12 @@ class LLMTask(ABC):
         # noinspection PyProtectedMember
         return self.model._logger
 
-    def ask(self, input_content: Optional[str] = None,
-            with_reasoning: bool = False, **params) -> Union[str, Tuple[Optional[str], str]]:
+    def ask(
+            self,
+            input_content: Optional[str] = None,
+            with_reasoning: bool = False,
+            **params: Any,
+    ) -> Union[str, Tuple[Optional[str], str]]:
         """
         Ask a question to the LLM model and receive a response.
 
@@ -187,7 +186,7 @@ class LLMTask(ABC):
         if needed.
 
         The method supports two response formats:
-        
+
         - Standard mode (with_reasoning=False): Returns only the response text
         - Reasoning mode (with_reasoning=True): Returns a tuple of (reasoning, response)
 
@@ -217,12 +216,12 @@ class LLMTask(ABC):
         Example::
 
             >>> task = LLMTask('gpt-4')
-            >>> 
+            >>>
             >>> # Simple question
             >>> response = task.ask("What is 2+2?")
             >>> print(response)
-            '4'
-            >>> 
+            4
+            >>>
             >>> # With reasoning
             >>> reasoning, response = task.ask(
             ...     "Explain quantum entanglement",
@@ -230,7 +229,7 @@ class LLMTask(ABC):
             ... )
             >>> print(f"Reasoning: {reasoning}")
             >>> print(f"Response: {response}")
-            >>> 
+            >>>
             >>> # With additional parameters
             >>> response = task.ask(
             ...     "Write a poem",
@@ -245,11 +244,15 @@ class LLMTask(ABC):
         return self.model.ask(
             messages=history.to_json(),
             with_reasoning=with_reasoning,
-            **params
+            **params,
         )
 
-    def ask_stream(self, input_content: Optional[str] = None,
-                   with_reasoning: bool = False, **params) -> ResponseStream:
+    def ask_stream(
+            self,
+            input_content: Optional[str] = None,
+            with_reasoning: bool = False,
+            **params: Any,
+    ) -> ResponseStream:
         """
         Ask a question to the LLM model and receive a streaming response.
 
@@ -289,13 +292,13 @@ class LLMTask(ABC):
         Example::
 
             >>> task = LLMTask('gpt-4')
-            >>> 
+            >>>
             >>> # Basic streaming
             >>> stream = task.ask_stream("Tell me a story")
             >>> for chunk in stream:
             ...     print(chunk, end='', flush=True)
             Once upon a time, there was...
-            >>> 
+            >>>
             >>> # With reasoning
             >>> stream = task.ask_stream(
             ...     "Solve this problem",
@@ -303,11 +306,11 @@ class LLMTask(ABC):
             ... )
             >>> for chunk in stream:
             ...     print(chunk, end='', flush=True)
-            >>> 
+            >>>
             >>> # Access full content after streaming
             >>> print(stream.reasoning_content)
             >>> print(stream.content)
-            >>> 
+            >>>
             >>> # With additional parameters
             >>> stream = task.ask_stream(
             ...     "Write a poem",
@@ -372,7 +375,7 @@ class LLMTask(ABC):
         """
         return self.__class__, self._params()
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check equality between this LLMTask and another object.
 
@@ -398,7 +401,7 @@ class LLMTask(ABC):
             >>> task2 = LLMTask(model, history)
             >>> task1 == task2
             True
-            >>> 
+            >>>
             >>> task3 = LLMTask(model, history.with_user_message("Hello"))
             >>> task1 == task3
             False
@@ -433,7 +436,7 @@ class LLMTask(ABC):
             >>> hash_value = hash(task)
             >>> isinstance(hash_value, int)
             True
-            >>> 
+            >>>
             >>> # Can be used in sets and as dict keys
             >>> task_set = {task}
             >>> task_dict = {task: "some_value"}

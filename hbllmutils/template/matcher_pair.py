@@ -1,21 +1,42 @@
 """
-This module provides a matcher pair system for matching and organizing files based on multiple matcher criteria.
+Matcher pair utilities for organizing matched files into structured groups.
 
-The module implements a metaclass-based system that allows defining matcher pairs with multiple matcher fields
-and value fields. It enables matching files in directories using multiple matchers simultaneously and organizing
-the results into structured pair objects.
+This module builds on :class:`hbllmutils.template.matcher.BaseMatcher` to define
+pairing structures that group multiple matchers by shared value fields. It
+provides a metaclass that validates matcher field compatibility and a base
+pair class that can collect matching files from a directory.
 
-Classes:
-    _MatcherPairMeta: Metaclass for creating matcher pair classes with field validation
-    BaseMatcherPair: Base class for defining and working with matcher pairs
+The module contains the following main components:
+
+* :class:`BaseMatcherPair` - Base class for grouping multiple matchers by shared
+  identifier fields.
+
+.. note::
+   Pair classes rely on consistent value field definitions across all matcher
+   types in the pair. If value fields differ between matchers, class creation
+   will fail with :class:`TypeError`.
 
 Example::
-    >>> class MyMatcherPair(BaseMatcherPair):
-    ...     matcher1: SomeMatcher
-    ...     matcher2: AnotherMatcher
-    >>> pairs = MyMatcherPair.match_all('/path/to/directory')
+
+    >>> from hbllmutils.template.matcher import BaseMatcher
+    >>> from hbllmutils.template.matcher_pair import BaseMatcherPair
+    >>>
+    >>> class ImageMatcher(BaseMatcher):
+    ...     __pattern__ = "image_<id>.png"
+    ...     id: int
+    ...
+    >>> class ThumbMatcher(BaseMatcher):
+    ...     __pattern__ = "thumb_<id>.png"
+    ...     id: int
+    ...
+    >>> class ImagePair(BaseMatcherPair):
+    ...     image: ImageMatcher
+    ...     thumb: ThumbMatcher
+    ...
+    >>> pairs = ImagePair.match_all("/path/to/images")
     >>> for pair in pairs:
-    ...     print(pair.values_dict())
+    ...     print(pair.values_dict(), pair.image.full_path, pair.thumb.full_path)
+
 """
 
 from pathlib import Path
@@ -29,25 +50,29 @@ from .matcher import BaseMatcher
 
 class _MatcherPairMeta(type):
     """
-    Metaclass for creating matcher pair classes with automatic field initialization and validation.
-    
-    This metaclass processes class annotations to extract matcher fields and their corresponding
-    value fields, ensuring consistency across all matchers in a pair.
+    Metaclass for creating matcher pair classes with automatic field initialization.
+
+    This metaclass processes class annotations to extract matcher fields and their
+    corresponding value fields, ensuring consistency across all matchers in a pair.
     """
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> type:
         """
         Create a new matcher pair class with initialized field metadata.
-        
-        :param args: Positional arguments for class creation
-        :type args: tuple
-        :param kwargs: Keyword arguments for class creation
-        :type kwargs: dict
-        
-        :return: New matcher pair class instance with field metadata
+
+        :param name: Class name to create.
+        :type name: str
+        :param bases: Base classes for the new class.
+        :type bases: Tuple[type, ...]
+        :param namespace: Class body namespace.
+        :type namespace: Dict[str, Any]
+        :param kwargs: Optional keyword arguments passed to :func:`type.__new__`.
+        :type kwargs: Any
+
+        :return: New matcher pair class instance with field metadata.
         :rtype: type
         """
-        instance = super().__new__(cls, *args, **kwargs)
+        instance = super().__new__(cls, name, bases, namespace, **kwargs)
         try:
             annotations = getattr(instance, '__annotations__') or {}
         except AttributeError:
@@ -59,27 +84,30 @@ class _MatcherPairMeta(type):
         return instance
 
     @classmethod
-    def _cls_init(cls, annotations) -> Tuple[Dict[str, Type[BaseMatcher]], List[str], Dict[str, type], List[str]]:
+    def _cls_init(cls, annotations: Dict[str, Any]) -> Tuple[Dict[str, Type[BaseMatcher]], List[str],
+    Dict[str, type], List[str]]:
         """
         Initialize class fields from annotations.
-        
+
         Processes class annotations to extract matcher fields and validate that all matchers
         have consistent value field definitions.
-        
-        :param annotations: Class annotations dictionary
+
+        :param annotations: Class annotations dictionary.
         :type annotations: dict
-        
-        :return: Tuple containing (fields dict, field names list, value fields dict, value field names list)
+
+        :return: Tuple containing ``(fields dict, field names list, value fields dict, value field names list)``.
         :rtype: Tuple[Dict[str, Type[BaseMatcher]], List[str], Dict[str, type], List[str]]
-        
-        :raises NameError: If a field is not a BaseMatcher subclass
-        :raises TypeError: If matchers have inconsistent value field definitions
-        
+
+        :raises NameError: If a field is not a :class:`BaseMatcher` subclass.
+        :raises TypeError: If matchers have inconsistent value field definitions.
+
         Example::
+
             >>> annotations = {'matcher1': SomeMatcher, 'matcher2': AnotherMatcher}
             >>> fields, names, value_fields, value_names = _MatcherPairMeta._cls_init(annotations)
         """
-        fields, field_names = {}, []
+        fields: Dict[str, Type[BaseMatcher]] = {}
+        field_names: List[str] = []
         annotations = {key: value for key, value in annotations.items()
                        if not (key.startswith('__') and key.endswith('__'))}
         value_fields: Optional[Dict[str, type]] = None
@@ -87,8 +115,8 @@ class _MatcherPairMeta(type):
         for field_name, field_type in annotations.items():
             if not (isinstance(field_type, type) and issubclass(field_type, BaseMatcher)):
                 raise NameError(f'Field {field_name!r} is not a matcher, but {field_type!r} found.')
-            field_name: str
-            field_type: Type[BaseMatcher]
+            field_name = str(field_name)
+            field_type = field_type
             fields[field_name] = field_type
             field_names.append(field_name)
             if value_fields is None:
@@ -98,29 +126,30 @@ class _MatcherPairMeta(type):
                 if value_fields != field_type.__fields__:
                     raise TypeError(f'Field not match, {value_fields!r} vs {field_type.__fields__!r}')
 
-        value_fields: Dict[str, type] = value_fields or {}
-        value_field_names: List[str] = value_field_names or []
+        value_fields = value_fields or {}
+        value_field_names = value_field_names or []
         return fields, field_names, value_fields, value_field_names
 
 
 class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
     """
     Base class for matcher pairs that group multiple matchers with shared value fields.
-    
+
     A matcher pair represents a collection of matchers that all match files with the same
-    set of identifying values (e.g., same ID, version, etc.). This class provides functionality
-    to match files in directories and organize them into structured pairs.
-    
-    :ivar __fields__: Dictionary mapping field names to matcher types
+    set of identifying values (for example, an ID or version). This class provides
+    functionality to match files in directories and organize them into structured pairs.
+
+    :ivar __fields__: Dictionary mapping field names to matcher types.
     :vartype __fields__: Dict[str, Type[BaseMatcher]]
-    :ivar __field_names__: List of matcher field names
+    :ivar __field_names__: List of matcher field names.
     :vartype __field_names__: List[str]
-    :ivar __value_fields__: Dictionary mapping value field names to types
+    :ivar __value_fields__: Dictionary mapping value field names to types.
     :vartype __value_fields__: Dict[str, type]
-    :ivar __value_field_names__: List of value field names
+    :ivar __value_field_names__: List of value field names.
     :vartype __value_field_names__: List[str]
-    
+
     Example::
+
         >>> class ImagePair(BaseMatcherPair):
         ...     image: ImageMatcher
         ...     thumbnail: ThumbnailMatcher
@@ -129,24 +158,25 @@ class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
         ...     print(f"ID: {pair.id}, Image: {pair.image}, Thumbnail: {pair.thumbnail}")
     """
 
-    def __init__(self, values: Dict[str, Any], instances: Dict[str, BaseMatcher]):
+    def __init__(self, values: Dict[str, Any], instances: Dict[str, BaseMatcher]) -> None:
         """
         Initialize a matcher pair with values and matcher instances.
-        
-        :param values: Dictionary of value field names to their values
+
+        :param values: Dictionary of value field names to their values.
         :type values: Dict[str, Any]
-        :param instances: Dictionary of matcher field names to matcher instances
+        :param instances: Dictionary of matcher field names to matcher instances.
         :type instances: Dict[str, BaseMatcher]
-        
-        :raises ValueError: If unknown fields are provided or required fields are missing
-        
+
+        :raises ValueError: If unknown fields are provided or required fields are missing.
+
         Example::
+
             >>> pair = ImagePair(
             ...     values={'id': '001'},
             ...     instances={'image': image_matcher, 'thumbnail': thumb_matcher}
             ... )
         """
-        unknown_fields = {}
+        unknown_fields: Dict[str, BaseMatcher] = {}
         excluded_fields = set(self.__field_names_set__)
         for key, value in instances.items():
             if key not in self.__field_names_set__:
@@ -160,7 +190,7 @@ class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
         for key, value in instances.items():
             setattr(self, key, value)
 
-        unknown_value_fields = {}
+        unknown_value_fields: Dict[str, Any] = {}
         excluded_value_fields = set(self.__value_field_names_set__)
         for key, value in values.items():
             if key not in self.__value_field_names_set__:
@@ -179,22 +209,24 @@ class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
     def match_all(cls, directory: Union[str, Path]) -> List['BaseMatcherPair']:
         """
         Match all files in a directory and group them into matcher pairs.
-        
+
         This method uses all defined matchers to find matching files in the directory,
         then groups files with the same identifying values into pairs.
-        
-        :param directory: Path to the directory to search
+
+        :param directory: Path to the directory to search.
         :type directory: Union[str, Path]
-        
-        :return: List of matcher pairs found in the directory, sorted naturally
+
+        :return: List of matcher pairs found in the directory, sorted naturally.
         :rtype: List[BaseMatcherPair]
-        
+
         Example::
+
             >>> pairs = ImagePair.match_all('/path/to/images')
             >>> print(f"Found {len(pairs)} image pairs")
             Found 5 image pairs
         """
-        d_fields, s_tuples = {}, None
+        d_fields: Dict[str, Dict[Tuple[Any, ...], BaseMatcher]] = {}
+        s_tuples: Optional[set] = None
         for field_name, field_type in cls.__fields__.items():
             d_fields[field_name] = {
                 x.tuple(): x for x in field_type.match_all(directory)
@@ -206,9 +238,10 @@ class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
                 s_tuples = s_tuples & tpls
 
         tuples = natsorted(s_tuples)
-        retval = []
+        retval: List[BaseMatcherPair] = []
         for tpl in tuples:
-            d_instances, d_values = {}, None
+            d_instances: Dict[str, BaseMatcher] = {}
+            d_values: Optional[Dict[str, Any]] = None
             for field_name in cls.__field_names__:
                 instance = d_fields[field_name][tpl]
                 d_instances[field_name] = instance
@@ -225,15 +258,16 @@ class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
     def __str__(self) -> str:
         """
         Get string representation of the matcher pair.
-        
-        :return: String representation showing all value and matcher fields
+
+        :return: String representation showing all value and matcher fields.
         :rtype: str
-        
+
         Example::
+
             >>> str(pair)
             'ImagePair(id='001', image=ImageMatcher(...), thumbnail=ThumbnailMatcher(...))'
         """
-        field_info = []
+        field_info: List[str] = []
         for value_field_name in self.__value_field_names__:
             field_info.append(f'{value_field_name}={getattr(self, value_field_name)!r}')
         for field_name in self.__field_names__:
@@ -245,85 +279,91 @@ class BaseMatcherPair(IComparable, metaclass=_MatcherPairMeta):
     def __repr__(self) -> str:
         """
         Get detailed string representation of the matcher pair.
-        
-        :return: String representation showing all value and matcher fields
+
+        :return: String representation showing all value and matcher fields.
         :rtype: str
         """
         return self.__str__()
 
-    def values_tuple(self):
+    def values_tuple(self) -> Tuple[Any, ...]:
         """
         Get tuple of value field values.
-        
-        :return: Tuple containing values of all value fields in order
+
+        :return: Tuple containing values of all value fields in order.
         :rtype: tuple
-        
+
         Example::
+
             >>> pair.values_tuple()
             ('001', 'v1')
         """
         return tuple(getattr(self, name) for name in self.__value_field_names__)
 
-    def values_dict(self):
+    def values_dict(self) -> Dict[str, Any]:
         """
         Get dictionary of value field names to values.
-        
-        :return: Dictionary mapping value field names to their values
+
+        :return: Dictionary mapping value field names to their values.
         :rtype: dict
-        
+
         Example::
+
             >>> pair.values_dict()
             {'id': '001', 'version': 'v1'}
         """
         return {name: getattr(self, name) for name in self.__value_field_names__}
 
-    def tuple(self):
+    def tuple(self) -> Tuple[Any, ...]:
         """
         Get tuple of all field values (both value fields and matcher fields).
-        
-        :return: Tuple containing all field values in order
+
+        :return: Tuple containing all field values in order.
         :rtype: tuple
-        
+
         Example::
+
             >>> pair.tuple()
             ('001', 'v1', ImageMatcher(...), ThumbnailMatcher(...))
         """
         return tuple(getattr(self, name) for name in [*self.__value_field_names__, *self.__field_names__])
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         """
         Get dictionary of all field names to values (both value fields and matcher fields).
-        
-        :return: Dictionary mapping all field names to their values
+
+        :return: Dictionary mapping all field names to their values.
         :rtype: dict
-        
+
         Example::
+
             >>> pair.dict()
             {'id': '001', 'version': 'v1', 'image': ImageMatcher(...), 'thumbnail': ThumbnailMatcher(...)}
         """
         return {name: getattr(self, name) for name in [*self.__value_field_names__, *self.__field_names__]}
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Get hash value of the matcher pair instance.
 
-        :return: Hash value based on all field values
+        :return: Hash value based on all field values.
         :rtype: int
-        
+
         Example::
+
             >>> hash(pair)
             123456789
         """
         return hash(self.tuple())
 
-    def _cmpkey(self):
+    def _cmpkey(self) -> Tuple[Any, ...]:
         """
         Get comparison key for ordering instances.
 
-        :return: Tuple of all field values used for comparison
+        :return: Tuple of all field values used for comparison.
         :rtype: tuple
-        
+
         Example::
+
             >>> pair1._cmpkey() < pair2._cmpkey()
             True
         """

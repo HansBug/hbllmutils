@@ -1,16 +1,20 @@
 """
-This module provides a streaming response handler for processing session outputs with optional reasoning content.
+Streaming response handling utilities for session-based model outputs.
 
-The ResponseStream class manages the iteration over session responses, separating reasoning content
-from regular content, and providing access to both after streaming is complete.
+This module provides a reusable streaming interface for processing response chunks
+from a session iterator. It supports optional separation of reasoning content
+from regular content with configurable splitters and exposes accumulated outputs
+after streaming completes.
 
-Key Features:
-    - Stream processing of session responses
-    - Optional separation of reasoning and regular content
-    - Configurable content splitters
-    - Post-stream access to accumulated content
+The module contains the following main components:
+
+* :class:`ResponseStream` - Abstract stream handler with reasoning/content
+  separation and accumulation
+* :class:`OpenAIResponseStream` - Concrete implementation for OpenAI-style
+  streaming responses
 
 Example::
+
     >>> import sys
     >>> stream = OpenAIResponseStream(session, with_reasoning=True)
     >>> for chunk in stream:
@@ -18,13 +22,18 @@ Example::
     ...     sys.stdout.flush()
     >>> print(f"Reasoning: {stream.reasoning_content}")
     >>> print(f"Content: {stream.content}")
+
+.. note::
+   The stream can only be iterated once. Attempting to iterate again raises
+   a :exc:`RuntimeError`.
+
 """
 
 import io
-from typing import Iterator, Any, Optional
+from typing import Any, Iterator, Optional
 
-DEFAULT_REASONING_SPLITTER: str = '---------------------------reasoning---------------------------'
-DEFAULT_CONTENT_SPLITTER: str = '---------------------------content---------------------------'
+DEFAULT_REASONING_SPLITTER: str = "---------------------------reasoning---------------------------"
+DEFAULT_CONTENT_SPLITTER: str = "---------------------------content---------------------------"
 
 
 class ResponseStream:
@@ -36,19 +45,61 @@ class ResponseStream:
 
     The stream maintains internal state to track iteration progress and accumulates both reasoning
     and regular content for post-iteration access through properties.
+
+    :param session: The session object to stream responses from. Must support iteration
+                    and yield chunks with choices[0].delta attributes.
+    :type session: Any
+    :param with_reasoning: Whether to include reasoning content in the stream output, defaults to False.
+                           When True, reasoning content will be prefixed with the reasoning_splitter.
+    :type with_reasoning: bool
+    :param reasoning_splitter: The separator string for reasoning content sections, defaults to a dashed line.
+    :type reasoning_splitter: str
+    :param content_splitter: The separator string for regular content sections, defaults to a dashed line.
+    :type content_splitter: str
+
+    :ivar session: The underlying session iterator providing response chunks.
+    :vartype session: Any
+    :ivar _with_reasoning: Whether the stream yields reasoning content.
+    :vartype _with_reasoning: bool
+    :ivar _reasoning_splitter: Separator used before reasoning content.
+    :vartype _reasoning_splitter: str
+    :ivar _content_splitter: Separator used before regular content.
+    :vartype _content_splitter: str
+    :ivar _reasoning_content: Accumulated reasoning content after streaming completes.
+    :vartype _reasoning_content: Optional[str]
+    :ivar _content: Accumulated regular content after streaming completes.
+    :vartype _content: Optional[str]
+    :ivar _iter_status: Stream status flag: ``none``, ``entered``, or ``ended``.
+    :vartype _iter_status: str
+
+    Example::
+
+        >>> stream = ResponseStream(session)
+        >>> # Stream without reasoning
+        >>> for chunk in stream:
+        ...     print(chunk, end='')
+
+        >>> stream_with_reasoning = ResponseStream(session, with_reasoning=True)
+        >>> # Stream with reasoning separated by splitters
+        >>> for chunk in stream_with_reasoning:
+        ...     print(chunk, end='')
     """
 
-    def __init__(self, session: Any, with_reasoning: bool = False,
-                 reasoning_splitter: str = DEFAULT_REASONING_SPLITTER,
-                 content_splitter: str = DEFAULT_CONTENT_SPLITTER):
+    def __init__(
+            self,
+            session: Any,
+            with_reasoning: bool = False,
+            reasoning_splitter: str = DEFAULT_REASONING_SPLITTER,
+            content_splitter: str = DEFAULT_CONTENT_SPLITTER,
+    ) -> None:
         """
         Initialize the ResponseStream.
 
         :param session: The session object to stream responses from. Must support iteration
-                       and yield chunks with choices[0].delta attributes.
+                        and yield chunks with choices[0].delta attributes.
         :type session: Any
         :param with_reasoning: Whether to include reasoning content in the stream output, defaults to False.
-                              When True, reasoning content will be prefixed with the reasoning_splitter.
+                               When True, reasoning content will be prefixed with the reasoning_splitter.
         :type with_reasoning: bool
         :param reasoning_splitter: The separator string for reasoning content sections, defaults to a dashed line.
         :type reasoning_splitter: str
@@ -56,6 +107,7 @@ class ResponseStream:
         :type content_splitter: str
 
         Example::
+
             >>> stream = ResponseStream(session)
             >>> # Stream without reasoning
             >>> for chunk in stream:
@@ -71,9 +123,9 @@ class ResponseStream:
         self._reasoning_splitter = reasoning_splitter
         self._content_splitter = content_splitter
 
-        self._reasoning_content = None
-        self._content = None
-        self._iter_status = 'none'
+        self._reasoning_content: Optional[str] = None
+        self._content: Optional[str] = None
+        self._iter_status: str = "none"
 
     def _get_reasoning_content_from_chunk(self, chunk: Any) -> Optional[str]:
         """
@@ -114,6 +166,7 @@ class ResponseStream:
         for later access via properties.
 
         The iteration process:
+
         1. Checks if stream has already been used
         2. Iterates through session chunks
         3. Extracts reasoning_content and content from delta objects
@@ -125,6 +178,7 @@ class ResponseStream:
         :raises RuntimeError: If the stream has already been entered or ended.
 
         Example::
+
             >>> import sys
             >>> stream = OpenAIResponseStream(session, with_reasoning=True)
             >>> for chunk in stream:
@@ -144,22 +198,22 @@ class ResponseStream:
             >>> print(stream.content)
             This is regular content...
         """
-        if self._iter_status != 'none':
-            raise RuntimeError('Stream already entered or ended.')
+        if self._iter_status != "none":
+            raise RuntimeError("Stream already entered or ended.")
         else:
-            self._iter_status = 'entered'
+            self._iter_status = "entered"
 
-        status = 'none'
+        status = "none"
         with io.StringIO() as _s_reasoning, io.StringIO() as _s_content:
             for chunk in self.session:
                 # Handle reasoning content
                 reasoning_content = self._get_reasoning_content_from_chunk(chunk)
                 if self._with_reasoning and reasoning_content is not None:
-                    if self._with_reasoning and status != 'reasoning':
-                        if status != 'none':
-                            yield '\n\n'
-                        yield f'{self._reasoning_splitter}\n\n'
-                        status = 'reasoning'
+                    if self._with_reasoning and status != "reasoning":
+                        if status != "none":
+                            yield "\n\n"
+                        yield f"{self._reasoning_splitter}\n\n"
+                        status = "reasoning"
                     yield reasoning_content
                 if reasoning_content is not None:
                     _s_reasoning.write(reasoning_content)
@@ -167,17 +221,17 @@ class ResponseStream:
                 # Handle regular content
                 content = self._get_content_from_chunk(chunk)
                 if content is not None:
-                    if self._with_reasoning and status != 'content':
-                        if status != 'none':
-                            yield '\n\n'
-                        yield f'{self._content_splitter}\n\n'
-                        status = 'content'
+                    if self._with_reasoning and status != "content":
+                        if status != "none":
+                            yield "\n\n"
+                        yield f"{self._content_splitter}\n\n"
+                        status = "content"
                     yield content
                     _s_content.write(content)
 
             self._reasoning_content = _s_reasoning.getvalue()
             self._content = _s_content.getvalue()
-            self._iter_status = 'ended'
+            self._iter_status = "ended"
 
     @property
     def is_entered(self) -> bool:
@@ -188,6 +242,7 @@ class ResponseStream:
         :rtype: bool
 
         Example::
+
             >>> stream = OpenAIResponseStream(session)
             >>> stream.is_entered
             False
@@ -195,7 +250,7 @@ class ResponseStream:
             >>> stream.is_entered
             True
         """
-        return self._iter_status == 'entered'
+        return self._iter_status == "entered"
 
     @property
     def is_ended(self) -> bool:
@@ -206,6 +261,7 @@ class ResponseStream:
         :rtype: bool
 
         Example::
+
             >>> stream = OpenAIResponseStream(session)
             >>> stream.is_ended
             False
@@ -214,7 +270,7 @@ class ResponseStream:
             >>> stream.is_ended
             True
         """
-        return self._iter_status == 'ended'
+        return self._iter_status == "ended"
 
     @property
     def reasoning_content(self) -> Optional[str]:
@@ -229,6 +285,7 @@ class ResponseStream:
         :rtype: Optional[str]
 
         Example::
+
             >>> stream = OpenAIResponseStream(session, with_reasoning=True)
             >>> for chunk in stream:
             ...     pass
@@ -251,6 +308,7 @@ class ResponseStream:
         :rtype: Optional[str]
 
         Example::
+
             >>> stream = OpenAIResponseStream(session)
             >>> for chunk in stream:
             ...     pass
@@ -268,8 +326,9 @@ class OpenAIResponseStream(ResponseStream):
     This class provides concrete implementations for extracting reasoning content
     and regular content from OpenAI API response chunks. It expects chunks to have
     a structure with choices[0].delta attributes containing reasoning_content and content.
-    
+
     Example::
+
         >>> from openai import OpenAI
         >>> client = OpenAI()
         >>> response = client.chat.completions.create(
@@ -295,6 +354,7 @@ class OpenAIResponseStream(ResponseStream):
         :rtype: Optional[str]
 
         Example::
+
             >>> chunk = mock_openai_chunk(reasoning_content="Thinking...")
             >>> stream = OpenAIResponseStream(session)
             >>> content = stream._get_reasoning_content_from_chunk(chunk)
@@ -303,7 +363,7 @@ class OpenAIResponseStream(ResponseStream):
         """
         if len(chunk.choices) > 0:
             delta = chunk.choices[0].delta
-            return getattr(delta, 'reasoning_content', None)
+            return getattr(delta, "reasoning_content", None)
         else:
             return None
 
@@ -320,6 +380,7 @@ class OpenAIResponseStream(ResponseStream):
         :rtype: Optional[str]
 
         Example::
+
             >>> chunk = mock_openai_chunk(content="Hello world")
             >>> stream = OpenAIResponseStream(session)
             >>> content = stream._get_content_from_chunk(chunk)

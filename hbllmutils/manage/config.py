@@ -1,27 +1,24 @@
 """
-Configuration management module for Language Learning Models (LLM).
+Configuration management for Language Learning Model (LLM) providers.
 
-This module provides comprehensive functionality to load and manage LLM configuration
-from YAML files. It supports model-specific parameters with fallback and default
-configurations, making it easy to manage multiple LLM providers and models in a
-unified way.
-
-The configuration file should contain a 'models' section with model definitions,
-and can include special keys '__default__' and '__fallback__' for default behavior.
-The module supports various LLM providers including OpenAI, Anthropic, Google Gemini,
-and Chinese providers like Alibaba Qwen, Baidu Qianfan, and others.
+This module centralizes configuration loading and model parameter retrieval for
+LLM-based applications. It provides a single public class, :class:`LLMConfig`,
+which can parse YAML configuration files that define providers and model presets.
+The configuration format supports default and fallback model definitions, enabling
+projects to share common settings while still allowing model-specific overrides.
 
 The module contains the following main components:
 
 * :class:`LLMConfig` - Main configuration manager for LLM settings
 
 .. note::
-   Configuration files should be named '.llmconfig.yaml' when placed in project
-   directories for automatic discovery.
+   Configuration files should be named ``.llmconfig.yaml`` when placed in project
+   directories for automatic discovery by :meth:`LLMConfig.open` and
+   :meth:`LLMConfig.open_from_directory`.
 
 .. warning::
-   API tokens and sensitive credentials should be properly secured and not
-   committed to version control systems.
+   API tokens and other sensitive credentials must be kept secure and should never
+   be committed to version control systems.
 
 Example::
 

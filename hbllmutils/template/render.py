@@ -39,7 +39,10 @@ Example::
 
 """
 
+from __future__ import annotations
+
 import pathlib
+from typing import Any, Union
 
 import jinja2
 
@@ -180,7 +183,7 @@ class PromptTemplate:
         """
         return env
 
-    def render(self, **kwargs) -> str:
+    def render(self, **kwargs: Any) -> str:
         """
         Render the template with the provided keyword arguments.
 
@@ -232,7 +235,11 @@ class PromptTemplate:
         return self._template.render(**kwargs)
 
     @classmethod
-    def from_file(cls, template_file, **params):
+    def from_file(
+            cls,
+            template_file: Union[str, pathlib.Path],
+            **params: Any,
+    ) -> "PromptTemplate":
         """
         Create a PromptTemplate instance from a template file.
 

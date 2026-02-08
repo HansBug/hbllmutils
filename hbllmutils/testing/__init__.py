@@ -1,19 +1,34 @@
 """
-This module provides a testing framework for binary tests on language models.
+Testing utilities for binary language model checks.
 
-It exports the core testing infrastructure including base classes for binary tests,
-result containers for single and multiple test runs, and basic test implementations.
-The framework enables structured testing of language models with pass/fail outcomes
-and statistical analysis of multiple test runs.
+This package module exposes the core testing interfaces and convenience
+functions used to run pass/fail tests against language models. It provides
+base classes for implementing custom tests, result containers for single
+and multiple runs, and simple "alive" checks for basic responsiveness.
 
-Exported Classes:
-    BinaryTest: Base class for implementing binary tests on language models
-    BinaryTestResult: Stores the result of a single binary test
-    MultiBinaryTestResult: Stores and analyzes results from multiple binary tests
+The module contains the following main components:
 
-Exported Functions:
-    hello: Performs a basic greeting test on an LLM model
-    ping: Performs a ping-pong response test on an LLM model
+* :class:`BinaryTest` - Base class for defining binary pass/fail tests
+* :class:`BinaryTestResult` - Result container for a single test run
+* :class:`MultiBinaryTestResult` - Aggregated results and statistics
+* :func:`hello` - Basic greeting test for model responsiveness
+* :func:`ping` - Ping-pong response test for model responsiveness
+
+.. note::
+   The detailed implementations of the tests and result classes are provided
+   by the submodules :mod:`hbllmutils.testing.alive` and
+   :mod:`hbllmutils.testing.base`.
+
+Example::
+
+    >>> from hbllmutils.testing import hello, ping, BinaryTestResult
+    >>> result = hello(my_model)
+    >>> result.passed
+    True
+    >>> results = ping(my_model, n=3)
+    >>> results.passed_count >= 0
+    True
+
 """
 
 from .alive import hello, ping
