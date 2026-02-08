@@ -1,10 +1,11 @@
 """
-Quick template rendering utilities for simplified Jinja2 template operations.
+Quick template rendering utilities for simplified Jinja2 operations.
 
 This module provides a streamlined interface for creating and rendering Jinja2
-templates with minimal configuration. It extends the base PromptTemplate class
-to support custom environment preprocessing and offers a convenient function
-for one-off template rendering operations.
+templates with minimal configuration. It extends the base
+:class:`~hbllmutils.template.render.PromptTemplate` class to support custom
+environment preprocessing and offers a convenience function for one-off
+template rendering.
 
 The module contains the following main components:
 
@@ -41,7 +42,7 @@ Example::
 
 """
 
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 import jinja2
 
@@ -99,7 +100,7 @@ class QuickPromptTemplate(PromptTemplate):
     """
 
     def __init__(self, template_text: str, strict_undefined: bool = True,
-                 fn_env_preprocess: Optional[Callable[[jinja2.Environment], jinja2.Environment]] = None):
+                 fn_env_preprocess: Optional[Callable[[jinja2.Environment], jinja2.Environment]] = None) -> None:
         """
         Initialize a QuickPromptTemplate with optional environment preprocessing.
 
@@ -163,7 +164,7 @@ class QuickPromptTemplate(PromptTemplate):
 
 def quick_render(template_file: str, strict_undefined: bool = True,
                  fn_env_preprocess: Optional[Callable[[jinja2.Environment], jinja2.Environment]] = None,
-                 **params) -> str:
+                 **params: Any) -> str:
     """
     Quickly render a template file with the provided parameters.
 
@@ -181,6 +182,7 @@ def quick_render(template_file: str, strict_undefined: bool = True,
                               :class:`jinja2.Environment` object
     :type fn_env_preprocess: Optional[Callable[[jinja2.Environment], jinja2.Environment]], optional
     :param params: Variable names and their values to substitute in the template
+    :type params: Any
     :return: The rendered template string
     :rtype: str
     :raises FileNotFoundError: If the template file does not exist

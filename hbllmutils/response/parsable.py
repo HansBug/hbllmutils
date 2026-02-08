@@ -1,15 +1,16 @@
 """
 Parsable LLM task functionality with automatic retry mechanism for output parsing.
 
-This module provides parsable LLM task functionality with automatic retry mechanism for output parsing.
-It extends the base LLM task to support parsing of model outputs with configurable retry logic
-when parsing fails. The module includes exception handling for parse failures and tracking of
-all retry attempts.
+This module provides parsable LLM task functionality with an automatic retry
+mechanism for output parsing. It extends the base LLM task to support parsing of
+model outputs with configurable retry logic when parsing fails. The module
+includes exception handling for parse failures and tracking of all retry attempts.
 
-The module is designed to handle scenarios where LLM outputs need to be parsed into specific
-formats (such as JSON, XML, structured data), with automatic retry when parsing fails due to 
-malformed or unexpected output. This is particularly useful when working with LLMs that may
-occasionally produce outputs that don't conform to the expected format.
+The module is designed to handle scenarios where LLM outputs need to be parsed
+into specific formats (such as JSON, XML, or structured data), with automatic
+retry when parsing fails due to malformed or unexpected output. This is
+particularly useful when working with LLMs that may occasionally produce outputs
+that do not conform to the expected format.
 
 The module contains the following main components:
 
@@ -18,56 +19,58 @@ The module contains the following main components:
 * :class:`ParsableLLMTask` - LLM task with automatic output parsing and retry logic
 
 Architecture:
-    The module uses a template method pattern where subclasses implement the 
-    :meth:`ParsableLLMTask._parse_and_validate` method to define their specific parsing logic.
-    The base class handles the retry mechanism, exception tracking, and logging automatically.
+    The module uses a template method pattern where subclasses implement the
+    :meth:`ParsableLLMTask._parse_and_validate` method to define their specific
+    parsing logic. The base class handles the retry mechanism, exception tracking,
+    and logging automatically.
 
 Retry Mechanism:
     When parsing fails, the task will:
-    
+
     1. Log the parsing error with attempt count
     2. Store the failed output and exception for debugging
     3. Request a new response from the model
     4. Attempt to parse the new response
     5. Repeat until success or max retries reached
-    
-    If all retries are exhausted, an :exc:`OutputParseFailed` exception is raised containing
-    all failed attempts for comprehensive debugging.
+
+    If all retries are exhausted, an :exc:`OutputParseFailed` exception is raised
+    containing all failed attempts for comprehensive debugging.
 
 .. note::
-   The retry mechanism sends new requests to the LLM for each failed parse attempt,
-   which may incur additional API costs and latency. Consider setting appropriate
-   max_retries values based on your use case.
+   The retry mechanism sends new requests to the LLM for each failed parse
+   attempt, which may incur additional API costs and latency. Consider setting
+   appropriate max_retries values based on your use case.
 
 .. warning::
-   Ensure that your parsing logic in :meth:`ParsableLLMTask._parse_and_validate` raises exceptions
-   that match the types specified in :attr:`ParsableLLMTask.__exceptions__`. Other exception types
-   will propagate immediately without retry.
+   Ensure that your parsing logic in :meth:`ParsableLLMTask._parse_and_validate`
+   raises exceptions that match the types specified in
+   :attr:`ParsableLLMTask.__exceptions__`. Other exception types will propagate
+   immediately without retry.
 
 Example::
 
     >>> import json
     >>> from hbllmutils.model import LLMModel
     >>> from hbllmutils.response import ParsableLLMTask, extract_code, parse_json
-    >>> 
+    >>>
     >>> class JSONParsableTask(ParsableLLMTask):
     ...     '''A task that parses JSON responses from the model.'''
     ...     __exceptions__ = (json.JSONDecodeError, KeyError)
-    ...     
+    ...
     ...     def _parse_and_validate(self, content: str):
     ...         # Extract code block and parse JSON
     ...         data = parse_json(extract_code(content))
-    ...         
+    ...
     ...         # Validate required fields
     ...         if 'answer' not in data:
     ...             raise KeyError("Missing 'answer' field")
-    ...         
+    ...
     ...         return data
-    >>> 
+    >>>
     >>> # Initialize model and task
     >>> model = LLMModel(...)
     >>> task = JSONParsableTask(model, default_max_retries=3)
-    >>> 
+    >>>
     >>> # Ask question with automatic parsing and retry
     >>> result = task.ask_then_parse(
     ...     input_content="What is the capital of France? Answer in JSON with 'answer' key",
@@ -75,7 +78,7 @@ Example::
     ... )
     >>> print(result['answer'])
     Paris
-    >>> 
+    >>>
     >>> # Handle parsing failures
     >>> try:
     ...     result = task.ask_then_parse("Invalid request")
@@ -86,7 +89,7 @@ Example::
 """
 
 from dataclasses import dataclass
-from typing import Optional, Union, Type, Tuple, List
+from typing import Optional, Union, Type, Tuple, List, Any
 
 from hbutils.string import plural_word
 
@@ -94,7 +97,7 @@ from ..history import LLMHistory
 from ..model import LLMTask, LLMModel, LLMModelTyping
 
 
-@dataclass
+@dataclass(frozen=True)
 class OutputParseWithException:
     """
     Data class to store a failed parse attempt with its output and exception.
@@ -123,7 +126,7 @@ class OutputParseWithException:
         {"invalid": json}
         >>> print(type(attempt.exception))
         <class 'json.decoder.JSONDecodeError'>
-        >>> 
+        >>>
         >>> # Used in debugging failed parsing attempts
         >>> for attempt in failed_attempts:
         ...     print(f"Output: {attempt.output[:50]}...")
@@ -169,19 +172,19 @@ class OutputParseFailed(Exception):
         Parsing failed after 2 tries
         >>> print(len(exc.tries))
         2
-        >>> 
+        >>>
         >>> # Accessing detailed failure information
         >>> for i, attempt in enumerate(exc.tries, 1):
         ...     print(f"Attempt {i}:")
         ...     print(f"  Output: {attempt.output}")
         ...     print(f"  Error: {attempt.exception}")
         Attempt 1:
-          Output: {"incomplete": 
+          Output: {"incomplete":
           Error: Expecting value: line 1 column 15 (char 15)
         Attempt 2:
           Output: not json at all
           Error: Expecting value: line 1 column 0 (char 0)
-        >>> 
+        >>>
         >>> # Handling in try-except block
         >>> try:
         ...     result = task.ask_then_parse("some input")
@@ -224,14 +227,14 @@ class ParsableLLMTask(LLMTask):
     """
     An LLM task that supports automatic parsing of model outputs with retry mechanism.
 
-    This class extends :class:`LLMTask` to provide automatic parsing of model outputs with 
-    configurable retry logic. When parsing fails, it will retry up to a maximum number of 
-    times before raising an :exc:`OutputParseFailed` exception. This is useful when the 
-    model's output needs to be parsed into a specific format (e.g., JSON, XML, structured 
+    This class extends :class:`LLMTask` to provide automatic parsing of model outputs with
+    configurable retry logic. When parsing fails, it will retry up to a maximum number of
+    times before raising an :exc:`OutputParseFailed` exception. This is useful when the
+    model's output needs to be parsed into a specific format (e.g., JSON, XML, structured
     data) and the model may occasionally produce malformed output.
 
-    The class uses a template method pattern where subclasses implement the 
-    :meth:`_parse_and_validate` method to define their specific parsing logic. The base 
+    The class uses a template method pattern where subclasses implement the
+    :meth:`_parse_and_validate` method to define their specific parsing logic. The base
     class handles the retry mechanism, exception tracking, and logging automatically.
 
     Workflow:
@@ -240,12 +243,12 @@ class ParsableLLMTask(LLMTask):
         3. Attempt to parse response using :meth:`_parse_and_validate`
         4. If parsing succeeds, return parsed result
         5. If parsing fails with an exception in :attr:`__exceptions__`:
-           
+
            - Log the failure with attempt count
            - Store the failed output and exception
            - Send a new request to the model
            - Repeat from step 2
-        
+
         6. If max retries reached, raise :exc:`OutputParseFailed` with all attempts
 
     :cvar __exceptions__: Exception types to catch during parsing attempts. Can be a single
@@ -277,28 +280,28 @@ class ParsableLLMTask(LLMTask):
         >>> class JSONParsableTask(ParsableLLMTask):
         ...     '''Task that parses JSON responses with validation.'''
         ...     __exceptions__ = (json.JSONDecodeError, KeyError, ValueError)
-        ...     
+        ...
         ...     def _parse_and_validate(self, content: str):
         ...         # Extract code block if present
         ...         data = parse_json(extract_code(content))
-        ...         
+        ...
         ...         # Validate structure
         ...         if 'result' not in data:
         ...             raise KeyError("Missing 'result' field")
         ...         if not isinstance(data['result'], (int, float)):
         ...             raise ValueError("Result must be numeric")
-        ...         
+        ...
         ...         return data['result']
-        >>> 
+        >>>
         >>> # Initialize with custom default retries
         >>> model = LLMModel(...)
         >>> task = JSONParsableTask(model, default_max_retries=3)
-        >>> 
+        >>>
         >>> # Simple usage with default retries
         >>> result = task.ask_then_parse(input_content="Calculate 2+2")
         >>> print(result)
         4
-        >>> 
+        >>>
         >>> # Usage with custom max_retries for specific request
         >>> result = task.ask_then_parse(
         ...     input_content="What is 10*5?",
@@ -307,7 +310,7 @@ class ParsableLLMTask(LLMTask):
         ... )
         >>> print(result)
         50
-        >>> 
+        >>>
         >>> # Handling parse failures
         >>> try:
         ...     result = task.ask_then_parse("Invalid request")
@@ -340,34 +343,36 @@ class ParsableLLMTask(LLMTask):
 
             >>> from hbllmutils.model import LLMModel
             >>> from hbllmutils.history import LLMHistory
-            >>> 
+            >>>
             >>> # Simple initialization with defaults
             >>> model = LLMModel(...)
             >>> task = ParsableLLMTask(model)
             >>> print(task.default_max_retries)
             5
-            >>> 
+            >>>
             >>> # Initialize with custom default retries
             >>> task = ParsableLLMTask(model, default_max_retries=10)
             >>> print(task.default_max_retries)
             10
-            >>> 
+            >>>
             >>> # Initialize with existing history
             >>> history = LLMHistory().with_system_prompt("You are a helpful assistant.")
             >>> task = ParsableLLMTask(model, history=history, default_max_retries=3)
             >>> len(task.history)
             1
         """
+        if not isinstance(default_max_retries, int) or default_max_retries <= 0:
+            raise ValueError("default_max_retries must be a positive integer.")
         super().__init__(model, history)
         self.default_max_retries = default_max_retries
 
-    def _parse_and_validate(self, content: str):
+    def _parse_and_validate(self, content: str) -> Any:
         """
         Parse and validate the raw output content from the model.
 
         This method should be implemented by subclasses to define how to parse
         the model's output into the desired format. The method should raise an
-        exception (matching :attr:`__exceptions__`) if the content cannot be parsed 
+        exception (matching :attr:`__exceptions__`) if the content cannot be parsed
         or validated successfully.
 
         The method is called automatically by :meth:`ask_then_parse` after receiving
@@ -387,6 +392,7 @@ class ParsableLLMTask(LLMTask):
 
         :return: The parsed output in the desired format. The return type depends
                 on the specific implementation and use case.
+        :rtype: Any
 
         :raises NotImplementedError: This method must be implemented by subclasses.
         :raises Exception: Subclasses should raise appropriate exceptions (matching
@@ -397,37 +403,37 @@ class ParsableLLMTask(LLMTask):
             >>> class IntegerParsableTask(ParsableLLMTask):
             ...     '''Task that parses integer responses.'''
             ...     __exceptions__ = (ValueError,)
-            ...     
+            ...
             ...     def _parse_and_validate(self, content: str):
             ...         # Remove whitespace and parse
             ...         value = int(content.strip())
-            ...         
+            ...
             ...         # Validate range
             ...         if value < 0:
             ...             raise ValueError("Value must be non-negative")
-            ...         
+            ...
             ...         return value
-            >>> 
+            >>>
             >>> task = IntegerParsableTask(model)
             >>> result = task._parse_and_validate("42")
             >>> print(result)
             42
-            >>> 
+            >>>
             >>> # Example with JSON parsing
             >>> import json
             >>> class JSONParsableTask(ParsableLLMTask):
             ...     __exceptions__ = (json.JSONDecodeError, KeyError)
-            ...     
+            ...
             ...     def _parse_and_validate(self, content: str):
             ...         # Parse JSON
             ...         data = json.loads(content)
-            ...         
+            ...
             ...         # Validate required fields
             ...         if 'answer' not in data:
             ...             raise KeyError("Missing 'answer' field")
-            ...         
+            ...
             ...         return data['answer']
-            >>> 
+            >>>
             >>> task = JSONParsableTask(model)
             >>> result = task._parse_and_validate('{"answer": "Paris"}')
             >>> print(result)
@@ -442,7 +448,7 @@ class ParsableLLMTask(LLMTask):
         This method can be overridden by subclasses to modify or transform the input
         content before it is sent to the model. The default implementation returns
         the input unchanged. Common use cases include:
-        
+
         - Normalizing text (trimming, case conversion)
         - Adding format instructions or templates
         - Sanitizing or validating input
@@ -461,28 +467,28 @@ class ParsableLLMTask(LLMTask):
 
             >>> class CustomTask(ParsableLLMTask):
             ...     '''Task with input preprocessing.'''
-            ...     
+            ...
             ...     def _preprocess_input_content(self, input_content: Optional[str]) -> Optional[str]:
             ...         if input_content:
             ...             # Normalize whitespace and case
             ...             content = input_content.strip().lower()
-            ...             
+            ...
             ...             # Add format instruction
             ...             content += "\\n\\nPlease respond in JSON format."
-            ...             
+            ...
             ...             return content
             ...         return input_content
-            ...     
+            ...
             ...     def _parse_and_validate(self, content: str):
             ...         return json.loads(content)
-            >>> 
+            >>>
             >>> task = CustomTask(model)
             >>> result = task._preprocess_input_content("  HELLO  ")
             >>> print(result)
             hello
-            
+            <BLANKLINE>
             Please respond in JSON format.
-            >>> 
+            >>>
             >>> # Example with template injection
             >>> class TemplateTask(ParsableLLMTask):
             ...     def _preprocess_input_content(self, input_content: Optional[str]) -> Optional[str]:
@@ -490,27 +496,32 @@ class ParsableLLMTask(LLMTask):
             ...             template = "Question: {question}\\n\\nAnswer in format: {{'answer': '...'}}"
             ...             return template.format(question=input_content)
             ...         return input_content
-            >>> 
+            >>>
             >>> task = TemplateTask(model)
             >>> result = task._preprocess_input_content("What is 2+2?")
             >>> print(result)
             Question: What is 2+2?
-            
+            <BLANKLINE>
             Answer in format: {'answer': '...'}
         """
         return input_content
 
-    def ask_then_parse(self, input_content: Optional[str] = None, max_retries: Optional[int] = None, **params):
+    def ask_then_parse(
+            self,
+            input_content: Optional[str] = None,
+            max_retries: Optional[int] = None,
+            **params: Any
+    ) -> Any:
         """
         Ask the model a question and parse the response with automatic retry on parse failure.
 
         This method will repeatedly ask the model and attempt to parse the output until
         either parsing succeeds or the maximum number of retries is reached. Each failed
-        attempt is logged and tracked. If all retries fail, an :exc:`OutputParseFailed` 
+        attempt is logged and tracked. If all retries fail, an :exc:`OutputParseFailed`
         exception is raised containing all failed attempts for debugging.
 
         The method uses :meth:`_parse_and_validate` to parse outputs and will catch
-        exceptions specified in :attr:`__exceptions__`. Other exceptions will propagate 
+        exceptions specified in :attr:`__exceptions__`. Other exceptions will propagate
         immediately without retry.
 
         Workflow:
@@ -519,12 +530,12 @@ class ParsableLLMTask(LLMTask):
             3. Attempt to parse response using :meth:`_parse_and_validate`
             4. On success: return parsed result
             5. On failure (matching :attr:`__exceptions__`):
-               
+
                - Log warning with attempt count
                - Store failed output and exception
                - Increment retry counter
                - Repeat from step 2 if retries remain
-            
+
             6. If max retries exhausted: raise :exc:`OutputParseFailed`
 
         :param input_content: Optional user input content to add to the history before asking.
@@ -541,7 +552,9 @@ class ParsableLLMTask(LLMTask):
 
         :return: The successfully parsed output from the model. The return type depends on
                 the implementation of :meth:`_parse_and_validate`.
+        :rtype: Any
 
+        :raises ValueError: If max_retries is provided and is not a positive integer.
         :raises OutputParseFailed: If parsing fails after all retry attempts. The exception
                                   contains all failed attempts in its :attr:`tries` attribute,
                                   each with the raw output and exception for debugging.
@@ -562,20 +575,20 @@ class ParsableLLMTask(LLMTask):
             >>> class NumberTask(ParsableLLMTask):
             ...     '''Task that parses numeric responses.'''
             ...     __exceptions__ = (ValueError, TypeError)
-            ...     
+            ...
             ...     def _parse_and_validate(self, content: str):
             ...         value = float(content.strip())
             ...         if value < 0:
             ...             raise ValueError("Value must be non-negative")
             ...         return value
-            >>> 
+            >>>
             >>> task = NumberTask(model)
-            >>> 
+            >>>
             >>> # Simple usage with default retries
             >>> result = task.ask_then_parse(input_content="What is 2+2?")
             >>> print(result)
             4.0
-            >>> 
+            >>>
             >>> # Usage with custom max_retries and model parameters
             >>> result = task.ask_then_parse(
             ...     input_content="Calculate 10*5",
@@ -585,7 +598,7 @@ class ParsableLLMTask(LLMTask):
             ... )
             >>> print(result)
             50.0
-            >>> 
+            >>>
             >>> # Handling parse failures
             >>> try:
             ...     result = task.ask_then_parse(
@@ -605,17 +618,17 @@ class ParsableLLMTask(LLMTask):
             Attempt 2:
               Output: Please clarify your question...
               Error: could not convert string to float: "Please clarify your question"
-            >>> 
+            >>>
             >>> # Example with JSON parsing
             >>> class JSONTask(ParsableLLMTask):
             ...     __exceptions__ = (json.JSONDecodeError, KeyError)
-            ...     
+            ...
             ...     def _parse_and_validate(self, content: str):
             ...         data = json.loads(content)
             ...         if 'answer' not in data:
             ...             raise KeyError("Missing 'answer' field")
             ...         return data['answer']
-            >>> 
+            >>>
             >>> task = JSONTask(model)
             >>> result = task.ask_then_parse(
             ...     input_content="What is the capital of France? Answer in JSON",

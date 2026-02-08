@@ -1,10 +1,11 @@
 """
 Jinja2 template utilities for prompt rendering and environment configuration.
 
-This module provides a comprehensive set of tools for working with Jinja2 templates,
-including automatic text decoding, environment configuration with Python builtins,
-and a flexible prompt template system. It serves as the main entry point for the
-template package, exposing key functionality for template rendering and processing.
+This package module provides a comprehensive set of tools for working with Jinja2
+templates, including automatic text decoding, environment configuration with Python
+builtins, and a flexible prompt template system. It serves as the main entry point
+for the :mod:`hbllmutils.template` package, exposing key functionality for template
+rendering, matching utilities, and quick rendering helpers.
 
 The module contains the following main components:
 
@@ -20,11 +21,12 @@ The module contains the following main components:
 
 .. note::
    This package requires Jinja2 and provides enhanced functionality beyond standard
-   Jinja2 templates, including Python builtin integration and automatic encoding detection.
+   Jinja2 templates, including Python builtin integration and automatic encoding
+   detection.
 
 .. warning::
    When using strict_undefined mode (default), ensure all template variables are
-   provided during rendering to avoid UndefinedError exceptions.
+   provided during rendering to avoid :exc:`jinja2.UndefinedError` exceptions.
 
 Example::
 
@@ -59,3 +61,15 @@ from .matcher import BaseMatcher
 from .matcher_pair import BaseMatcherPair
 from .quick import QuickPromptTemplate, quick_render
 from .render import PromptTemplate
+
+__all__ = [
+    "auto_decode",
+    "add_builtins_to_env",
+    "add_settings_for_env",
+    "create_env",
+    "PromptTemplate",
+    "QuickPromptTemplate",
+    "quick_render",
+    "BaseMatcher",
+    "BaseMatcherPair",
+]

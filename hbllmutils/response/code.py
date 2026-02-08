@@ -40,7 +40,7 @@ Dependencies:
 Example::
 
     >>> from hbllmutils.response.code import extract_code, parse_json
-    >>> 
+    >>>
     >>> # Extract Python code from Markdown
     >>> markdown_text = '''
     ... Here's some Python code:
@@ -54,7 +54,7 @@ Example::
     def hello():
         print("Hello, World!")
     <BLANKLINE>
-    >>> 
+    >>>
     >>> # Parse JSON with automatic repair
     >>> malformed_json = '{"key": "value", "missing": '
     >>> data = parse_json(malformed_json, with_repair=True)
@@ -76,10 +76,10 @@ def extract_code(text: str, language: Optional[str] = None) -> str:
     Extract code blocks from Markdown text with optional language filtering.
 
     This function intelligently handles two distinct scenarios for code extraction:
-    
+
     1. **Plain Code**: Text that is not wrapped in fenced code blocks. The function
        returns the trimmed text as-is, treating the entire input as code.
-       
+
     2. **Fenced Code Blocks**: Text containing one or more code blocks delimited by
        triple backticks (```). The function parses the Markdown structure and extracts
        code blocks, optionally filtering by programming language.
@@ -94,34 +94,35 @@ def extract_code(text: str, language: Optional[str] = None) -> str:
                     (e.g., 'python', 'javascript', 'java', 'cpp'). If None, extracts
                     code blocks regardless of language tag. Case-sensitive matching.
     :type language: str, optional
-    
+
     :return: The extracted code content as a string, with original formatting preserved.
             For fenced blocks, returns the content between the opening and closing
             fence markers, excluding the markers themselves.
     :rtype: str
-    
-    :raises ValueError: If no code blocks matching the criteria are found in the text.
-                       Error message indicates whether a specific language was requested.
+
+    :raises ValueError: If no code blocks matching the criteria are found in the text
+                       when the text contains fenced code blocks. Error message
+                       indicates whether a specific language was requested.
     :raises ValueError: If multiple code blocks matching the criteria are found,
                        preventing ambiguous extraction. Error message indicates whether
                        a specific language was requested.
-    
+
     .. note::
        The function preserves all whitespace, indentation, and line breaks within
        the extracted code block. Trailing whitespace is preserved for fenced blocks
        but stripped for plain text.
-    
+
     .. warning::
        When multiple code blocks exist in the Markdown text, you must specify a
        language parameter to disambiguate, or ensure only one code block is present.
-    
+
     Example::
-    
+
         >>> # Extract plain code (no fencing)
         >>> plain_code = "print('hello world')"
         >>> extract_code(plain_code)
         "print('hello world')"
-        
+
         >>> # Extract from single fenced block
         >>> markdown = '''```python
         ... def greet(name):
@@ -129,7 +130,7 @@ def extract_code(text: str, language: Optional[str] = None) -> str:
         ... ```'''
         >>> extract_code(markdown)
         'def greet(name):\\n    return f"Hello, {name}!"\\n'
-        
+
         >>> # Extract with language filtering
         >>> multi_lang = '''
         ... ```python
@@ -141,19 +142,19 @@ def extract_code(text: str, language: Optional[str] = None) -> str:
         ... '''
         >>> extract_code(multi_lang, language='python')
         'print("Python code")\\n'
-        
-        >>> # Error: No code blocks found
-        >>> extract_code("Just plain text with no code")
+
+        >>> # Error: Language-specific block not found
+        >>> extract_code(multi_lang, language='java')
         Traceback (most recent call last):
             ...
-        ValueError: No code found in response.
-        
+        ValueError: No java code found in response.
+
         >>> # Error: Multiple code blocks without language filter
         >>> extract_code(multi_lang)
         Traceback (most recent call last):
             ...
         ValueError: Non-unique code blocks found in response.
-    
+
     """
     # Case 1: Plain code (without fenced code block markers)
     # If the text doesn't start with triple backticks, treat entire text as code
@@ -194,10 +195,10 @@ def parse_json(text: str, with_repair: bool = True) -> Any:
     Parse JSON text with optional automatic repair for malformed input.
 
     This function provides robust JSON parsing capabilities with two modes of operation:
-    
+
     1. **Standard Parsing** (with_repair=False): Uses Python's built-in json.loads()
        for strict JSON parsing that follows RFC 8259 specifications.
-       
+
     2. **Repair Mode** (with_repair=True): Uses the json-repair library to automatically
        fix common JSON formatting issues before parsing, making it ideal for handling
        LLM-generated JSON that may be incomplete or malformed.
@@ -217,61 +218,61 @@ def parse_json(text: str, with_repair: bool = True) -> Any:
                        before parsing using the json-repair library. If False, uses
                        standard JSON parsing which requires valid JSON syntax.
     :type with_repair: bool
-    
+
     :return: The parsed JSON object. Return type depends on the JSON structure:
             - dict for JSON objects
             - list for JSON arrays
             - str, int, float, bool, or None for JSON primitives
     :rtype: Any
-    
+
     :raises json.JSONDecodeError: If with_repair is False and the input contains
                                  invalid JSON syntax. Includes details about the
                                  error location and nature.
     :raises Exception: If with_repair is True but the JSON is too malformed to
                       repair automatically. The json-repair library will raise
                       an appropriate exception describing the issue.
-    
+
     .. note::
        When with_repair is True, the function may make assumptions about the
        intended structure of malformed JSON. Review the output to ensure it
        matches expectations.
-    
+
     .. warning::
        The repair functionality is heuristic-based and may not always produce
        the intended result for severely malformed JSON. For production use with
        critical data, consider validating the repaired output.
-    
+
     Example::
-    
+
         >>> # Parse valid JSON
         >>> parse_json('{"name": "Alice", "age": 30}')
         {'name': 'Alice', 'age': 30}
-        
+
         >>> # Parse JSON array
         >>> parse_json('[1, 2, 3, 4, 5]')
         [1, 2, 3, 4, 5]
-        
+
         >>> # Parse with automatic repair (missing closing brace)
         >>> malformed = '{"name": "Bob", "age": 25'
         >>> parse_json(malformed, with_repair=True)
         {'name': 'Bob', 'age': 25}
-        
+
         >>> # Parse with automatic repair (trailing comma)
         >>> malformed = '{"items": [1, 2, 3,]}'
         >>> parse_json(malformed, with_repair=True)
         {'items': [1, 2, 3]}
-        
+
         >>> # Parse with automatic repair (single quotes)
         >>> malformed = "{'key': 'value'}"
         >>> parse_json(malformed, with_repair=True)
         {'key': 'value'}
-        
+
         >>> # Standard parsing fails on malformed JSON
         >>> parse_json('{"key": "value"', with_repair=False)
         Traceback (most recent call last):
             ...
         json.JSONDecodeError: Expecting ',' delimiter: line 1 column 16 (char 15)
-        
+
         >>> # Parse JSON primitives
         >>> parse_json('42')
         42
@@ -281,7 +282,7 @@ def parse_json(text: str, with_repair: bool = True) -> Any:
         None
         >>> parse_json('"hello"')
         'hello'
-    
+
     """
     if with_repair:
         # Use json-repair library to fix malformed JSON before parsing
