@@ -1,12 +1,44 @@
 """
-This module provides a remote LLM (Large Language Model) client implementation.
+Remote LLM client implementation for OpenAI-compatible APIs.
 
-It offers a unified interface for interacting with OpenAI-compatible API endpoints,
-supporting both synchronous and asynchronous operations, streaming responses, and
-customizable parameters.
+This module implements a concrete :class:`~hbllmutils.model.base.LLMModel` that
+talks to OpenAI-compatible chat completion endpoints. It supports synchronous
+requests, streaming responses, and convenient helpers for returning either the
+full :class:`openai.types.chat.ChatCompletionMessage` or only the text content.
+The implementation is designed to be endpoint-agnostic as long as the server
+implements the OpenAI API protocol.
 
-Classes:
-    RemoteLLMModel: Main class for managing remote LLM API interactions.
+The main public component is:
+
+* :class:`RemoteLLMModel` - A concrete client for OpenAI-compatible API endpoints
+
+Typical usage focuses on building a conversation history list and then calling
+:meth:`RemoteLLMModel.ask`, :meth:`RemoteLLMModel.ask_stream`, or
+:meth:`RemoteLLMModel.create_message`.
+
+Example::
+
+    >>> from hbllmutils.model.remote import RemoteLLMModel
+    >>> model = RemoteLLMModel(
+    ...     base_url="https://api.openai.com/v1",
+    ...     api_token="sk-xxx",
+    ...     model_name="gpt-3.5-turbo",
+    ...     max_tokens=128
+    ... )
+    >>> messages = [{"role": "user", "content": "Hello, world!"}]
+    >>> print(model.ask(messages))
+    Hello! How can I help you today?
+
+    >>> # Streaming usage
+    >>> stream = model.ask_stream(messages)
+    >>> for chunk in stream:
+    ...     print(chunk, end="", flush=True)
+
+.. note::
+   The class relies on the official ``openai`` package and expects OpenAI-style
+   responses, including streaming deltas. If your endpoint diverges from this
+   structure, consider implementing a custom response stream handler.
+
 """
 
 from typing import Dict, Optional, Union, Any, List, Tuple
@@ -28,11 +60,28 @@ class RemoteLLMModel(LLMModel):
     API endpoints. It supports both synchronous and asynchronous operations, streaming
     responses, and allows customization of request parameters.
 
-    :ivar base_url: API base URL (e.g., "https://api.openai.com/v1")
+    :param base_url: API base URL (e.g., ``"https://api.openai.com/v1"``)
+    :type base_url: str
+    :param api_token: API access token for authentication
+    :type api_token: str
+    :param model_name: Name of the model to use (e.g., ``"gpt-3.5-turbo"``)
+    :type model_name: str
+    :param organization_id: Organization ID (optional, required by some APIs)
+    :type organization_id: Optional[str]
+    :param timeout: Request timeout in seconds, defaults to ``30``
+    :type timeout: int
+    :param max_retries: Maximum number of retry attempts, defaults to ``3``
+    :type max_retries: int
+    :param headers: Custom request headers
+    :type headers: Optional[Dict[str, str]]
+    :param default_params: Default parameters for API requests
+
+    :ivar base_url: API base URL (e.g., ``"https://api.openai.com/v1"``)
     :vartype base_url: str
     :ivar api_token: API access token for authentication
     :vartype api_token: str
-    :ivar model_name: Name of the model to use (e.g., "gpt-3.5-turbo", "claude-3-opus")
+    :ivar model_name: Name of the model to use (e.g., ``"gpt-3.5-turbo"``,
+                      ``"claude-3-opus"``)
     :vartype model_name: str
     :ivar organization_id: Organization ID (required by some APIs)
     :vartype organization_id: Optional[str]
@@ -44,29 +93,57 @@ class RemoteLLMModel(LLMModel):
     :vartype headers: Dict[str, str]
     :ivar default_params: Default parameters for API requests
     :vartype default_params: Dict[str, Any]
+
+    :raises ValueError: If ``base_url`` format is invalid
+    :raises ValueError: If ``api_token`` is empty
+    :raises ValueError: If ``model_name`` is empty
+    :raises ValueError: If ``timeout`` is not positive
+    :raises ValueError: If ``max_retries`` is negative
+
+    Example::
+
+        >>> model = RemoteLLMModel(
+        ...     base_url="https://api.openai.com/v1",
+        ...     api_token="sk-xxx",
+        ...     model_name="gpt-3.5-turbo",
+        ...     temperature=0.2
+        ... )
+        >>> messages = [{"role": "user", "content": "Summarize LLMs in one sentence."}]
+        >>> print(model.ask(messages))
+        Large language models generate text by predicting tokens from vast training data.
+
     """
 
-    def __init__(self, base_url: str, api_token: str, model_name: str,
-                 organization_id: Optional[str] = None, timeout: int = 30, max_retries: int = 3,
-                 headers: Optional[Dict[str, str]] = None, **default_params):
+    def __init__(
+        self,
+        base_url: str,
+        api_token: str,
+        model_name: str,
+        organization_id: Optional[str] = None,
+        timeout: int = 30,
+        max_retries: int = 3,
+        headers: Optional[Dict[str, str]] = None,
+        **default_params: Any,
+    ):
         """
         Initialize the RemoteLLMModel instance.
 
-        :param base_url: API base URL (e.g., "https://api.openai.com/v1")
+        :param base_url: API base URL (e.g., ``"https://api.openai.com/v1"``)
         :type base_url: str
         :param api_token: API access token for authentication
         :type api_token: str
-        :param model_name: Name of the model to use (e.g., "gpt-3.5-turbo")
+        :param model_name: Name of the model to use (e.g., ``"gpt-3.5-turbo"``)
         :type model_name: str
         :param organization_id: Organization ID (optional, required by some APIs)
         :type organization_id: Optional[str]
-        :param timeout: Request timeout in seconds (default: 30)
+        :param timeout: Request timeout in seconds (default: ``30``)
         :type timeout: int
-        :param max_retries: Maximum number of retry attempts (default: 3)
+        :param max_retries: Maximum number of retry attempts (default: ``3``)
         :type max_retries: int
         :param headers: Custom request headers (optional)
         :type headers: Optional[Dict[str, str]]
         :param default_params: Default parameters for API requests (optional)
+        :type default_params: Any
 
         :raises ValueError: If base_url format is invalid
         :raises ValueError: If api_token is empty
@@ -131,7 +208,7 @@ class RemoteLLMModel(LLMModel):
         """
         Create an OpenAI client instance (synchronous or asynchronous).
 
-        :param use_async: Whether to create an asynchronous client (default: False)
+        :param use_async: Whether to create an asynchronous client (default: ``False``)
         :type use_async: bool
 
         :return: OpenAI client instance (synchronous or asynchronous)
@@ -169,7 +246,7 @@ class RemoteLLMModel(LLMModel):
         self._client_non_async = self._client_non_async or self._create_openai_client(use_async=False)
         return self._client_non_async
 
-    def _get_non_async_session(self, messages: List[dict], stream: bool = False, **params):
+    def _get_non_async_session(self, messages: List[dict], stream: bool = False, **params: Any) -> Any:
         """
         Create a synchronous chat completion session.
 
@@ -177,7 +254,7 @@ class RemoteLLMModel(LLMModel):
 
         :param messages: List of message dictionaries for the conversation
         :type messages: List[dict]
-        :param stream: Whether to enable streaming mode (default: False)
+        :param stream: Whether to enable streaming mode (default: ``False``)
         :type stream: bool
         :param params: Additional parameters to pass to the API
         :type params: Any
@@ -202,7 +279,7 @@ class RemoteLLMModel(LLMModel):
             }
         )
 
-    def create_message(self, messages: List[dict], **params) -> ChatCompletionMessage:
+    def create_message(self, messages: List[dict], **params: Any) -> ChatCompletionMessage:
         """
         Send a chat request and get the complete message response.
 
@@ -225,20 +302,22 @@ class RemoteLLMModel(LLMModel):
                           f'{log_pformat(session.choices[0].message.content)}')
         return session.choices[0].message
 
-    def ask(self, messages: List[dict], with_reasoning: bool = False, **params) \
+    def ask(self, messages: List[dict], with_reasoning: bool = False, **params: Any) \
             -> Union[str, Tuple[Optional[str], str]]:
         """
         Send a chat request and get the text response.
 
         :param messages: List of message dictionaries for the conversation
         :type messages: List[dict]
-        :param with_reasoning: Whether to return reasoning content along with the response (default: False)
+        :param with_reasoning: Whether to return reasoning content along with the response
+                               (default: ``False``)
         :type with_reasoning: bool
         :param params: Additional parameters to pass to the API
         :type params: Any
 
-        :return: If with_reasoning is False, returns the content string.
-                 If with_reasoning is True, returns a tuple of (reasoning_content, content).
+        :return: If ``with_reasoning`` is ``False``, returns the content string.
+                 If ``with_reasoning`` is ``True``, returns a tuple of
+                 ``(reasoning_content, content)``.
         :rtype: Union[str, Tuple[Optional[str], str]]
 
         Example::
@@ -258,13 +337,13 @@ class RemoteLLMModel(LLMModel):
         else:
             return message.content
 
-    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params) -> ResponseStream:
+    def ask_stream(self, messages: List[dict], with_reasoning: bool = False, **params: Any) -> ResponseStream:
         """
         Send a chat request and get a streaming response.
 
         :param messages: List of message dictionaries for the conversation
         :type messages: List[dict]
-        :param with_reasoning: Whether to include reasoning content in the stream (default: False)
+        :param with_reasoning: Whether to include reasoning content in the stream (default: ``False``)
         :type with_reasoning: bool
         :param params: Additional parameters to pass to the API
         :type params: Any
@@ -287,7 +366,7 @@ class RemoteLLMModel(LLMModel):
         """
         Return a string representation of the RemoteLLMModel instance.
 
-        All constructor parameters including default_params are displayed at the same level.
+        All constructor parameters including ``default_params`` are displayed at the same level.
         The API token is masked for security purposes.
 
         :return: String representation of the instance
@@ -335,7 +414,7 @@ class RemoteLLMModel(LLMModel):
         params_str = ', '.join(param_strings)
         return f"{self.__class__.__name__}({params_str})"
 
-    def _params(self):
+    def _params(self) -> Tuple[Any, ...]:
         """
         Get the parameters that define this model instance.
 

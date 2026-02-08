@@ -1,14 +1,36 @@
 """
-Fake LLM Model Module
+Fake LLM Model Module.
 
-This module provides a fake implementation of an LLM (Large Language Model) for testing and development purposes.
-It simulates LLM behavior by returning predefined responses based on configurable rules, supporting both
-synchronous and streaming response modes with customizable word-per-second rates.
+This module provides a fake implementation of an LLM (Large Language Model) for
+testing and development purposes. It simulates LLM behavior by returning
+predefined responses based on configurable rules, supporting both synchronous
+and streaming response modes with customizable word-per-second rates.
 
-The module includes:
-- FakeResponseStream: A stream handler for fake responses with reasoning and content separation
-- FakeLLMModel: An immutable mock LLM model that returns responses based on rule matching
-- FakeResponseSequence: A sequence-based response handler that returns responses in order
+The module contains the following main components:
+
+* :class:`FakeResponseSequence` - Immutable sequence handler for ordered responses
+* :class:`FakeResponseStream` - Streaming response wrapper with reasoning/content separation
+* :class:`FakeLLMModel` - Immutable mock LLM model with rule-driven responses
+
+.. note::
+   The streaming implementation uses :mod:`jieba` for word segmentation, which
+   is optimized for Chinese text. English text will still be tokenized, but the
+   granularity may differ from character-level streaming.
+
+Example::
+
+    >>> model = FakeLLMModel(stream_wps=20)
+    >>> model = model.response_when_keyword_in_last_message(
+    ...     ["weather", "temperature"],
+    ...     ("thinking...", "It's sunny today!")
+    ... )
+    >>> model.ask([{"role": "user", "content": "What's the weather?"}])
+    "It's sunny today!"
+
+    >>> seq_model = model.response_sequence(["First", "Second"])
+    >>> seq_model.ask([{"role": "user", "content": "next"}])
+    'First'
+
 """
 
 import time
@@ -25,10 +47,28 @@ class FakeResponseSequence:
     A sequence-based response handler that returns responses in order.
 
     This class maintains immutability by creating new instances when the index changes,
-    ensuring thread safety and compatibility with FakeLLMModel's immutable design.
+    ensuring thread safety and compatibility with :class:`FakeLLMModel`'s immutable design.
+
+    :param responses: List of responses to return in order.
+    :type responses: List[Union[str, Tuple[str, str]]]
+    :param index: Current index in the sequence, defaults to ``0``.
+    :type index: int
+
+    :ivar _response_contents: Immutable tuple of response items.
+    :vartype _response_contents: Tuple[Union[str, Tuple[str, str]], ...]
+    :ivar _index: Current position in the sequence.
+    :vartype _index: int
+
+    Example::
+
+        >>> sequence = FakeResponseSequence(["A", ("thinking", "B")])
+        >>> sequence.response([{"role": "user", "content": "hi"}])
+        ('', 'A')
+        >>> sequence.advance().response([{"role": "user", "content": "hi"}])
+        ('thinking', 'B')
     """
 
-    def __init__(self, responses: List[Union[str, Tuple[str, str]]], index: int = 0):
+    def __init__(self, responses: List[Union[str, Tuple[str, str]]], index: int = 0) -> None:
         """
         Initialize the response sequence.
 
@@ -70,7 +110,7 @@ class FakeResponseSequence:
         """
         return self._index < len(self._response_contents)
 
-    def rule_check(self, messages: List[dict], **params) -> bool:
+    def rule_check(self, messages: List[dict], **params: Any) -> bool:
         """
         Check if this sequence can provide a response.
 
@@ -84,7 +124,7 @@ class FakeResponseSequence:
         _ = messages, params  # Unused parameters
         return self.has_more_responses
 
-    def response(self, messages: List[dict], **params) -> Tuple[str, str]:
+    def response(self, messages: List[dict], **params: Any) -> Tuple[str, str]:
         """
         Get the next response in the sequence.
 
@@ -128,12 +168,12 @@ class FakeResponseSequence:
         """
         return FakeResponseSequence(list(self._response_contents), 0)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check equality with another FakeResponseSequence instance.
 
         :param other: The other instance to compare with.
-        :type other: Any
+        :type other: object
         :return: True if instances are equal, False otherwise.
         :rtype: bool
         """
@@ -165,8 +205,8 @@ class FakeResponseStream(ResponseStream):
     """
     A fake response stream that handles streaming responses with reasoning and content.
 
-    This class extends ResponseStream to provide a simple implementation for testing purposes,
-    where chunks are tuples of (reasoning_content, content).
+    This class extends :class:`ResponseStream` to provide a simple implementation for
+    testing purposes, where chunks are tuples of ``(reasoning_content, content)``.
     """
 
     def _get_reasoning_content_from_chunk(self, chunk: Any) -> Optional[str]:
@@ -192,11 +232,15 @@ class FakeResponseStream(ResponseStream):
         return chunk[1]
 
 
-FakeResponseTyping = Union[str, Tuple[str, str], Callable]
-"""Type alias for fake response types: can be a string, tuple of (reasoning, content), or a callable."""
+FakeResponseTyping = Union[
+    str,
+    Tuple[str, str],
+    Callable[..., Union[str, Tuple[str, str]]],
+]
+"""Type alias for fake response types: string, (reasoning, content) tuple, or callable response factory."""
 
 
-def _fn_always_true(messages: List[dict], **params) -> bool:
+def _fn_always_true(messages: List[dict], **params: Any) -> bool:
     """
     A rule function that always returns True.
 
@@ -221,7 +265,20 @@ class FakeLLMModel(LLMModel):
 
     All modification operations return new instances, ensuring immutability and thread safety.
 
+    :param stream_wps: Words per second for streaming responses, defaults to ``50``.
+    :type stream_wps: float
+    :param rules: List of ``(rule_function, response)`` tuples. Internal parameter.
+    :type rules: Optional[List[Tuple[Callable, FakeResponseTyping]]]
+
+    :ivar _stream_wps: Words-per-second rate for streaming.
+    :vartype _stream_wps: float
+    :ivar _rules: Immutable tuple of response rules.
+    :vartype _rules: Tuple[Tuple[Callable, FakeResponseTyping], ...]
+    :ivar _frozen: Immutability flag, set after initialization.
+    :vartype _frozen: bool
+
     Example::
+
         >>> model = FakeLLMModel(stream_wps=50)
         >>> model_with_rule = model.response_when_keyword_in_last_message("weather", "It's sunny today!")
         >>> response = model_with_rule.ask([{"role": "user", "content": "What's the weather?"}])
@@ -234,7 +291,7 @@ class FakeLLMModel(LLMModel):
         Hello, I'm a fake LLM!
     """
 
-    def __init__(self, stream_wps: float = 50, rules: Optional[List[Tuple[Callable, FakeResponseTyping]]] = None):
+    def __init__(self, stream_wps: float = 50, rules: Optional[List[Tuple[Callable, FakeResponseTyping]]] = None) -> None:
         """
         Initialize the fake LLM model.
 
@@ -304,7 +361,7 @@ class FakeLLMModel(LLMModel):
         """
         return len(self._rules)
 
-    def _create_new_instance(self, **kwargs) -> 'FakeLLMModel':
+    def _create_new_instance(self, **kwargs: Any) -> 'FakeLLMModel':
         """
         Create a new instance with modified parameters.
 
@@ -318,7 +375,7 @@ class FakeLLMModel(LLMModel):
 
         return FakeLLMModel(stream_wps=new_stream_wps, rules=new_rules)
 
-    def _get_response(self, messages: List[dict], **params) -> Tuple[str, str]:
+    def _get_response(self, messages: List[dict], **params: Any) -> Tuple[str, str]:
         """
         Get response by matching rules in order.
 
@@ -385,12 +442,12 @@ class FakeLLMModel(LLMModel):
         new_rules = list(self._rules) + [(_fn_always_true, response)]
         return self._create_new_instance(rules=new_rules)
 
-    def response_when(self, fn_when: Callable, response: FakeResponseTyping) -> 'FakeLLMModel':
+    def response_when(self, fn_when: Callable[..., bool], response: FakeResponseTyping) -> 'FakeLLMModel':
         """
         Create a new instance with a conditional rule that returns the specified response when the condition is met.
 
         :param fn_when: A callable that takes (messages, **params) and returns bool.
-        :type fn_when: Callable
+        :type fn_when: Callable[..., bool]
         :param response: The response to return when condition is True.
         :type response: FakeResponseTyping
         :return: A new FakeLLMModel instance with the added rule.
@@ -435,7 +492,7 @@ class FakeLLMModel(LLMModel):
         else:
             keywords_tuple = (keywords,)
 
-        def _fn_keyword_check(messages: List[dict], **params) -> bool:
+        def _fn_keyword_check(messages: List[dict], **params: Any) -> bool:
             """
             Check if any keyword exists in the last message.
 
@@ -459,7 +516,7 @@ class FakeLLMModel(LLMModel):
         """
         Create a new instance with a rule that returns responses in sequence.
 
-        Each call to ask() or ask_stream() will return the next response in the sequence.
+        Each call to :meth:`ask` or :meth:`ask_stream` will return the next response in the sequence.
         Once all responses are exhausted, the rule will no longer match.
 
         :param responses: List of responses to return in order. Each can be a string or tuple of (reasoning, content).
@@ -494,9 +551,12 @@ class FakeLLMModel(LLMModel):
 
             This class maintains the current position in the response sequence
             and advances it after each response is retrieved.
+
+            :param initial_sequence: The initial response sequence.
+            :type initial_sequence: FakeResponseSequence
             """
 
-            def __init__(self, initial_sequence: FakeResponseSequence):
+            def __init__(self, initial_sequence: FakeResponseSequence) -> None:
                 """
                 Initialize the sequence wrapper.
 
@@ -505,7 +565,7 @@ class FakeLLMModel(LLMModel):
                 """
                 self._sequence = initial_sequence
 
-            def rule_check(self, messages: List[dict], **params) -> bool:
+            def rule_check(self, messages: List[dict], **params: Any) -> bool:
                 """
                 Check if the sequence has more responses available.
 
@@ -518,7 +578,7 @@ class FakeLLMModel(LLMModel):
                 """
                 return self._sequence.rule_check(messages, **params)
 
-            def response(self, messages: List[dict], **params) -> Tuple[str, str]:
+            def response(self, messages: List[dict], **params: Any) -> Tuple[str, str]:
                 """
                 Get the next response and advance the sequence.
 
@@ -567,7 +627,7 @@ class FakeLLMModel(LLMModel):
             self,
             messages: List[dict],
             with_reasoning: bool = False,
-            **params
+            **params: Any
     ) -> Union[str, Tuple[Optional[str], str]]:
         """
         Send messages and get a synchronous response.
@@ -602,8 +662,8 @@ class FakeLLMModel(LLMModel):
         """
         Generate word-by-word chunks for streaming, with delays between words.
 
-        This method uses jieba to segment text into words and yields them one at a time,
-        with a delay calculated based on the stream_wps (words per second) setting.
+        This method uses :mod:`jieba` to segment text into words and yields them one at a time,
+        with a delay calculated based on the :attr:`stream_wps` (words per second) setting.
         Reasoning content is yielded first if provided, followed by the main content.
 
         :param content: The main content to stream.
@@ -629,14 +689,14 @@ class FakeLLMModel(LLMModel):
             self,
             messages: List[dict],
             with_reasoning: bool = False,
-            **params
+            **params: Any
     ) -> ResponseStream:
         """
         Send messages and get a streaming response.
 
-        This method returns a ResponseStream that yields the response word-by-word,
+        This method returns a :class:`ResponseStream` that yields the response word-by-word,
         simulating the streaming behavior of a real LLM. The streaming speed is
-        controlled by the stream_wps parameter set during initialization.
+        controlled by the :attr:`stream_wps` parameter set during initialization.
 
         :param messages: The list of message dictionaries containing conversation history.
         :type messages: List[dict]
