@@ -1,11 +1,10 @@
 """
-Utility module for hbllmutils package.
+Utility helpers for the :mod:`hbllmutils.utils` package.
 
-This module provides utility functions and classes for the hbllmutils package,
-including logging utilities, data truncation helpers, and hashable conversion tools.
-It serves as a central point for importing commonly used utility components that
-facilitate debugging, logging, data representation, and data structure manipulation
-throughout the package.
+This module serves as a public entry point for frequently used utility functions
+within the ``hbllmutils`` package. It re-exports logging helpers, data truncation
+utilities, and hashable conversion tools to provide a concise and consistent
+import interface for users.
 
 The module contains the following main components:
 
@@ -14,35 +13,29 @@ The module contains the following main components:
 * :func:`truncate_dict` - Recursively truncate complex data structures
 * :func:`obj_hashable` - Convert mutable objects to hashable representations
 
-These utilities are particularly useful when working with large language model (LLM)
-conversation histories, API responses, and other verbose data structures that need
-to be logged or displayed in a readable format without overwhelming the output. The
-hashable conversion utility is especially valuable for caching and deduplication
-operations where dictionary or list keys need to be used as cache keys.
+.. note::
+   All exported utilities are designed to be non-invasive and safe to use across
+   the package without unintended side effects.
 
 .. note::
-   All functions in this module are designed to be non-invasive and can be used
-   throughout the hbllmutils package without side effects.
-
-.. note::
-   The logging utilities automatically detect terminal width for optimal formatting
-   and follow Python's standard logging hierarchy for consistent behavior.
+   The logging utilities integrate with Python's standard logging hierarchy and
+   follow the "hbllmutils" logger namespace.
 
 Example::
 
     >>> from hbllmutils.utils import get_global_logger, log_pformat, truncate_dict, obj_hashable
-    >>> 
-    >>> # Set up logging
+    >>>
+    >>> # Initialize the global logger
     >>> logger = get_global_logger()
     >>> logger.info("Starting application")
     INFO:hbllmutils:Starting application
-    >>> 
-    >>> # Log complex data structures
+    >>>
+    >>> # Log complex data structures in a compact form
     >>> data = {"key": "value" * 1000}
     >>> logger.debug(log_pformat(data))
     DEBUG:hbllmutils:{'key': 'valuevaluevaluevalue...<truncated, total 5000 chars>'}
-    >>> 
-    >>> # Truncate nested structures
+    >>>
+    >>> # Truncate nested structures for display
     >>> nested = {
     ...     "messages": [
     ...         {"role": "user", "content": "x" * 500},
@@ -53,13 +46,13 @@ Example::
     >>> print(truncated)
     {'messages': [{'role': 'user', 'content': 'xxxxxxxxxx...<truncated, total 500 chars>'},
                   {'role': 'assistant', 'content': 'yyyyyyyyyy...<truncated, total 500 chars>'}]}
-    
-    >>> # Convert mutable structures to hashable for caching
+    >>>
+    >>> # Convert mutable structures to hashable for caching or deduplication
     >>> config = {'model': 'gpt-4', 'temperature': 0.7, 'max_tokens': 100}
     >>> cache_key = obj_hashable(config)
     >>> cache = {cache_key: 'cached_result'}
     >>> print(cache[cache_key])
-    'cached_result'
+    cached_result
 
 """
 
