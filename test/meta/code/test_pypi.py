@@ -1,5 +1,4 @@
-"""
-Comprehensive unit tests for the hbllmutils.meta.code.pypi module.
+"""Comprehensive unit tests for the hbllmutils.meta.code.pypi module.
 
 This test module provides complete coverage for Python module metadata and PyPI
 package information utilities, testing all public interfaces including module
@@ -23,10 +22,40 @@ import warnings
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import pkg_resources
 import pytest
 
+import hbllmutils.meta.code.pypi as pypi_module
 from hbllmutils.meta.code.pypi import PyPIModuleInfo, get_module_info, is_standard_library, get_pypi_info
+
+try:
+    import pkg_resources as real_pkg_resources
+except Exception:
+    real_pkg_resources = None
+
+
+class DummyDistributionNotFound(Exception):
+    """Dummy exception to mimic pkg_resources.DistributionNotFound."""
+
+
+class DummyPkgResources:
+    """Minimal pkg_resources-like object for tests when pkg_resources is unavailable."""
+
+    DistributionNotFound = DummyDistributionNotFound
+
+    def __init__(self):
+        self.working_set = []
+
+    def get_distribution(self, name):
+        """Raise DistributionNotFound for missing distributions."""
+        raise self.DistributionNotFound()
+
+
+class IterRaises:
+    """Iterable that raises an exception on iteration."""
+
+    def __iter__(self):
+        """Raise an exception when iterated."""
+        raise Exception("Test error")
 
 
 @pytest.fixture
@@ -78,6 +107,17 @@ def temporary_directory():
     """Create a temporary directory for filesystem-related tests."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+
+
+@pytest.fixture
+def ensured_pkg_resources(monkeypatch):
+    """Ensure the module under test has a pkg_resources-like object available."""
+    if real_pkg_resources is not None:
+        monkeypatch.setattr(pypi_module, "pkg_resources", real_pkg_resources, raising=False)
+        return real_pkg_resources
+    dummy = DummyPkgResources()
+    monkeypatch.setattr(pypi_module, "pkg_resources", dummy, raising=False)
+    return dummy
 
 
 @pytest.mark.unittest
@@ -206,9 +246,9 @@ class TestIsStandardLibrary:
         module_path = Path(module.__file__).resolve()
         assert is_standard_library(module_path) is True
 
-    def test_site_packages_path(self):
+    def test_site_packages_path(self, mock_stdlib_path):
         """Test is_standard_library returns False for site-packages paths."""
-        module_path = Path(pkg_resources.__file__).resolve()
+        module_path = mock_stdlib_path / "site-packages" / "test_module" / "__init__.py"
         assert is_standard_library(module_path) is False
 
     def test_non_stdlib_path(self, temporary_directory):
@@ -250,70 +290,102 @@ class TestIsStandardLibrary:
 class TestGetPypiInfo:
     """Tests for the get_pypi_info function public interface."""
 
-    def test_direct_distribution_found(self):
+    def test_direct_distribution_found(self, ensured_pkg_resources):
         """Test get_pypi_info retrieves package info using pkg_resources directly."""
-        pypi_name, version = get_pypi_info('setuptools')
-        assert pypi_name is not None
-        assert version is not None
+        mock_dist = MagicMock()
+        mock_dist.project_name = 'test-package'
+        mock_dist.version = '1.0.0'
+        with patch.object(ensured_pkg_resources, 'get_distribution', return_value=mock_dist):
+            pypi_name, version = get_pypi_info('test_module')
+            assert pypi_name == 'test-package'
+            assert version == '1.0.0'
 
-    def test_distribution_not_found_fallback_working_set(self):
+    def test_distribution_not_found_fallback_working_set(self, ensured_pkg_resources):
         """Test get_pypi_info falls back to working_set when direct lookup fails."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
             mock_dist = MagicMock()
             mock_dist.project_name = 'test-package'
             mock_dist.version = '1.0.0'
             mock_dist._get_metadata.return_value = ['test_module']
 
-            with patch('pkg_resources.working_set', [mock_dist]):
+            with patch.object(ensured_pkg_resources, 'working_set', [mock_dist]):
                 pypi_name, version = get_pypi_info('test_module')
                 assert pypi_name == 'test-package'
                 assert version == '1.0.0'
 
-    def test_working_set_with_dash_replacement(self):
+    def test_working_set_with_dash_replacement(self, ensured_pkg_resources):
         """Test get_pypi_info handles module name dash-to-underscore conversion."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
             mock_dist = MagicMock()
             mock_dist.project_name = 'test-package'
             mock_dist.version = '1.0.0'
             mock_dist._get_metadata.return_value = ['test-module']
 
-            with patch('pkg_resources.working_set', [mock_dist]):
+            with patch.object(ensured_pkg_resources, 'working_set', [mock_dist]):
                 pypi_name, version = get_pypi_info('test_module')
                 assert pypi_name == 'test-package'
                 assert version == '1.0.0'
 
-    def test_working_set_exception_handling(self):
+    def test_working_set_exception_handling(self, ensured_pkg_resources):
         """Test get_pypi_info handles exceptions in working_set iteration gracefully."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
             mock_dist = MagicMock()
             mock_dist._get_metadata.side_effect = Exception("Test error")
 
-            with patch('pkg_resources.working_set', [mock_dist]):
+            with patch.object(ensured_pkg_resources, 'working_set', [mock_dist]):
                 pypi_name, version = get_pypi_info('test_module')
                 assert pypi_name is None
 
-    def test_working_set_general_exception(self):
+    def test_working_set_general_exception(self, ensured_pkg_resources):
         """Test get_pypi_info handles general exceptions from working_set."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-            with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
+            with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                 pypi_name, version = get_pypi_info('test_module')
                 assert pypi_name is None
 
-    def test_importlib_metadata_direct_distribution(self):
+    def test_importlib_metadata_direct_distribution(self, ensured_pkg_resources):
         """Test get_pypi_info uses importlib.metadata when pkg_resources fails."""
         if sys.version_info >= (3, 8):
-            with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-                with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
-                    pypi_name, version = get_pypi_info('setuptools')
-                    assert pypi_name is not None
-                    assert version is not None
+            mock_dist = MagicMock()
+            mock_dist.metadata = {'Name': 'test-package'}
+            mock_dist.version = '1.0.0'
+            with patch.object(
+                    ensured_pkg_resources,
+                    'get_distribution',
+                    side_effect=ensured_pkg_resources.DistributionNotFound()
+            ):
+                with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
+                    with patch('importlib.metadata.distribution', return_value=mock_dist):
+                        pypi_name, version = get_pypi_info('test_module')
+                        assert pypi_name == 'test-package'
+                        assert version == '1.0.0'
 
-    def test_importlib_metadata_package_not_found(self):
+    def test_importlib_metadata_package_not_found(self, ensured_pkg_resources):
         """Test get_pypi_info falls back to distributions() when package not found."""
         if sys.version_info >= (3, 8):
             import importlib.metadata as metadata
-            with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-                with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+            with patch.object(
+                    ensured_pkg_resources,
+                    'get_distribution',
+                    side_effect=ensured_pkg_resources.DistributionNotFound()
+            ):
+                with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                     with patch('importlib.metadata.distribution', side_effect=metadata.PackageNotFoundError()):
                         mock_dist = MagicMock()
                         mock_dist.metadata = {'Name': 'test-package'}
@@ -328,12 +400,16 @@ class TestGetPypiInfo:
                             assert pypi_name == 'test-package'
                             assert version == '1.0.0'
 
-    def test_importlib_metadata_files_no_suffix(self):
+    def test_importlib_metadata_files_no_suffix(self, ensured_pkg_resources):
         """Test get_pypi_info handles files without suffix in importlib.metadata."""
         if sys.version_info >= (3, 8):
             import importlib.metadata as metadata
-            with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-                with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+            with patch.object(
+                    ensured_pkg_resources,
+                    'get_distribution',
+                    side_effect=ensured_pkg_resources.DistributionNotFound()
+            ):
+                with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                     with patch('importlib.metadata.distribution', side_effect=metadata.PackageNotFoundError()):
                         mock_dist = MagicMock()
                         mock_dist.metadata = {'Name': 'test-package'}
@@ -348,12 +424,16 @@ class TestGetPypiInfo:
                             assert pypi_name == 'test-package'
                             assert version == '1.0.0'
 
-    def test_importlib_metadata_no_files(self):
+    def test_importlib_metadata_no_files(self, ensured_pkg_resources):
         """Test get_pypi_info handles distributions without files attribute."""
         if sys.version_info >= (3, 8):
             import importlib.metadata as metadata
-            with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-                with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+            with patch.object(
+                    ensured_pkg_resources,
+                    'get_distribution',
+                    side_effect=ensured_pkg_resources.DistributionNotFound()
+            ):
+                with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                     with patch('importlib.metadata.distribution', side_effect=metadata.PackageNotFoundError()):
                         mock_dist = MagicMock()
                         mock_dist.files = None
@@ -362,34 +442,45 @@ class TestGetPypiInfo:
                             pypi_name, version = get_pypi_info('test_module')
                             assert pypi_name is None
 
-    def test_importlib_metadata_distributions_exception(self):
+    def test_importlib_metadata_distributions_exception(self, ensured_pkg_resources):
         """Test get_pypi_info handles exceptions during distributions() iteration."""
         if sys.version_info >= (3, 8):
             import importlib.metadata as metadata
-            with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-                with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+            with patch.object(
+                    ensured_pkg_resources,
+                    'get_distribution',
+                    side_effect=ensured_pkg_resources.DistributionNotFound()
+            ):
+                with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                     with patch('importlib.metadata.distribution', side_effect=metadata.PackageNotFoundError()):
                         mock_dist = MagicMock()
                         mock_dist.files = [MagicMock()]
-                        mock_dist.files[0].side_effect = Exception("Test error")
 
                         with patch('importlib.metadata.distributions', return_value=[mock_dist]):
                             pypi_name, version = get_pypi_info('test_module')
                             assert pypi_name is None
 
-    def test_importlib_metadata_general_exception(self):
+    def test_importlib_metadata_general_exception(self, ensured_pkg_resources):
         """Test get_pypi_info handles general exceptions from importlib.metadata."""
         if sys.version_info >= (3, 8):
-            with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-                with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+            with patch.object(
+                    ensured_pkg_resources,
+                    'get_distribution',
+                    side_effect=ensured_pkg_resources.DistributionNotFound()
+            ):
+                with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                     with patch('importlib.metadata.distributions', side_effect=Exception("Test error")):
                         pypi_name, version = get_pypi_info('test_module')
                         assert pypi_name is None
 
-    def test_module_version_fallback(self):
+    def test_module_version_fallback(self, ensured_pkg_resources):
         """Test get_pypi_info falls back to module.__version__ attribute."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-            with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
+            with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                 mock_module = MagicMock()
                 mock_module.__version__ = '2.0.0'
                 with patch('importlib.import_module', return_value=mock_module):
@@ -397,21 +488,30 @@ class TestGetPypiInfo:
                     assert pypi_name is None
                     assert version == '2.0.0'
 
-    def test_module_version_exception(self):
+    def test_module_version_exception(self, ensured_pkg_resources):
         """Test get_pypi_info handles exceptions when importing module for version."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-            with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
+            with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                 with patch('importlib.import_module', side_effect=Exception("Test error")):
                     pypi_name, version = get_pypi_info('test_module')
                     assert pypi_name is None
                     assert version is None
 
-    def test_no_version_found(self):
+    def test_no_version_found(self, ensured_pkg_resources):
         """Test get_pypi_info returns None when no version information is available."""
-        with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
-            with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
+        with patch.object(
+                ensured_pkg_resources,
+                'get_distribution',
+                side_effect=ensured_pkg_resources.DistributionNotFound()
+        ):
+            with patch.object(ensured_pkg_resources, 'working_set', IterRaises()):
                 mock_module = MagicMock()
-                del mock_module.__version__
+                if hasattr(mock_module, '__version__'):
+                    del mock_module.__version__
                 with patch('importlib.import_module', return_value=mock_module):
                     pypi_name, version = get_pypi_info('test_module')
                     assert pypi_name is None
