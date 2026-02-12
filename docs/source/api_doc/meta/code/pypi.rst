@@ -6,6 +6,12 @@ hbllmutils.meta.code.pypi
 .. automodule:: hbllmutils.meta.code.pypi
 
 
+pkg\_resources
+-----------------------------------------------------
+
+.. autodata:: pkg_resources
+
+
 PyPIModuleInfo
 -----------------------------------------------------
 

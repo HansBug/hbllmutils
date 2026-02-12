@@ -18,6 +18,7 @@ with mocking only when necessary for testing edge cases and error conditions.
 """
 
 import sys
+import tempfile
 import warnings
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -43,7 +44,7 @@ def standard_module():
 @pytest.fixture
 def third_party_module():
     """Fixture providing a third-party module name for testing."""
-    return 'openai'
+    return 'setuptools'
 
 
 @pytest.fixture
@@ -70,6 +71,13 @@ def mock_stdlib_path():
 def mock_third_party_path():
     """Fixture providing a mock third-party package path."""
     return Path("/some/path/site-packages/test_module")
+
+
+@pytest.fixture
+def temporary_directory():
+    """Create a temporary directory for filesystem-related tests."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)
 
 
 @pytest.mark.unittest
@@ -192,68 +200,50 @@ class TestGetModuleInfo:
 class TestIsStandardLibrary:
     """Tests for the is_standard_library function public interface."""
 
-    def test_standard_library_path(self, mock_stdlib_path):
+    def test_standard_library_path(self, standard_module):
         """Test is_standard_library returns True for standard library paths."""
-        test_path = mock_stdlib_path / "json" / "__init__.py"
-        with patch.object(Path, 'exists', return_value=True):
-            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
-                result = is_standard_library(test_path)
-                assert result is True
+        module = __import__(standard_module)
+        module_path = Path(module.__file__).resolve()
+        assert is_standard_library(module_path) is True
 
-    def test_site_packages_path(self, mock_stdlib_path):
+    def test_site_packages_path(self):
         """Test is_standard_library returns False for site-packages paths."""
-        test_path = mock_stdlib_path / "site-packages" / "test_module"
-        with patch.object(Path, 'exists', return_value=True):
-            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
-                result = is_standard_library(test_path)
-                assert result is False
+        module_path = Path(pkg_resources.__file__).resolve()
+        assert is_standard_library(module_path) is False
 
-    def test_non_stdlib_path(self, mock_third_party_path):
+    def test_non_stdlib_path(self, temporary_directory):
         """Test is_standard_library returns False for non-standard library paths."""
-        with patch.object(Path, 'exists', return_value=True):
-            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=False):
-                result = is_standard_library(mock_third_party_path)
-                assert result is False
+        test_path = temporary_directory / "custom_module.py"
+        test_path.write_text("# test file")
+        assert is_standard_library(test_path) is False
 
-    def test_path_not_exists(self, mock_stdlib_path):
+    def test_path_not_exists(self, temporary_directory):
         """Test is_standard_library returns False for non-existent paths."""
-        test_path = mock_stdlib_path / "nonexistent"
-        with patch.object(Path, 'exists', return_value=False):
-            result = is_standard_library(test_path)
-            assert result is False
+        test_path = temporary_directory / "nonexistent.py"
+        assert is_standard_library(test_path) is False
 
-    def test_windows_stdlib_path(self, mock_stdlib_path):
+    def test_windows_stdlib_path(self):
         """Test is_standard_library handles Windows-specific paths correctly."""
-        test_path = Path(sys.prefix) / "Lib" / "json"
+        test_path = Path(sys.prefix) / "Lib" / "json" / "__init__.py"
         with patch('sys.platform', 'win32'):
             with patch.object(Path, 'exists', return_value=True):
-                with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
-                    result = is_standard_library(test_path)
-                    assert result is True
-
-    def test_value_error_exception(self, mock_stdlib_path):
-        """Test is_standard_library handles ValueError exceptions gracefully."""
-        test_path = mock_stdlib_path / "test"
-        with patch.object(Path, 'exists', return_value=True):
-            with patch('hbllmutils.meta.code.pypi._is_relative_to', side_effect=ValueError("Test error")):
                 result = is_standard_library(test_path)
-                assert result is False
+                assert result is True
 
     def test_os_error_exception(self, mock_stdlib_path):
         """Test is_standard_library handles OSError exceptions gracefully."""
         test_path = mock_stdlib_path / "test"
         with patch.object(Path, 'exists', return_value=True):
-            with patch('hbllmutils.meta.code.pypi._is_relative_to', side_effect=OSError("Test error")):
+            with patch.object(Path, 'relative_to', side_effect=OSError("Test error")):
                 result = is_standard_library(test_path)
                 assert result is False
 
-    def test_string_path_input(self, mock_stdlib_path):
+    def test_string_path_input(self, standard_module):
         """Test is_standard_library accepts string paths and converts them to Path objects."""
-        test_path = str(mock_stdlib_path / "json" / "__init__.py")
-        with patch.object(Path, 'exists', return_value=True):
-            with patch('hbllmutils.meta.code.pypi._is_relative_to', return_value=True):
-                result = is_standard_library(test_path)
-                assert result is True
+        module = __import__(standard_module)
+        test_path = str(Path(module.__file__).resolve())
+        result = is_standard_library(test_path)
+        assert result is True
 
 
 @pytest.mark.unittest
@@ -262,7 +252,7 @@ class TestGetPypiInfo:
 
     def test_direct_distribution_found(self):
         """Test get_pypi_info retrieves package info using pkg_resources directly."""
-        pypi_name, version = get_pypi_info('openai')
+        pypi_name, version = get_pypi_info('setuptools')
         assert pypi_name is not None
         assert version is not None
 
@@ -314,7 +304,7 @@ class TestGetPypiInfo:
         if sys.version_info >= (3, 8):
             with patch('pkg_resources.get_distribution', side_effect=pkg_resources.DistributionNotFound()):
                 with patch('pkg_resources.working_set', side_effect=Exception("Test error")):
-                    pypi_name, version = get_pypi_info('openai')
+                    pypi_name, version = get_pypi_info('setuptools')
                     assert pypi_name is not None
                     assert version is not None
 
