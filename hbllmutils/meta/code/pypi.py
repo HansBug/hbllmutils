@@ -24,12 +24,12 @@ The module contains the following main components:
 Example::
 
     >>> from hbllmutils.meta.code.pypi import get_module_info
-    >>> 
+    >>>
     >>> # Analyze a built-in module
     >>> info = get_module_info('sys')
     >>> print(f"Type: {info.type}, Module: {info.module_name}")
     Type: builtin, Module: sys
-    >>> 
+    >>>
     >>> # Analyze a third-party package
     >>> info = get_module_info('requests')
     >>> if info and info.is_third_party:
@@ -46,7 +46,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-import pkg_resources
+try:
+    import pkg_resources
+except (ModuleNotFoundError, ImportError):
+    pkg_resources = None
 
 try:
     from typing import Literal
@@ -119,7 +122,7 @@ class PyPIModuleInfo:
             ...                       pypi_name='numpy', location=None, version='1.21.0')
             >>> info.is_third_party
             True
-            >>> 
+            >>>
             >>> builtin_info = PyPIModuleInfo(type='builtin', module_name='sys',
             ...                               pypi_name=None, location=None, version=None)
             >>> builtin_info.is_third_party
@@ -174,13 +177,13 @@ def get_module_info(module_name: str) -> Optional[PyPIModuleInfo]:
         >>> info = get_module_info('json')
         >>> print(f"Type: {info.type}")
         Type: standard
-        >>> 
+        >>>
         >>> # Analyze a third-party module
         >>> info = get_module_info('numpy')
         >>> if info:
         ...     print(f"PyPI: {info.pypi_name}, Version: {info.version}")
         PyPI: numpy, Version: 1.21.0
-        >>> 
+        >>>
         >>> # Handle non-existent module
         >>> info = get_module_info('nonexistent_module')
         >>> print(info)
@@ -264,12 +267,12 @@ def is_standard_library(module_path: Union[str, Path]) -> bool:
 
         >>> from pathlib import Path
         >>> import json
-        >>> 
+        >>>
         >>> # Check a standard library module
         >>> json_path = Path(json.__file__).resolve()
         >>> is_standard_library(json_path)
         True
-        >>> 
+        >>>
         >>> # Check a third-party module
         >>> import requests
         >>> requests_path = Path(requests.__file__).resolve()
@@ -330,12 +333,12 @@ def get_pypi_info(module_name: str) -> Tuple[Optional[str], Optional[str]]:
         >>> pypi_name, version = get_pypi_info('requests')
         >>> print(f"Package: {pypi_name}, Version: {version}")
         Package: requests, Version: 2.28.0
-        >>> 
+        >>>
         >>> # Handle package with different module name
         >>> pypi_name, version = get_pypi_info('PIL')
         >>> print(f"Package: {pypi_name}")
         Package: Pillow
-        >>> 
+        >>>
         >>> # Handle unknown package
         >>> pypi_name, version = get_pypi_info('unknown_module')
         >>> print(f"Package: {pypi_name}, Version: {version}")
@@ -345,26 +348,27 @@ def get_pypi_info(module_name: str) -> Tuple[Optional[str], Optional[str]]:
     pypi_name = None
     version = None
 
-    try:
-        dist = pkg_resources.get_distribution(module_name)
-        pypi_name = dist.project_name
-        version = dist.version
-        return pypi_name, version
-    except pkg_resources.DistributionNotFound:
-        pass
+    if pkg_resources is not None:
+        try:
+            dist = pkg_resources.get_distribution(module_name)
+            pypi_name = dist.project_name
+            version = dist.version
+            return pypi_name, version
+        except pkg_resources.DistributionNotFound:
+            pass
 
-    try:
-        for dist in pkg_resources.working_set:
-            try:
-                top_level = dist._get_metadata('top_level.txt')
-                if module_name in [mod.replace('-', '_') for mod in top_level]:
-                    pypi_name = dist.project_name
-                    version = dist.version
-                    return pypi_name, version
-            except Exception:
-                continue
-    except Exception:
-        pass
+        try:
+            for dist in pkg_resources.working_set:
+                try:
+                    top_level = dist._get_metadata('top_level.txt')
+                    if module_name in [mod.replace('-', '_') for mod in top_level]:
+                        pypi_name = dist.project_name
+                        version = dist.version
+                        return pypi_name, version
+                except Exception:
+                    continue
+        except Exception:
+            pass
 
     if sys.version_info >= (3, 8):
         try:
