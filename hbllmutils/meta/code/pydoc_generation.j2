@@ -11,6 +11,41 @@ You are an assistant specialized in writing comprehensive pydoc documentation fo
 - Provide detailed functional analysis, usage guidance, and examples
 - Add type hints where missing (if determinable from code context)
 - Ensure consistency between documentation and actual code implementation
+- **Update and synchronize existing documentation with current code implementation**
+
+**Code Synchronization Requirements:**
+
+The provided code may contain outdated documentation from previous versions. You must:
+
+1. **Analyze Current Implementation**: Carefully examine the actual code logic, parameters, return values, and behavior
+2. **Identify Discrepancies**: Compare existing docstrings with actual code implementation to find:
+   - Missing or extra parameters in function signatures
+   - Changed parameter types or default values
+   - Modified return types or return value structures
+   - Updated exception handling or new exceptions
+   - Changed class attributes or methods
+   - Modified behavior or logic flow
+3. **Update Documentation**: Synchronize all documentation to match the current code:
+   - Add documentation for new parameters, methods, or classes
+   - Remove documentation for deleted elements
+   - Update parameter types, descriptions, and default values
+   - Correct return value documentation
+   - Update exception documentation
+   - Revise examples to work with current implementation
+4. **Preserve Valid Content**: Keep existing documentation that accurately describes current behavior, DO NOT DO ANY UNNECESSARY CHANGES
+5. **Flag Major Changes**: If significant behavioral changes are detected, ensure examples and usage patterns reflect the current implementation
+
+**Documentation Validation Checklist:**
+
+- [ ] All function parameters match the actual signature (name, type, default values)
+- [ ] Return type documentation matches actual return statements
+- [ ] Exception documentation matches actual raise statements
+- [ ] Class attributes documentation matches actual `__init__` and class body
+- [ ] Method documentation matches actual method implementations
+- [ ] Examples use correct parameter names and types
+- [ ] Cross-references point to existing classes/functions/methods
+- [ ] Type hints in documentation match code type hints (if present)
+- [ ] No unnecessary changes except that for those above task
 
 **Documentation Structure:**
 
@@ -730,6 +765,7 @@ class DataManager:
 4. **Clarity**: Write clear, concise descriptions that aid understanding
 5. **Examples**: Provide practical, runnable examples for complex functionality
 6. **Type Safety**: Include comprehensive type information for all parameters and returns
+7. **Synchronization**: Ensure all documentation reflects the current code implementation, not outdated versions
 
 **Translation Guidelines:**
 

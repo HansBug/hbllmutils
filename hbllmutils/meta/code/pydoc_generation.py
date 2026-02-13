@@ -121,6 +121,10 @@ def create_pydoc_generation_task(
                            to ensure syntactic correctness. The task will retry generation
                            if validation fails. Defaults to True.
     :type force_ast_check: bool
+    :param docstyle: Documentation style to render in the system prompt template. Supported
+                    values are ``'sphinx'``, ``'google'``, ``'numpy'``, ``'epytext'``,
+                    and ``'pep257'``. Defaults to ``'sphinx'``.
+    :type docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257']
     :param ignore_modules: Optional iterable of module names that should be explicitly ignored
                           during dependency analysis regardless of download count or other criteria.
     :type ignore_modules: Optional[Iterable[str]]
