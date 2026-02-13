@@ -1,20 +1,19 @@
 """
-Python Documentation Generation Module
+Python Documentation Generation CLI Utilities.
 
-This module provides command line interface functionality for generating Python documentation
-using LLM models. It includes functionality to process Python files or directories and generate
-comprehensive documentation with proper formatting and structure.
+This module provides command-line utilities and supporting functions for generating
+comprehensive Python documentation using an LLM model. It focuses on processing
+individual Python files via :func:`generate_pydoc_for_file` while exposing a CLI
+subcommand for directory-level batch processing.
 
 The module contains the following main components:
 
 * :func:`generate_pydoc_for_file` - Generate documentation for a single Python file
-* :func:`_add_pydoc_subcommand` - Register the pydoc CLI subcommand
-* :func:`_get_llm_task` - Create and cache LLM task instances for documentation generation
 
 .. note::
    This module requires an LLM model configuration to be available either through
-   command-line parameters or environment variables (OPENAI_MODEL_NAME, LLM_MODEL_NAME,
-   or MODEL_NAME).
+   command-line parameters or environment variables (``OPENAI_MODEL_NAME``,
+   ``LLM_MODEL_NAME``, or ``MODEL_NAME``).
 
 .. warning::
    Documentation generation may consume significant API tokens for large files or
@@ -25,10 +24,10 @@ Example::
     >>> # Command line usage
     >>> # Generate docs for a single file
     >>> # hbllmutils code pydoc -i mymodule.py -m gpt-4
-    >>> 
+    >>>
     >>> # Generate docs for a directory
     >>> # hbllmutils code pydoc -i mypackage/ -m gpt-4 --timeout 300
-    >>> 
+    >>>
     >>> # With additional parameters
     >>> # hbllmutils code pydoc -i myfile.py --param max_tokens=128000
 
@@ -104,21 +103,21 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
     Example::
 
         >>> from hbllmutils.entry.code.pydoc import _get_llm_task
-        >>> 
+        >>>
         >>> # Create a basic task
         >>> task = _get_llm_task(model_name='gpt-4', timeout=300)
-        >>> 
+        >>>
         >>> # Create a task with extra parameters
         >>> extra = (('max_tokens', 128000), ('temperature', 0.7))
         >>> task = _get_llm_task(model_name='gpt-4', timeout=300, extra_params=extra)
-        >>> 
+        >>>
         >>> # Create a task with module filtering
         >>> task = _get_llm_task(
         ...     model_name='gpt-4',
         ...     ignore_modules=('numpy', 'pandas'),
         ...     no_ignore_modules=('mypackage',)
         ... )
-        >>> 
+        >>>
         >>> # Subsequent calls with same parameters return cached instance
         >>> task2 = _get_llm_task(model_name='gpt-4', timeout=300, extra_params=extra)
         >>> assert task is task2  # Same object from cache
@@ -181,16 +180,16 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
        Ensure you have backups or version control in place before running.
 
     .. note::
-       The function uses max_retries=0 when calling the LLM task, meaning it will
+       The function uses ``max_retries=0`` when calling the LLM task, meaning it will
        not retry on failure. Any errors during generation will be propagated.
 
     Example::
 
         >>> from hbllmutils.entry.code.pydoc import generate_pydoc_for_file
-        >>> 
+        >>>
         >>> # Generate docs for a single file
         >>> generate_pydoc_for_file('mymodule.py', model_name='gpt-4')
-        >>> 
+        >>>
         >>> # With custom timeout and parameters
         >>> params = {'max_tokens': 128000, 'temperature': 0.7}
         >>> generate_pydoc_for_file(
@@ -199,7 +198,7 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
         ...     timeout=300,
         ...     extra_params=params
         ... )
-        >>> 
+        >>>
         >>> # With module filtering
         >>> generate_pydoc_for_file(
         ...     'mymodule.py',
@@ -264,15 +263,15 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
 
         >>> import click
         >>> from hbllmutils.entry.code.pydoc import _add_pydoc_subcommand
-        >>> 
+        >>>
         >>> # Create a CLI group and add pydoc command
         >>> @click.group()
-        >>> def cli():
+        ... def cli():
         ...     '''Main CLI application'''
         ...     pass
-        >>> 
+        >>>
         >>> cli = _add_pydoc_subcommand(cli)
-        >>> 
+        >>>
         >>> # Now the CLI has a pydoc subcommand
         >>> # Usage: python script.py pydoc -i myfile.py -m gpt-4
 
@@ -316,7 +315,11 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                   help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
     @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
                   help='Module names to never ignore during dependency analysis. Can be used multiple times.')
-    def pydoc(input_path, model_name, timeout, docstyle, params, ignore_modules, no_ignore_modules):
+    def pydoc(input_path: str, model_name: Optional[str], timeout: int,
+              docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257'],
+              params: Dict[str, Union[str, int, float]],
+              ignore_modules: Tuple[str, ...],
+              no_ignore_modules: Tuple[str, ...]) -> None:
         """
         Generate Python documentation for files or directories using LLM.
 
@@ -343,7 +346,7 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         :param docstyle: Documentation style for generation
         :type docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257']
         :param params: Dictionary of additional model parameters
-        :type params: dict
+        :type params: Dict[str, Union[str, int, float]]
         :param ignore_modules: Tuple of module names to explicitly ignore
         :type ignore_modules: Tuple[str, ...]
         :param no_ignore_modules: Tuple of module names to never ignore
