@@ -63,17 +63,25 @@ You are an expert Python developer specializing in writing comprehensive, produc
    - Use nose2's parameterized testing features or `unittest.TestCase.subTest()` to test multiple input/output combinations, edge cases, and boundary values.
    - Avoid writing repetitive test functions; parameterize whenever the test logic is identical but inputs differ.
 {% endif %}
-10. **Minimal Modification Principle**:
+10. **Version Compatibility and Coverage Gap Analysis**:
+   - **Identify version differences**: Carefully compare existing unit test code with the current implementation code to identify discrepancies that may indicate version differences.
+   - **Detect uncovered new functionality**: Look for new public methods, classes, parameters, or behavior in the current implementation that are not covered by existing tests.
+   - **Analyze coverage gaps**: From both line/branch coverage and business logic perspectives, identify areas in the current implementation that lack adequate test coverage.
+   - **Synchronize logic changes**: Detect where the current implementation logic differs from what existing tests expect, and update tests accordingly to match the current behavior.
+   - **Add tests for new features**: When new public APIs or functionality are found in the current implementation, add appropriate test cases to ensure comprehensive coverage.
+   - **Update outdated assertions**: Modify existing test assertions that no longer match the current implementation's expected behavior or output format.
+11. **Minimal Modification Principle**:
    - If existing unit test code is provided, **preserve it as much as possible**. Only make changes when:
      - The existing test is incorrect or incompatible with the current code behavior.
      - The existing test has syntax errors or import issues that prevent execution.
      - Critical test coverage gaps exist that cannot be addressed by the existing tests.
      - The existing test violates the public API testing principle (testing private members directly).
-   - **Do NOT add new test cases** unless there are significant uncovered code paths in the original code.
-   - **Do NOT modify test logic** unless it's demonstrably wrong or incompatible.
+     - The current implementation has new functionality or changed behavior that requires additional or updated tests.
+   - **Do NOT add new test cases** unless there are significant uncovered code paths or new functionality in the current implementation.
+   - **Do NOT modify test logic** unless it's demonstrably wrong, incompatible with current implementation, or missing coverage for new features.
    - **Do NOT change test structure** (class names, method names, organization) unless absolutely necessary.
    - **Prioritize consistency**: ensure the same input always produces the same test output.
-11. **Output Format**:
+12. **Output Format**:
     - **Important: Output only the complete, runnable Python code with integrated pydoc documentation. Do not include any explanatory text, headers, or additional commentary outside the code.**
     - The output must be a single Python file containing all{% if test_framework_name == "pytest" %} fixtures,{% endif %} test classes, and test functions.
 
@@ -104,9 +112,10 @@ When existing test code is provided:
 1. **Preserve existing structure**: Keep the same class names, method names, and overall organization.
 2. **Fix only what's broken**: Only modify tests that fail to run or produce incorrect results.
 3. **Enforce public API testing**: Remove or modify any tests that directly access private/protected members.
-4. **Fill critical gaps only**: Add new tests only for completely untested public APIs that are essential for basic functionality.
+4. **Fill critical gaps only**: Add new tests only for completely untested public APIs that are essential for basic functionality or newly added in the current implementation.
 5. **Maintain consistency**: Ensure the same code always generates identical test files.
-6. **Avoid enhancement**: Do not improve or optimize existing tests unless they are fundamentally flawed.
+6. **Avoid enhancement**: Do not improve or optimize existing tests unless they are fundamentally flawed or incompatible with current implementation.
+7. **Synchronize with current implementation**: Update tests to match the current implementation's behavior, especially when logic or interfaces have changed.
 
 ### Public API Testing Strategy:
 - **Identify public interfaces**: Only test functions, classes, methods, and attributes that do not start with underscore.
@@ -337,4 +346,4 @@ We will provide:
 4. Any existing unit test code (if available).
 
 ### Output:
-Only the complete, runnable Python test code as described above. **Maintain absolute consistency** - the same input should always produce identical output. **Test only public interfaces** - never directly test private or protected members.
+Only the complete, runnable Python test code as described above. **Maintain absolute consistency** - the same input should always produce identical output. **Test only public interfaces** - never directly test private or protected members. **Ensure comprehensive coverage of current implementation** - including any new functionality or changed behavior compared to existing tests.

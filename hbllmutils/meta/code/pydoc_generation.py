@@ -50,6 +50,11 @@ Example::
 import os
 from typing import Optional, Iterable
 
+try:
+    from typing import Literal
+except (ModuleNotFoundError, ImportError):
+    from typing_extensions import Literal
+
 from .task import PythonDetailedCodeGenerationLLMTask, PythonCodeGenerationLLMTask
 from ...history import LLMHistory
 from ...model import LLMModelTyping, load_llm_model
@@ -61,6 +66,7 @@ def create_pydoc_generation_task(
         show_module_directory_tree: bool = False,
         skip_when_error: bool = True,
         force_ast_check: bool = True,
+        docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257'] = 'sphinx',
         ignore_modules: Optional[Iterable[str]] = None,
         no_ignore_modules: Optional[Iterable[str]] = None
 ) -> PythonCodeGenerationLLMTask:
@@ -77,7 +83,7 @@ def create_pydoc_generation_task(
     - Exception documentation with descriptions
     - Usage examples demonstrating typical use cases
 
-    The task uses a predefined system prompt template (pydoc_generation.md) that instructs the LLM
+    The task uses a predefined system prompt template (pydoc_generation.j2) that instructs the LLM
     on documentation requirements and formatting conventions. The prompt template provides
     detailed guidelines for:
 
@@ -115,6 +121,10 @@ def create_pydoc_generation_task(
                            to ensure syntactic correctness. The task will retry generation
                            if validation fails. Defaults to True.
     :type force_ast_check: bool
+    :param docstyle: Documentation style to render in the system prompt template. Supported
+                    values are ``'sphinx'``, ``'google'``, ``'numpy'``, ``'epytext'``,
+                    and ``'pep257'``. Defaults to ``'sphinx'``.
+    :type docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257']
     :param ignore_modules: Optional iterable of module names that should be explicitly ignored
                           during dependency analysis regardless of download count or other criteria.
     :type ignore_modules: Optional[Iterable[str]]
@@ -128,7 +138,7 @@ def create_pydoc_generation_task(
             and return documented code.
     :rtype: PythonCodeGenerationLLMTask
 
-    :raises FileNotFoundError: If the system prompt template file (pydoc_generation.md) is not found
+    :raises FileNotFoundError: If the system prompt template file (pydoc_generation.j2) is not found
                               in the module directory.
     :raises ValueError: If the model specification is invalid or cannot be loaded.
     :raises TypeError: If model parameter is not of type LLMModelTyping.
@@ -184,9 +194,11 @@ def create_pydoc_generation_task(
         ... )
         >>> documented = task.ask_then_parse(input_content='utils.py')
     """
-    system_prompt_file = os.path.join(os.path.dirname(__file__), 'pydoc_generation.md')
+    system_prompt_file = os.path.join(os.path.dirname(__file__), 'pydoc_generation.j2')
     system_prompt_template = PromptTemplate.from_file(system_prompt_file)
-    system_prompt = system_prompt_template.render()
+    system_prompt = system_prompt_template.render(
+        docstyle=docstyle,
+    )
 
     return PythonDetailedCodeGenerationLLMTask(
         model=load_llm_model(model),

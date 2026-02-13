@@ -27,10 +27,10 @@ from hbllmutils.model import FakeLLMModel
 def fake_model():
     """
     Create a FakeLLMModel instance for testing.
-    
+
     This fixture provides a basic fake model that can be configured with
     response rules for testing various scenarios.
-    
+
     :return: A FakeLLMModel instance.
     :rtype: FakeLLMModel
     """
@@ -41,10 +41,10 @@ def fake_model():
 def sample_python_file():
     """
     Create a temporary Python file with sample content for testing.
-    
+
     This fixture creates a real temporary file with simple Python code
     that can be used to test the pydoc generation task.
-    
+
     :return: Path to the temporary Python file.
     :rtype: str
     """
@@ -72,7 +72,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_fake_model(self, fake_model):
         """
         Test that create_pydoc_generation_task successfully creates a task with FakeLLMModel.
-        
+
         Verifies that the function accepts a FakeLLMModel instance and returns
         a properly configured task object.
         """
@@ -85,7 +85,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_default_parameters(self, fake_model):
         """
         Test task creation with default parameters.
-        
+
         Verifies that all default parameter values are correctly applied
         to the created task.
         """
@@ -107,7 +107,7 @@ class TestCreatePydocGenerationTask:
     ):
         """
         Test task creation with various parameter combinations.
-        
+
         Verifies that all boolean parameters are correctly passed through
         to the created task instance.
         """
@@ -125,7 +125,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_ignore_modules(self, fake_model):
         """
         Test task creation with ignore_modules parameter.
-        
+
         Verifies that the ignore_modules parameter is correctly passed
         to the task and stored.
         """
@@ -141,7 +141,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_no_ignore_modules(self, fake_model):
         """
         Test task creation with no_ignore_modules parameter.
-        
+
         Verifies that the no_ignore_modules parameter is correctly passed
         to the task and stored.
         """
@@ -157,7 +157,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_both_ignore_parameters(self, fake_model):
         """
         Test task creation with both ignore_modules and no_ignore_modules.
-        
+
         Verifies that both parameters can be set simultaneously and are
         correctly stored in the task.
         """
@@ -176,9 +176,9 @@ class TestCreatePydocGenerationTask:
     def test_create_task_has_system_prompt(self, fake_model):
         """
         Test that the created task has a system prompt configured.
-        
+
         Verifies that the task's history contains a system prompt loaded
-        from the pydoc_generation.md template file.
+        from the pydoc_generation.j2 template file.
         """
         task = create_pydoc_generation_task(model=fake_model)
 
@@ -190,7 +190,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_system_prompt_content(self, fake_model):
         """
         Test that the system prompt contains expected content.
-        
+
         Verifies that the system prompt loaded from the template file
         contains key instructions for pydoc generation.
         """
@@ -205,7 +205,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_string_model_name(self):
         """
         Test task creation with a string model name.
-        
+
         Verifies that passing a string model name is handled correctly
         by the load_llm_model function.
         """
@@ -218,7 +218,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_immutability(self, fake_model):
         """
         Test that creating multiple tasks doesn't affect each other.
-        
+
         Verifies that each call to create_pydoc_generation_task returns
         an independent task instance with its own configuration.
         """
@@ -237,7 +237,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_code_name_and_description(self, fake_model):
         """
         Test that the task has correct code_name and description_text.
-        
+
         Verifies that the internal parameters used for prompt generation
         are set correctly.
         """
@@ -251,7 +251,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_none_ignore_modules(self, fake_model):
         """
         Test task creation with None as ignore_modules.
-        
+
         Verifies that None is handled correctly for the ignore_modules parameter.
         """
         task = create_pydoc_generation_task(
@@ -264,7 +264,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_with_empty_ignore_modules(self, fake_model):
         """
         Test task creation with empty list as ignore_modules.
-        
+
         Verifies that an empty list is handled correctly.
         """
         task = create_pydoc_generation_task(
@@ -278,7 +278,7 @@ class TestCreatePydocGenerationTask:
     def test_create_task_consistency(self, fake_model):
         """
         Test that creating tasks with same parameters produces consistent results.
-        
+
         Verifies that the function is deterministic and produces identical
         task configurations when called with the same parameters.
         """
@@ -309,7 +309,7 @@ class TestPydocGenerationTaskIntegration:
     def test_task_has_required_methods(self, fake_model):
         """
         Test that the created task has all required methods.
-        
+
         Verifies that the task object implements the expected interface
         for code generation tasks.
         """
@@ -323,7 +323,7 @@ class TestPydocGenerationTaskIntegration:
     def test_task_model_is_correct_type(self, fake_model):
         """
         Test that the task's model is correctly set.
-        
+
         Verifies that the model passed to create_pydoc_generation_task
         is properly stored in the task instance.
         """
@@ -336,7 +336,7 @@ class TestPydocGenerationTaskIntegration:
     def test_task_history_is_llm_history(self, fake_model):
         """
         Test that the task's history is an LLMHistory instance.
-        
+
         Verifies that the conversation history is properly initialized
         with the correct type.
         """
@@ -348,7 +348,7 @@ class TestPydocGenerationTaskIntegration:
     def test_task_with_configured_model(self):
         """
         Test task with a pre-configured FakeLLMModel.
-        
+
         Verifies that a FakeLLMModel with response rules can be used
         to create a functional pydoc generation task.
         """
@@ -364,7 +364,7 @@ class TestPydocGenerationTaskIntegration:
     def test_task_default_max_retries(self, fake_model):
         """
         Test that the task has the correct default_max_retries value.
-        
+
         Verifies that the retry configuration is properly set.
         """
         task = create_pydoc_generation_task(model=fake_model)
@@ -375,7 +375,7 @@ class TestPydocGenerationTaskIntegration:
     def test_multiple_tasks_with_different_models(self):
         """
         Test creating multiple tasks with different FakeLLMModel instances.
-        
+
         Verifies that each task maintains its own model instance and
         configuration independently.
         """
@@ -391,7 +391,7 @@ class TestPydocGenerationTaskIntegration:
     def test_task_parameters_are_independent(self, fake_model):
         """
         Test that task parameters don't affect each other across instances.
-        
+
         Verifies that modifying parameters in one task creation doesn't
         affect other tasks created subsequently.
         """
@@ -420,7 +420,7 @@ class TestPydocGenerationTaskConfiguration:
     def test_task_with_various_stream_speeds(self, stream_wps):
         """
         Test task creation with various streaming speeds.
-        
+
         Verifies that different stream_wps values in FakeLLMModel
         are correctly preserved in the created task.
         """
@@ -432,7 +432,7 @@ class TestPydocGenerationTaskConfiguration:
     def test_task_ignore_modules_as_tuple(self, fake_model):
         """
         Test task creation with ignore_modules as tuple.
-        
+
         Verifies that tuple input is correctly handled for ignore_modules.
         """
         ignore_tuple = ('module1', 'module2')
@@ -448,7 +448,7 @@ class TestPydocGenerationTaskConfiguration:
     def test_task_no_ignore_modules_as_tuple(self, fake_model):
         """
         Test task creation with no_ignore_modules as tuple.
-        
+
         Verifies that tuple input is correctly handled for no_ignore_modules.
         """
         no_ignore_tuple = ('important1', 'important2')
@@ -463,7 +463,7 @@ class TestPydocGenerationTaskConfiguration:
     def test_task_with_all_parameters(self, fake_model):
         """
         Test task creation with all parameters specified.
-        
+
         Verifies that all parameters can be set simultaneously and are
         correctly stored in the task.
         """
@@ -485,7 +485,7 @@ class TestPydocGenerationTaskConfiguration:
     def test_task_system_prompt_is_not_empty(self, fake_model):
         """
         Test that the system prompt is not empty.
-        
+
         Verifies that the loaded system prompt template contains actual content.
         """
         task = create_pydoc_generation_task(model=fake_model)
@@ -497,7 +497,7 @@ class TestPydocGenerationTaskConfiguration:
     def test_task_creation_is_repeatable(self, fake_model):
         """
         Test that task creation is repeatable and deterministic.
-        
+
         Verifies that calling create_pydoc_generation_task multiple times
         with the same parameters produces equivalent results.
         """
