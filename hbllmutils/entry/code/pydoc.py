@@ -39,6 +39,11 @@ import os
 from functools import lru_cache
 from typing import Optional, Dict, Union, Tuple
 
+try:
+    from typing import Literal
+except (ModuleNotFoundError, ImportError):
+    from typing_extensions import Literal
+
 import click
 from hbutils.logging import ColoredFormatter, tqdm
 
@@ -52,7 +57,8 @@ from ...utils import obj_hashable, get_global_logger
 def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
                   extra_params: Tuple[Tuple[str, Union[str, int, float]], ...] = (),
                   ignore_modules: Tuple[str, ...] = (),
-                  no_ignore_modules: Tuple[str, ...] = ()):
+                  no_ignore_modules: Tuple[str, ...] = (),
+                  docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257'] = 'sphinx'):
     """
     Create and cache an LLM task instance for Python documentation generation.
 
@@ -76,6 +82,9 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
     :type ignore_modules: Tuple[str, ...]
     :param no_ignore_modules: Tuple of module names to never ignore during dependency analysis.
     :type no_ignore_modules: Tuple[str, ...]
+    :param docstyle: Documentation style for generation. Supported values are 'sphinx',
+                    'google', 'numpy', 'epytext', and 'pep257'.
+    :type docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257']
 
     :return: Configured LLM task ready to generate Python documentation
     :rtype: PythonCodeGenerationLLMTask
@@ -123,14 +132,16 @@ def _get_llm_task(model_name: Optional[str] = None, timeout: int = 240,
             **params
         ),
         ignore_modules=ignore_modules or None,
-        no_ignore_modules=no_ignore_modules or None
+        no_ignore_modules=no_ignore_modules or None,
+        docstyle=docstyle
     )
 
 
 def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout: int = 240,
                             extra_params: Optional[Dict[str, Union[str, int, float]]] = None,
                             ignore_modules: Optional[Tuple[str, ...]] = None,
-                            no_ignore_modules: Optional[Tuple[str, ...]] = None) -> None:
+                            no_ignore_modules: Optional[Tuple[str, ...]] = None,
+                            docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257'] = 'sphinx') -> None:
     """
     Generate Python documentation for a single file using LLM.
 
@@ -156,6 +167,9 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
     :type ignore_modules: Optional[Tuple[str, ...]]
     :param no_ignore_modules: Tuple of module names to never ignore during dependency analysis.
     :type no_ignore_modules: Optional[Tuple[str, ...]]
+    :param docstyle: Documentation style for generation. Supported values are 'sphinx',
+                    'google', 'numpy', 'epytext', and 'pep257'.
+    :type docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257']
 
     :raises FileNotFoundError: If the specified file does not exist
     :raises PermissionError: If the file cannot be read or written
@@ -204,7 +218,8 @@ def generate_pydoc_for_file(file: str, model_name: Optional[str] = None, timeout
         timeout=timeout,
         extra_params=extra_params_hashable,
         ignore_modules=ignore_modules_hashable,
-        no_ignore_modules=no_ignore_modules_hashable
+        no_ignore_modules=no_ignore_modules_hashable,
+        docstyle=docstyle
     ).ask_then_parse(file, max_retries=0)
     new_docs = new_docs.rstrip()
     with open(file, 'w') as f:
@@ -289,6 +304,10 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                   help='LLM model name to use for documentation generation.')
     @click.option('--timeout', 'timeout', type=int, required=False, default=210,
                   help='Timeout in seconds for LLM API requests.')
+    @click.option('--docstyle', 'docstyle',
+                  type=click.Choice(['sphinx', 'google', 'numpy', 'epytext', 'pep257']),
+                  required=False, default='sphinx', show_default=True,
+                  help='Documentation style for generation.')
     @click.option('-p', '--param', 'params', type=str, multiple=True,
                   help='Additional parameters in key=value format (e.g., --param max_tokens=128000). '
                        'Can be used multiple times.',
@@ -297,7 +316,7 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                   help='Module names to explicitly ignore during dependency analysis. Can be used multiple times.')
     @click.option('--no-ignore-module', 'no_ignore_modules', type=str, multiple=True,
                   help='Module names to never ignore during dependency analysis. Can be used multiple times.')
-    def pydoc(input_path, model_name, timeout, params, ignore_modules, no_ignore_modules):
+    def pydoc(input_path, model_name, timeout, docstyle, params, ignore_modules, no_ignore_modules):
         """
         Generate Python documentation for files or directories using LLM.
 
@@ -321,6 +340,8 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         :type model_name: Optional[str]
         :param timeout: Timeout in seconds for API requests
         :type timeout: int
+        :param docstyle: Documentation style for generation
+        :type docstyle: Literal['sphinx', 'google', 'numpy', 'epytext', 'pep257']
         :param params: Dictionary of additional model parameters
         :type params: dict
         :param ignore_modules: Tuple of module names to explicitly ignore
@@ -350,6 +371,7 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
         get_global_logger().debug(f'Starting pydoc generation for input path: {input_path!r}')
         get_global_logger().debug(f'Model name: {model_name or "default"}')
         get_global_logger().debug(f'Timeout: {timeout}s')
+        get_global_logger().debug(f'Docstyle: {docstyle!r}')
 
         extra_params = params
         if extra_params:
@@ -375,7 +397,8 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                 timeout=timeout,
                 extra_params=extra_params,
                 ignore_modules=tuple(ignore_modules) if ignore_modules else None,
-                no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
+                no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None,
+                docstyle=docstyle
             )
             get_global_logger().info(f'Successfully generated documentation for {input_path!r}')
         elif os.path.isdir(input_path):
@@ -397,7 +420,8 @@ def _add_pydoc_subcommand(cli: click.Group) -> click.Group:
                         timeout=timeout,
                         extra_params=extra_params,
                         ignore_modules=tuple(ignore_modules) if ignore_modules else None,
-                        no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None
+                        no_ignore_modules=tuple(no_ignore_modules) if no_ignore_modules else None,
+                        docstyle=docstyle
                     )
                 except Exception as e:
                     get_global_logger().exception(f'Failed to generate documentation for {file_path!r}: {e}')
