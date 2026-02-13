@@ -178,7 +178,7 @@ class TestCreatePydocGenerationTask:
         Test that the created task has a system prompt configured.
         
         Verifies that the task's history contains a system prompt loaded
-        from the pydoc_generation.md template file.
+        from the pydoc_generation.j2 template file.
         """
         task = create_pydoc_generation_task(model=fake_model)
 
