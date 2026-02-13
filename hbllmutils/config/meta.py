@@ -26,7 +26,7 @@ Example::
 
     >>> from hbllmutils.config.meta import __VERSION__, __TITLE__
     >>> print(f"{__TITLE__} version {__VERSION__}")
-    hbllmutils version 0.4.2
+    hbllmutils version 0.4.3
     >>> 
     >>> # Access package metadata programmatically
     >>> from hbllmutils.config import meta
@@ -50,7 +50,7 @@ __TITLE__ = "hbllmutils"
 #:
 #: Current version indicates the package is in active development with
 #: stable minor release features.
-__VERSION__ = "0.4.2"
+__VERSION__ = "0.4.3"
 
 #: str: Short description of the project, will be included in ``setup.py``.
 #:
